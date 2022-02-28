@@ -5,6 +5,8 @@ import sys
 from bs4 import BeautifulSoup
 from serpapi import GoogleSearch
 
-search_field = sys.argv[1]
-search_keywords = search_field.split(" ")
+DB_CON = sys.argv[1]
+SERACH_FIELD = sys.argv[2]
+SEARCH_KEYWORDS = SERACH_FIELD.split(" ")
 
+print(DB_CON, SERACH_FIELD)
