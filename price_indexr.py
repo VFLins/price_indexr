@@ -2,10 +2,10 @@ import sqlalchemy as alch
 import requests
 import json
 from csv import writer, DictWriter
+from datetime import datetime
 from bs4 import BeautifulSoup
 from path import isfile
 from sys import argv
-
 
 # DEFINE CONSTANTS
 DB_CON = argv[1]
@@ -26,16 +26,37 @@ SEARCH_RESPONSE = requests.get(
     headers = SEARCH_HEADERS
 )
 
-TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS)
+TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS.lower())
+
+# ERROR MANAGEMENT
+def write_error_log(error, message):
+    # write 3 lines on the error message.
+    with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
+        # 1. Time and tablename
+        log_file.write(str(datetime.now()) + " - " + TABLE_NAME + "\n")
+        # 2. Message and Exception
+        log_file.write(message + ": " + error + "\n")
+        # 3. Break line
+        log_file.write("\n")
+
+def write_sucess_log(results):
+    with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
+        # 1. Success message with time
+        log_file.write("Successfully executed at: " + str(datetime.now()))
+        # 2. Number of entries added
+        log_file.write(str( len(results) ) + " entries added")
+        # 3. Break line
+        log_file.write("\n")
 
 # SETUP PLACE TO SAVE THE DATA 
 if DB_CON.upper() == ".CSV":
     CSV_FILENAME = TABLE_NAME + ".csv"
 
     def write_results_csv(results):
-        # 'results' must be a list ordered as 'fields' in this next line:
+        # 'results' must be a list of lists that are ordered as 'fields' in this next line:
         fields = [Date, Currency, Price, Name, Store, Url]
-        with open(CSV_FILENAME, 'a+', newline='', encoding = "UTF8") as write_file:
+        # write results
+        with open(CSV_FILENAME, "a+", newline="", encoding = "UTF8") as write_file:
             for row in results:
                 DictWriter(write_file, fieldnames=fields).writerow(row)
 
