@@ -12,21 +12,22 @@ This can be used to satisfy business and personal necessities, for stablishing m
     - [bs4](https://pypi.org/project/beautifulsoup4/)
     - [sqlalchemy]()
     - [requests](https://pypi.org/project/requests/)
-    - [sepapi](https://pypi.org/project/googlesearch-python/)
 
 For Linux/Unix operating systems:
 - [Bash CLI](http://tiswww.case.edu/php/chet/bash/bashtop.html)
 - [cron/anacron](https://cron-job.org/en/) or [cronitor](https://cronitor.io) installed
+
 For Windows operating systems:
-- 
+- [PowerShell CLI](https://docs.microsoft.com/pt-br/powershell/scripting/overview?view=powershell-7.2)
+- [Windows Task Scheduler](https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page)
 
 # How to use?
 
-**Currently this project is under construction, and not working properly**
+*Currently this project is under construction, and not working properly*
 
 The intended usage is on a terminal, to create a schedule:
 
-### Linux/Unix with Bash
+## Linux/Unix with Bash
 
 With 'python' on the bin folder:
 
@@ -40,7 +41,7 @@ crontab -e
 # To check the schedules made:
 crontab -l
 ```
-### Windows with PowerShell
+## Windows with PowerShell
 
 With 'python3' added to PATH:
 
