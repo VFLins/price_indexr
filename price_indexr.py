@@ -1,6 +1,6 @@
-import sqlalchemy as alch
+import SQLAlchemy as alch
 import requests
-import json
+#import json
 from csv import writer, DictWriter
 from datetime import datetime
 from bs4 import BeautifulSoup

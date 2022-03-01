@@ -1,6 +1,6 @@
 # Description
 
-Price_indexr is intended to get a set of product prices for a given search on google shopping and store it in a database. It will return up to 20 results, and "NA" if no product is found at the moment.
+Price_indexr is intended to run on a [Virtual Environment](https://docs.python.org/3/tutorial/venv.html), and get a set of product prices for a given search on google shopping and store it in a database. It will return up to 20 results, and "NA" if no product is found at the moment.
 
 This process migh be automated by [cron](https://cron-job.org/en/) to schedule new data over time.
 
