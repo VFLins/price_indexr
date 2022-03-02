@@ -1,10 +1,10 @@
-import SQLAlchemy as alch
+import sqlalchemy as alch
 import requests
 #import json
 from csv import writer, DictWriter
 from datetime import datetime
 from bs4 import BeautifulSoup
-from path import isfile
+from os.path import isfile
 from sys import argv
 
 # DEFINE CONSTANTS
@@ -20,13 +20,16 @@ SEARCH_PARAMS = {
     "q" : SEARCH_FIELD,
     "tbm" : "shop"
 }
+if len(argv) == 4:
+    SEARCH_PARAMS["hl"] = argv[3]
 SEARCH_RESPONSE = requests.get(
     "https://www.google.com/search",
     params = SEARCH_PARAMS,
     headers = SEARCH_HEADERS
 )
 
-TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS.lower())
+SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS]
+TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS_LOWER)
 
 # ERROR MANAGEMENT
 def write_error_log(error, message):
@@ -97,4 +100,4 @@ else:
 
 # SAVE
 
-print( BeautifulSoup(SEARCH_RESPONSE.text, 'lxml') )
+print(str( BeautifulSoup(SEARCH_RESPONSE.text, "html.parser") ))
