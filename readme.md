@@ -14,50 +14,61 @@ This can be used to satisfy business and personal necessities, for stablishing m
     - [requests](https://pypi.org/project/requests/)
 
 For Linux/Unix operating systems:
-- [Bash CLI](http://tiswww.case.edu/php/chet/bash/bashtop.html)
+- [Bash](http://tiswww.case.edu/php/chet/bash/bashtop.html)
 - [cron/anacron](https://cron-job.org/en/) or [cronitor](https://cronitor.io) installed
 
 For Windows operating systems:
-- [PowerShell CLI](https://docs.microsoft.com/pt-br/powershell/scripting/overview?view=powershell-7.2)
+- [PowerShell](https://docs.microsoft.com/pt-br/powershell/scripting/overview?view=powershell-7.2)
 - [Windows Task Scheduler](https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page)
 
 # How to use?
 
 *Currently this project is under construction, and not working properly*
 
-The intended usage is on a terminal, to create a schedule:
+The intended usage is on a terminal:
 
-## Linux/Unix with Bash
+```python price_indexr.py "<Database connection string or '.csv'>" "my search on google shopping" "<location code [optional]>"```
 
-With 'python' on the bin folder:
+To create a schedule:
 
-```
-SCRIPT_PATH="<path to price_indexr.py>"
-DB_CON="<your database connection string>" 
-# or ".csv" to save in a text file in the same folder of your script instead of a database
+### Linux/Unix with Bash
 
-crontab -e
-@monthly python "$SCRIPT_PATH" "$DB_CON" "my product search"
-# To check the schedules made:
-crontab -l
-```
-## Windows with PowerShell
+<details>
+    <summary> Example of automation with crontab </summary>
 
-With 'python3' added to PATH:
+    ```
+    PYTHON_PATH="<path to desired python interpreter>"
+    SCRIPT_PATH="<path to price_indexr.py>"
+    DB_CON="<your database connection string>" 
+    # or ".csv" to save in a text file in the same folder of your script instead of a database
 
-```
-$SCRIPT_PATH = "<path to price_indexr.py>"
-$DB_CON = "<your database connection string>" 
+    crontab -e
+    @monthly "$PYTHON_PATH" "$SCRIPT_PATH" "$DB_CON" "my product search"
+    # To check the schedules made:
+    crontab -l
+    ```
+</details> 
 
-$price_indexr_action = New-ScheduledTaskAction 
-    -Execute "python3 $SCRIPT_PATH $DB_CON 'my product search'"
-$monthly = New-ScheduledTaskTrigger -Monthly -At 0:00am
-$task_<unique name> = Register-ScheduledTask 
-    -Action $price_indexr_action
-    -Trigger $monthly 
-    -TaskName "<unique name>" 
-    -Description "<Your Description>"
-$task_<unique name> | Set-ScheduledTask
-```
+### Windows with PowerShell
+
+<details>
+    <summary> Example of automation with Windows Task Scheduler </summary>
+
+    ```
+    $PYTHON_PATH = "<path to desired python interpreter>"
+    $SCRIPT_PATH = "<path to price_indexr.py>"
+    $DB_CON = "<your database connection string>" 
+
+    $price_indexr_action = New-ScheduledTaskAction 
+        -Execute "python3 $SCRIPT_PATH $DB_CON 'my product search'"
+    $monthly = New-ScheduledTaskTrigger -Monthly -At 0:00am
+    $task_<unique name> = Register-ScheduledTask 
+        -Action $price_indexr_action
+        -Trigger $monthly 
+        -TaskName "<unique name>" 
+        -Description "<Your Description>"
+    $task_<unique name> | Set-ScheduledTask
+    ```
+</details>
 
 If a database was selected to store the data, a table called "price_indexr-my_product_search" will be created in the database on the first execution. Next executions will append new data to the same table. If you preferred a text file, the name of the file will follow the same naming pattern.
