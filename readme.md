@@ -1,8 +1,10 @@
 # Description
 
-Price_indexr is intended to run on a [Virtual Environment](https://docs.python.org/3/tutorial/venv.html), and get a set of product prices for a given search on google shopping and store it in a database. It will return up to 20 results, and "NA" if no product is found at the moment.
+### What it does?
 
-This process migh be automated by [cron](https://cron-job.org/en/) to schedule new data over time.
+Price_indexr is intended to get a set of product prices for a given search on google shopping and store it in a database or a .csv file. It will return up to 20 results, if no product is found at the moment it will register a message in a text file in the same folder as the script. It is recomended to automate this task to be performed periodically with [cron](https://cron-job.org/en/) to schedule new data over time.
+
+### How can this help me?
 
 This can be used to satisfy business and personal necessities, for stablishing market prices, calculating price indexes for specific types of products or monitoring the price of a product you want to buy.
 
@@ -10,7 +12,7 @@ This can be used to satisfy business and personal necessities, for stablishing m
 
 - Python version 3.8 or superior and packages:
     - [bs4](https://pypi.org/project/beautifulsoup4/)
-    - [sqlalchemy]()
+    - [sqlalchemy](https://pypi.org/project/SQLAlchemy/)
     - [requests](https://pypi.org/project/requests/)
 
 For Linux/Unix operating systems:
