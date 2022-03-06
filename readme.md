@@ -6,7 +6,7 @@ Price_indexr is intended to get a set of product prices for a given search on go
 
 ### How can this help me?
 
-This can be used to satisfy business and personal necessities, for stablishing market prices, calculating price indexes for specific types of products or monitoring the price of a product you want to buy.
+This can be used to satisfy business and personal necessities, for stablishing market prices, help on calculating price indexes for specific types of products or monitoring the price of a product you want to buy.
 
 # Requirements
 
@@ -15,25 +15,38 @@ This can be used to satisfy business and personal necessities, for stablishing m
     - [sqlalchemy](https://pypi.org/project/SQLAlchemy/)
     - [requests](https://pypi.org/project/requests/)
 
-For Linux/Unix operating systems:
+<details>
+    <summary> Recommended for scheduling </summary>
+    
+For macOS/Unix operating systems:
 - [Bash](http://tiswww.case.edu/php/chet/bash/bashtop.html)
 - [cron/anacron](https://cron-job.org/en/) or [cronitor](https://cronitor.io) installed
 
 For Windows operating systems:
 - [PowerShell](https://docs.microsoft.com/pt-br/powershell/scripting/overview?view=powershell-7.2)
 - [Windows Task Scheduler](https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page)
+    
+</details>
 
 # How to use?
 
-*Currently this project is under construction, and not working properly*
+***Currently this project is under construction, and not working properly (~~maybe not working at all~~)***
 
 The intended usage is on a terminal:
 
-```python price_indexr.py "<Database connection string or '.csv'>" "my search on google shopping" "<location code [optional]>"```
+```
+python price_indexr.py "<Database connection string or '.csv'>" "my product search" "<location code [optional]>"
+```
+
+This will use python to run the ```price_indexr.py``` script with 3 different arguments on order:
+1. A connection string to a database supported by SQLAlchemy on it's [Included Dialects](https://docs.sqlalchemy.org/en/14/dialects/#included-dialects), or simply ".csv" to save in a text file;
+2. A search that you would type on google's search field. Must be inside quotes or double qutoes if it contains more than one word;
+3. [Optional] A location code for the country (e.g. "us" for the United States, or "pt-br" for Brazil). If not included, google search engine will guess the country by the IP address that you are using.
+
 
 To create a schedule:
 
-### Linux/Unix with Bash
+### Unix/macOS with Bash
 
 <details>
     <summary> Example of automation with crontab </summary>
