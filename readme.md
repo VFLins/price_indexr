@@ -38,7 +38,7 @@ The intended usage is on a terminal:
 python price_indexr.py "<Database connection string or '.csv'>" "my product search" "<location code [optional]>"
 ```
 
-This will use python to run the ```price_indexr.py``` script with 3 different arguments on order:
+This will use python to run the ```price_indexr.py``` script with 3 different arguments in order:
 1. A connection string to a database supported by SQLAlchemy on it's [Included Dialects](https://docs.sqlalchemy.org/en/14/dialects/#included-dialects), or simply ".csv" to save in a text file;
 2. A search that you would type on google's search field. Must be inside quotes or double qutoes if it contains more than one word;
 3. [Optional] A location code for the country (e.g. "us" for the United States, or "pt-br" for Brazil). If not included, google search engine will guess the country by the IP address that you are using.
