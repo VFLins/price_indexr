@@ -1,5 +1,6 @@
 import sqlalchemy as alch
 import requests
+import re
 #import json
 from csv import writer, DictWriter
 from datetime import datetime
@@ -18,7 +19,8 @@ SEARCH_HEADERS = {
 }
 SEARCH_PARAMS = {
     "q" : SEARCH_FIELD,
-    "tbm" : "shop"
+    "tbm" : "shop",
+    "hl" : "en"
 }
 if len(argv) == 4:
     SEARCH_PARAMS["hl"] = argv[3]
@@ -100,4 +102,5 @@ else:
 
 # SAVE
 
-print(str( BeautifulSoup(SEARCH_RESPONSE.text, "html.parser") ))
+sopa = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
+print(sopa.find_all({"class" : ".sh-dgr__grid-result"}))
