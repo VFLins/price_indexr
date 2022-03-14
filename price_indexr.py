@@ -10,20 +10,21 @@ from sys import argv
 
 # DEFINE CONSTANTS
 DB_CON = argv[1]
-
 SEARCH_FIELD = argv[2]
+LOCATION_CODE = argv[3]
+
 SEARCH_KEYWORDS = SEARCH_FIELD.split(" ")
 SEARCH_HEADERS = {
     "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.19582"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
 }
 SEARCH_PARAMS = {
     "q" : SEARCH_FIELD,
     "tbm" : "shop",
     "hl" : "en"
 }
-if len(argv) == 4:
-    SEARCH_PARAMS["hl"] = argv[3]
+if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
+
 SEARCH_RESPONSE = requests.get(
     "https://www.google.com/search",
     params = SEARCH_PARAMS,
@@ -59,16 +60,16 @@ if DB_CON.upper() == ".CSV":
 
     def write_results_csv(results):
         # 'results' must be a list of lists that are ordered as 'fields' in this next line:
-        fields = [Date, Currency, Price, Name, Store, Url]
+        fields = ["Date", "Currency", "Price", "Name", "Store", "Url"]
         # write results
         with open(CSV_FILENAME, "a+", newline="", encoding = "UTF8") as write_file:
             for row in results:
                 DictWriter(write_file, fieldnames=fields).writerow(row)
 
 else:
-    DB_DECBASE = declarative_base()
+    DB_DECBASE = alch.declarative_base()
     DB_ENGINE = alch.create_engine(DB_CON)
-    DB_SESSION = sessionmaker(bind = DB_ENGINE)
+    DB_SESSION = alch.sessionmaker(bind = DB_ENGINE)
     DB_MSESSION = DB_SESSION()
 
     class prices_table(DB_DECBASE):
@@ -103,4 +104,6 @@ else:
 # SAVE
 
 sopa = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
-print(sopa.find_all({"class" : ".sh-dgr__grid-result"}))
+# print(len(sopa))
+with open("html_sopa.txt", "w") as kekeke:
+        kekeke.writelines( f"\n {sopa}" )
