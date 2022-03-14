@@ -14,7 +14,7 @@ This can be used to satisfy business and personal necessities, for stablishing m
     - [bs4](https://pypi.org/project/beautifulsoup4/)
     - [sqlalchemy](https://pypi.org/project/SQLAlchemy/)
     - [requests](https://pypi.org/project/requests/)
-- A Internet browser, and [know it's User Agent](https://developers.whatismybrowser.com/useragents/parse/?analyse-my-user-agent=yes#parse-useragent)
+- An Internet browser, and [know it's User Agent](https://developers.whatismybrowser.com/useragents/parse/?analyse-my-user-agent=yes#parse-useragent)
 
 <details>
     <summary> Recommended for scheduling </summary>
