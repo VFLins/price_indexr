@@ -11,25 +11,10 @@ from sys import argv
 # DEFINE CONSTANTS
 DB_CON = argv[1]
 SEARCH_FIELD = argv[2]
-LOCATION_CODE = argv[3]
+if len(argv) >= 4:
+    LOCATION_CODE = argv[3]
 
 SEARCH_KEYWORDS = SEARCH_FIELD.split(" ")
-SEARCH_HEADERS = {
-    "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
-}
-SEARCH_PARAMS = {
-    "q" : SEARCH_FIELD,
-    "tbm" : "shop",
-    "hl" : "en"
-}
-if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
-
-SEARCH_RESPONSE = requests.get(
-    "https://www.google.com/search",
-    params = SEARCH_PARAMS,
-    headers = SEARCH_HEADERS
-)
 
 SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS]
 TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS_LOWER)
@@ -101,9 +86,34 @@ else:
     
 # COLLECT DATA
 
+### Ensure data was collected
+try:
+    for try in range(10):
+        SEARCH_HEADERS = {
+            "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
+        }
+        SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop", "hl" : "en"}
+        if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
+
+        SEARCH_RESPONSE = requests.get(
+            "https://www.google.com/search",
+            params = SEARCH_PARAMS,
+            headers = SEARCH_HEADERS
+        )
+        sopa = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
+        sopa_grid = sopa.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
+        sopa_inline = sopa.find_all("a", {"class": "shntl sh-np__click-target"})
+
+        if len(sopa_grid) > 0 and len(sopa_inline) > 0:
+            break
+except Exception as connection_error:
+    write_error_log(connection_error, "Não foi possível obter dados, verifique a conexão ou seu User-Agent.")
+
 # SAVE
 
-sopa = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
-# print(len(sopa))
-with open("html_sopa.txt", "w") as kekeke:
-        kekeke.writelines( f"\n {sopa}" )
+print( len(sopa_grid), len(sopa_inline) )
+
+# to inspect the html:
+#with open("html_sopa.txt", "w") as kekeke:
+#        kekeke.writelines( f"\n {sopa}" )
