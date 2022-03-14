@@ -20,14 +20,14 @@ SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS]
 TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS_LOWER)
 
 # ERROR MANAGEMENT
-def write_error_log(error, message):
+def write_message_log(error, message):
     # write 3 lines on the error message.
     with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
-        # 1. Time and tablename
-        log_file.write(str(datetime.now()) + " - " + TABLE_NAME + "\n")
+        # 1. Time and table name
+        log_file.write(f"{str(datetime.now())} - {TABLE_NAME}\n")
         # 2. Message and Exception
-        log_file.write(message + ": " + error + "\n")
-        # 3. Break line
+        log_file.write(f"{message}:\n{error}\n")
+        # 3. Blank line
         log_file.write("\n")
 
 def write_sucess_log(results):
@@ -88,7 +88,7 @@ else:
 
 ### Ensure data was collected
 try:
-    for try in range(10):
+    for connection_try in range(10):
         SEARCH_HEADERS = {
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
@@ -101,14 +101,16 @@ try:
             params = SEARCH_PARAMS,
             headers = SEARCH_HEADERS
         )
-        sopa = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
-        sopa_grid = sopa.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
-        sopa_inline = sopa.find_all("a", {"class": "shntl sh-np__click-target"})
+        soup = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
+        soup_grid = sopa.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
+        soup_inline = sopa.find_all("a", {"class": "shntl sh-np__click-target"})
 
-        if len(sopa_grid) > 0 and len(sopa_inline) > 0:
+        if len(soup_grid) + len(soup_inline) > 0:
             break
 except Exception as connection_error:
-    write_error_log(connection_error, "Não foi possível obter dados, verifique a conexão ou seu User-Agent.")
+    write_message_log(
+        connection_error, 
+        "Couldn't obtain data, check your connection or User-Agent.")
 
 # SAVE
 
