@@ -88,12 +88,14 @@ else:
 
 ### Ensure data was collected
 try:
-    for connection_try in range(10):
+    try_con = 1
+    maximum_try_con = 10
+    while try_con <= maximum_try_con:
         SEARCH_HEADERS = {
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
         }
-        SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop", "hl" : "en"}
+        SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
         if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
 
         SEARCH_RESPONSE = requests.get(
@@ -106,11 +108,26 @@ try:
         soup_inline = sopa.find_all("a", {"class": "shntl sh-np__click-target"})
 
         if len(soup_grid) + len(soup_inline) > 0:
+            write_message_log(
+                f"Connection was successful after trying {try_con} times!",
+                f"Using {len(soup_grid)} grid, and {len(soup_inline)} inline results"
+            )
             break
-except Exception as connection_error:
+        
+        try_con = try_con + 1
+        if try_con > maximum_try_con: raise TimeoutError("Number of connection tries exceeded")
+except TimeoutError as connection_error:
     write_message_log(
         connection_error, 
-        "Couldn't obtain data, check your connection or User-Agent.")
+        "Couldn't obtain data, check your internet connection or User-Agent used on the source code.")
+    quit()
+except Exception as unexpected_error:
+    write_message_log(
+        unexpected_error, 
+        "Unexpected error, closing connection...")
+    quit()
+
+### Structure html data into dictionaries
 
 # SAVE
 
