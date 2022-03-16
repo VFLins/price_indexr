@@ -117,3 +117,4 @@ dmypy.json
 .pyre/
 html_sopa.txt
 error_log.csv
+tests.py
