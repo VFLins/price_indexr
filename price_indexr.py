@@ -3,7 +3,7 @@ import requests
 import re
 #import json
 from csv import writer, DictWriter
-from datetime import datetime
+from datetime import date, datetime
 from bs4 import BeautifulSoup
 from os.path import isfile
 from sys import argv
@@ -104,8 +104,8 @@ try:
             headers = SEARCH_HEADERS
         )
         soup = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
-        soup_grid = sopa.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
-        soup_inline = sopa.find_all("a", {"class": "shntl sh-np__click-target"})
+        soup_grid = soup.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
+        soup_inline = soup.find_all("a", {"class": "shntl sh-np__click-target"})
 
         if len(soup_grid) + len(soup_inline) > 0:
             write_message_log(
@@ -129,9 +129,18 @@ except Exception as unexpected_error:
 
 ### Structure html data into dictionaries
 
+for result in soup_inline:
+    Date = date.today()
+    Price = result.find("b", {"class" : "translate-content"}).get_text().split(";")
+    Name = result.find("div", {"class" : "sh-np__product-title translate-content"}).get_text()
+    Store = result.find("span", {"class" : "E5ocAb"}).get_text()
+    Url = f"https://google.com{result['href']}"
+
+    print(f"data:{Date}, preço:{Price}, nome:{Name}, loja:{Store}, link:{Url}")
+
 # SAVE
 
-print( len(sopa_grid), len(sopa_inline) )
+print( len(soup_grid), len(soup_inline) )
 
 # to inspect the html:
 #with open("html_sopa.txt", "w") as kekeke:
