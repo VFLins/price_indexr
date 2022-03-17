@@ -31,16 +31,17 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
 
 def write_message_log(error, message: str):
     # write 3 lines on the error message.
-    with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
+    with open("error_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
-        log_file.write(f"{str(datetime.now())} - {TABLE_NAME}\n")
+        log_file.write(
+            f"{str(datetime.now())}: +{'+'.join(POS_KEYWORDS_LOWER)}-{'-'.join(NEG_KEYWORDS_LOWER)}\n")
         # 2. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
         # 3. Blank line
         log_file.write("\n")
 
 def write_sucess_log(results: list):
-    with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
+    with open("error_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
         log_file.write("Successfully executed at: " + str(datetime.now()))
         # 2. Number of entries added
@@ -68,8 +69,9 @@ except TypeError as input_error:
         "Your search should start with at least one positive filter and end with negative filters, if any"
     )
 
-SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
-TABLE_NAME = f"price_indexr-{'_'.join(SEARCH_KEYWORDS_LOWER)}"
+POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
+NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
+TABLE_NAME = f"price_indexr-{'_'.join(POS_KEYWORDS_LOWER)}"
 
 
 # SETUP PLACE TO SAVE THE DATA 
@@ -203,7 +205,6 @@ for result in soup_inline:
 # SAVE
 
 print(f'on grid:{len(soup_grid)} \ninline:{len(soup_inline)} \nresults saved:{len(output_data)}')
-print(output_data[0])
 # to inspect the html:
 #with open("html_sopa.txt", "w") as kekeke:
 #        kekeke.writelines( f"\n {sopa}" )
