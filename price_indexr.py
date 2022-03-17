@@ -8,19 +8,11 @@ from bs4 import BeautifulSoup
 from os.path import isfile
 from sys import argv
 
-# DEFINE CONSTANTS
-DB_CON = argv[1]
-SEARCH_FIELD = argv[2]
-if len(argv) >= 4:
-    LOCATION_CODE = argv[3]
+# ERROR MANAGEMENT AND RESULTS FILTERING
+def filter_by_name(result: str, pos_filters: list, neg_filters: list):
+    return
 
-SEARCH_KEYWORDS = SEARCH_FIELD.split(" ")
-
-SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS]
-TABLE_NAME = "price_indexr-" + "_".join(SEARCH_KEYWORDS_LOWER)
-
-# ERROR MANAGEMENT
-def write_message_log(error, message):
+def write_message_log(error, message: str):
     # write 3 lines on the error message.
     with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
@@ -30,7 +22,7 @@ def write_message_log(error, message):
         # 3. Blank line
         log_file.write("\n")
 
-def write_sucess_log(results):
+def write_sucess_log(results: list):
     with open("error_log.csv", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
         log_file.write("Successfully executed at: " + str(datetime.now()))
@@ -38,6 +30,29 @@ def write_sucess_log(results):
         log_file.write(str( len(results) ) + " entries added")
         # 3. Break line
         log_file.write("\n")
+
+# DEFINE CONSTANTS
+DB_CON = argv[1]
+SEARCH_FIELD = argv[2].lower()
+if len(argv) >= 4:
+    LOCATION_CODE = argv[3]
+
+try:
+    # raise error if doesn't start with a positive filter
+    if bool(re.match("-", SEARCH_FIELD)): raise TypeError
+
+    SEARCH_KEYWORDS = {}
+    SEARCH_KEYWORDS["negative"] = re.split(" -", SEARCH_FIELD)[1:]
+    SEARCH_KEYWORDS["positive"] = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
+except TypeError as input_error:
+    write_message_log(
+        input_error, 
+        "Your search should start with at least one positive filter and end with negative filters, if any"
+    )
+
+SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS[1]]
+TABLE_NAME = f"price_indexr-{'_'.join(SEARCH_KEYWORDS_LOWER)}"
+
 
 # SETUP PLACE TO SAVE THE DATA 
 if DB_CON.upper() == ".CSV":
@@ -146,6 +161,8 @@ for result in soup_grid:
         output_data.append(current_result)
     except Exception as collect_error:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
+
+
 
 for result in soup_inline:
     Date = date.today()
