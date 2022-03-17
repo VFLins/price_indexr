@@ -127,21 +127,46 @@ except Exception as unexpected_error:
         "Unexpected error, closing connection...")
     quit()
 
-### Structure html data into dictionaries
+### Structure results into a list of dictionaries
+output_data = []
+
+for result in soup_grid:
+    Date = date.today()
+    Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
+    Name = result.find("h4").get_text()
+    Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+    #Store = result.find("div", {"data-mr" : True})["data-mr"]
+    Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+
+    try:
+        current_result = {"Date":Date, "Currency":Price[0], "Price":Price[1], "Name":Name, "Store":Store, "Url":Url}
+        output_data.append(current_result)
+    except IndexError:
+        current_result = {"Date":Date, "Currency":None, "Price":Price[0], "Name":Name, "Store":Store, "Url":Url}
+        output_data.append(current_result)
+    except Exception as collect_error:
+        write_message_log(collect_error, "Unexpected error collecting inline results:")
 
 for result in soup_inline:
     Date = date.today()
-    Price = result.find("b", {"class" : "translate-content"}).get_text().split(";")
+    Price = result.find("b", {"class" : "translate-content"}).get_text().split("\xa0")
     Name = result.find("div", {"class" : "sh-np__product-title translate-content"}).get_text()
     Store = result.find("span", {"class" : "E5ocAb"}).get_text()
     Url = f"https://google.com{result['href']}"
 
-    print(f"data:{Date}, preço:{Price}, nome:{Name}, loja:{Store}, link:{Url}")
+    try:
+        current_result = {"Date":Date, "Currency":Price[0], "Price":Price[1], "Name":Name, "Store":Store, "Url":Url}
+        output_data.append(current_result)
+    except IndexError:
+        current_result = {"Date":Date, "Currency":None, "Price":Price[0], "Name":Name, "Store":Store, "Url":Url}
+        output_data.append(current_result)
+    except Exception as collect_error:
+        write_message_log(collect_error, "Unexpected error collecting inline results:")
 
 # SAVE
 
-print( len(soup_grid), len(soup_inline) )
-
+print(f'on grid:{len(soup_grid)} \ninline:{len(soup_inline)} \nresults saved:{len(output_data)}')
+print(output_data[0])
 # to inspect the html:
 #with open("html_sopa.txt", "w") as kekeke:
 #        kekeke.writelines( f"\n {sopa}" )
