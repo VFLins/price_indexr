@@ -37,6 +37,7 @@ SEARCH_FIELD = argv[2].lower()
 if len(argv) >= 4:
     LOCATION_CODE = argv[3]
 
+# SORT FILTERS
 try:
     # raise error if doesn't start with a positive filter
     if bool(re.match("-", SEARCH_FIELD)): raise TypeError
@@ -161,8 +162,6 @@ for result in soup_grid:
         output_data.append(current_result)
     except Exception as collect_error:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
-
-
 
 for result in soup_inline:
     Date = date.today()
