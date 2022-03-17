@@ -9,8 +9,25 @@ from os.path import isfile
 from sys import argv
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
-def filter_by_name(result: str, pos_filters: list, neg_filters: list):
-    return
+def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
+    """
+    Checks if the product title has every keyword it is supposed to have,
+    and if it does NOT have the keywords it isn't supposed to have,
+    with every test passed, return 'True'.
+    """
+    checks_up = False
+    for word in pos_filters:
+        if bool(re.search(word, name_to_filter)): checks_up = True
+        else: checks_up = False
+        if not checks_up: break
+    
+    if len(neg_filters) > 0 and checks_up:
+        for word in neg_filters:
+            if not bool(re.search(word, name_to_filter)): checks_up = True
+            else: checks_up = False
+            if not checks_up: break
+    
+    return checks_up
 
 def write_message_log(error, message: str):
     # write 3 lines on the error message.
@@ -51,7 +68,7 @@ except TypeError as input_error:
         "Your search should start with at least one positive filter and end with negative filters, if any"
     )
 
-SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS[1]]
+SEARCH_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
 TABLE_NAME = f"price_indexr-{'_'.join(SEARCH_KEYWORDS_LOWER)}"
 
 
@@ -147,9 +164,11 @@ except Exception as unexpected_error:
 output_data = []
 
 for result in soup_grid:
+    Name = result.find("h4").get_text()
+    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
     Date = date.today()
     Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
-    Name = result.find("h4").get_text()
     Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
     #Store = result.find("div", {"data-mr" : True})["data-mr"]
     Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
@@ -164,9 +183,11 @@ for result in soup_grid:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
 
 for result in soup_inline:
+    Name = result.find("div", {"class" : "sh-np__product-title translate-content"}).get_text()
+    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
     Date = date.today()
     Price = result.find("b", {"class" : "translate-content"}).get_text().split("\xa0")
-    Name = result.find("div", {"class" : "sh-np__product-title translate-content"}).get_text()
     Store = result.find("span", {"class" : "E5ocAb"}).get_text()
     Url = f"https://google.com{result['href']}"
 
