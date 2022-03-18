@@ -118,3 +118,5 @@ dmypy.json
 html_sopa.txt
 error_log.csv
 tests.py
+*.csv
+exec_log.txt

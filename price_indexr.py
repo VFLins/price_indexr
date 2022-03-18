@@ -17,36 +17,36 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
     """
     checks_up = False
     for word in pos_filters:
-        if bool(re.search(word, name_to_filter)): checks_up = True
+        if bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
         else: checks_up = False
         if not checks_up: break
     
     if len(neg_filters) > 0 and checks_up:
         for word in neg_filters:
-            if not bool(re.search(word, name_to_filter)): checks_up = True
+            if not bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
             else: checks_up = False
             if not checks_up: break
     
     return checks_up
 
 def write_message_log(error, message: str):
-    # write 3 lines on the error message.
-    with open("error_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
+    # write 4 lines on the error message.
+    with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
         log_file.write(
-            f"{str(datetime.now())}: +{'+'.join(POS_KEYWORDS_LOWER)}-{'-'.join(NEG_KEYWORDS_LOWER)}\n")
-        # 2. Message and Exception
+            f"[{str(datetime.now())}] {TABLE_NAME}\n")
+        # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
-        # 3. Blank line
+        # 4. Blank line
         log_file.write("\n")
 
 def write_sucess_log(results: list):
-    with open("error_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
+    with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write("Successfully executed at: " + str(datetime.now()))
+        log_file.write(f"{TABLE_NAME} Successfully executed at: " + str(datetime.now()))
         # 2. Number of entries added
-        log_file.write(str( len(results) ) + " entries added")
-        # 3. Break line
+        log_file.write(f"\n{str( len(results) )} entries added")
+        # 3. Blank line
         log_file.write("\n")
 
 # DEFINE CONSTANTS
@@ -76,7 +76,7 @@ TABLE_NAME = f"price_indexr-{'_'.join(POS_KEYWORDS_LOWER)}"
 
 # SETUP PLACE TO SAVE THE DATA 
 if DB_CON.upper() == ".CSV":
-    CSV_FILENAME = TABLE_NAME + ".csv"
+    CSV_FILENAME = f"{TABLE_NAME}.csv"
 
     def write_results_csv(results):
         # 'results' must be a list of lists that are ordered as 'fields' in this next line:
@@ -204,7 +204,14 @@ for result in soup_inline:
 
 # SAVE
 
-print(f'on grid:{len(soup_grid)} \ninline:{len(soup_inline)} \nresults saved:{len(output_data)}')
-# to inspect the html:
-#with open("html_sopa.txt", "w") as kekeke:
-#        kekeke.writelines( f"\n {sopa}" )
+try:
+    if DB_CON.lower() == ".csv":
+        write_results_csv(output_data)
+    else:
+        write_results_db(output_data)
+    write_sucess_log(output_data)
+except Exception as save_error:
+    write_message_log(
+        save_error,
+        "Unexpected error while trying to save the data:"
+    )
