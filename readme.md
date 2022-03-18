@@ -44,10 +44,20 @@ This will use python to run the ```price_indexr.py``` script with 3 different ar
 2. A search that you would type on google's search field. Must be inside quotes or double qutoes if it contains more than one word;
 3. [Optional] A location code for the country (e.g. "us" for the United States, or "pt-br" for Brazil). If not included, google search engine will guess the country by the IP address that you are using.
 
+### How the search works?
 
-To create a schedule:
+The search results could come with a lot of similar products that doesn't meet your expectations. For that reason, every word you type in the search argument is a filter, Price_indexr works with two kinds of filters:
 
-### Unix/macOS with Bash
+1. **Positive:** this filter contains every word that you demand to be in the title of the product. This also will be used to fill the google shopping's search bar.
+2. **Negative:** this filter contains every word that you demand ***NOT*** to be in the title of the product. This will never be used to fill the google shopping's search bar, as it would bring more unwanted results.
+
+So your search would look like: ```"gtx 1660 -pc -notebook"```*
+
+In the example above, "gtx" and "1660" are positive filters and "pc" and "notebook" are negative. In this case you want to search the "gtx 1660" graphics card's price, but as the results might bring unwanted computers and notebooks that comes with this graphics card equiped, you should use negative filters such as those to avoid adding them to your database. The positive filters would naturally prevent you from getting similar graphics cards such as "gtx 1650" and ensuring you get data only from the desired model.
+
+ *Note that positive filters should **always** come first.
+
+### Scheduling on Unix/macOS with Bash
 
 <details>
     <summary> Example of automation with crontab </summary>
@@ -65,7 +75,7 @@ To create a schedule:
     ```
 </details> 
 
-### Windows with PowerShell
+### Scheduling on Windows with PowerShell
 
 <details>
     <summary> Example of automation with Windows Task Scheduler </summary>
