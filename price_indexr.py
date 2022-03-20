@@ -73,7 +73,6 @@ POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]
 NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
 TABLE_NAME = f"price_indexr-{'_'.join(POS_KEYWORDS_LOWER)}"
 
-
 # SETUP PLACE TO SAVE THE DATA 
 if DB_CON.upper() == ".CSV":
     CSV_FILENAME = f"{TABLE_NAME}.csv"
@@ -109,35 +108,37 @@ else:
     def write_results_db(results):
         for row in results:
             trow_line = prices_table(
-                Date = row[0],
-                Currency = row[1],
-                Price = row[2],
-                Name = row[3],
-                Store = row[4],
-                Url = row[5]
+                Date = row["Date"],
+                Currency = row["Currency"],
+                Price = row["Price"],
+                Name = row["Name"],
+                Store = row["Store"],
+                Url = row["Url"]
             )
             DB_MSESSION.add(trow_line)
             DB_MSESSION.commit()
     
 # COLLECT DATA
 
+SEARCH_HEADERS = {
+    "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
+}
+SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
+if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
+
+SEARCH_RESPONSE = requests.get(
+    "https://www.google.com/search",
+    params = SEARCH_PARAMS,
+    headers = SEARCH_HEADERS
+)
+
 ### Ensure data was collected
 try:
     try_con = 1
     maximum_try_con = 10
     while try_con <= maximum_try_con:
-        SEARCH_HEADERS = {
-            "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
-        }
-        SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
-        if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
-
-        SEARCH_RESPONSE = requests.get(
-            "https://www.google.com/search",
-            params = SEARCH_PARAMS,
-            headers = SEARCH_HEADERS
-        )
+        
         soup = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
         soup_grid = soup.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
         soup_inline = soup.find_all("a", {"class": "shntl sh-np__click-target"})
@@ -150,11 +151,14 @@ try:
             break
         
         try_con = try_con + 1
-        if try_con > maximum_try_con: raise TimeoutError("Number of connection tries exceeded")
+        if try_con > maximum_try_con: raise ConnectionError(
+            "Maximum number of connection tries exceeded"
+        )
 except TimeoutError as connection_error:
     write_message_log(
         connection_error, 
-        "Couldn't obtain data, check your internet connection or User-Agent used on the source code.")
+        "Couldn't obtain data, check your internet connection or User-Agent used on the source code."
+    )
     quit()
 except Exception as unexpected_error:
     write_message_log(
