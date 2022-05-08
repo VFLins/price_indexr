@@ -14,10 +14,10 @@ This can be used to satisfy business and personal necessities, for stablishing m
     - [bs4](https://pypi.org/project/beautifulsoup4/)
     - [sqlalchemy](https://pypi.org/project/SQLAlchemy/)
     - [requests](https://pypi.org/project/requests/)
-- Any popular internet browser installed, and [know it's User Agent](https://developers.whatismybrowser.com/useragents/parse/?analyse-my-user-agent=yes#parse-useragent)
+- Any popular internet browser installed, and [know it's User Agent](https://developers.whatismybrowser.com/useragents/parse/?analyse-my-user-agent=yes#parse-useragent) (If you want to troubleshoot)
 
 <details>
-    <summary> Recommended for scheduling </summary>
+    <summary> <b>Recommended for scheduling</b> </summary>
     
 For macOS/Unix operating systems:
 - [Bash](http://tiswww.case.edu/php/chet/bash/bashtop.html)
@@ -31,7 +31,7 @@ For Windows operating systems:
 
 # How to use?
 
-***Currently this project is under construction, and not working properly (~~maybe not working at all~~)***
+***Currently this project is under construction, and may not be working properly (~~maybe not working at all~~)***
 
 The intended usage is on a terminal:
 
@@ -98,3 +98,7 @@ In the example above, "gtx" and "1660" are positive filters and "pc" and "notebo
 </details>
 
 If a database was selected to store the data, a table called "price_indexr-my_product_search" will be created in the database on the first execution. Next executions will append new data to the same table. If you preferred a text file, the name of the file will follow the same naming pattern.
+    
+# Troubleshooting
+
+1. Depending on the user-agent, the results may or not appear for Price_indexr, usually, changing the user-agent on the line 125 of the script will solve the problem.
