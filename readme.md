@@ -1,3 +1,6 @@
+<details>
+    <summary> <h3> English </h3> </summary>
+    
 # Description
 
 ### What it does?
@@ -8,7 +11,7 @@ Price_indexr is intended to get a set of product prices for a given search on go
 
 This can be used to satisfy business and personal necessities, for stablishing market prices, help on calculating price indexes for specific types of products or monitoring the price of a product you want to buy.
 
-# Requirements
+    # Requirements
 
 - Python version 3.8 or superior and packages:
     - [bs4](https://pypi.org/project/beautifulsoup4/)
@@ -102,3 +105,114 @@ If a database was selected to store the data, a table called "price_indexr-my_pr
 # Troubleshooting
 
 1. Depending on the user-agent, the results may or not appear for Price_indexr, usually, changing the user-agent on the line 125 of the script will solve the problem.
+
+</details>
+    
+<details>
+    <summary> <h3> Português </h3> </summary>
+
+# Descrição
+
+## O que faz?
+
+Price_indexr tem a intenção de obter o preço de um conjunto de bens para uma dada pesquisa no google shopping, e armazenar os dados obtidos em um arquivo de texto .csv ou numa base de dados. Ele pode retornar até ~80 resultados dependendo da pesquisa, a quantidade exata de resultados registrados fica registrada num arquivo de texto de fácil interpretação no mesmo diretório em que fica salvo o script. É recomendável automatizar esta tarefa, usando [cron](https://cron-job.org/en/) para programar a entrada de novos dados ao longo do tempo.
+
+## Como pode me ajudar?
+    
+Pode ser usado para solucionar problemas de negócios e pessoais, como para encontrar o preço de mercado de um dado tipo de bem, ajudar na estipulação de um índice de preços, ou ajudar um comprador a encontrar o melhor momento para adquirir um produto.
+
+# Requisitos
+    
+- Python 3.8 ou superior;
+    - [bs4](https://pypi.org/project/beautifulsoup4/)
+    - [sqlalchemy](https://pypi.org/project/SQLAlchemy/)
+    - [requests](https://pypi.org/project/requests/)
+- Qualquer navegador popular e [conhecer seu User Agent](https://developers.whatismybrowser.com/useragents/parse/?analyse-my-user-agent=yes#parse-useragent) (se quiser solucionar problemas)
+
+<details>
+    <summary> <b> Recomendado para automação </b> </summary>
+    
+Para macOS/Unix:
+- [Bash](http://tiswww.case.edu/php/chet/bash/bashtop.html)
+- [cron/anacron](https://cron-job.org/en/) ou [cronitor](https://cronitor.io) instalado
+
+Para Windows:
+- [Agendador de Tarefas do Windows](https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page)
+    
+</details>
+    
+# Como usar?
+    
+***Atualmente este projeto está em construção e pode ou não estar funcionando apropriadamente (~~talvez nem isso~~)***
+
+A maneira planejada para se usar, é através de um comando no terminal:
+
+```
+python price_indexr.py "<Database connection string or '.csv'>" "my product search" "<location code [optional]>"
+```
+    
+Isto vai usar o python para executar o script ```price_indexr.py``` com 3 argumentos diferentes na ordem:
+1. Um string de conexão usado pelo SQLAlchemy nos seus [Dialetos Incluídos](https://docs.sqlalchemy.org/en/14/dialects/#included-dialects), ou simplesmente ".csv" para salvar num arquivo de texto;
+2. Uma pesquisa que você digitaria na pesquisa do google. Deve estar dentro de aspas simples ou duplas se possuir mais de uma palavra (mais detalhes no próximo tópico);
+3. [Opcional] O código de localização para um país (por exemplo: "us" para os estados unidos, ou "pt-br" para o Brasil). Se não for fornecido, a engine de pesquisa de google vai adivinhar o país pelo endereço IP que você estiver usando.
+
+## Como a pesquisa funciona?
+
+O resultado das pesquisas pode trazer diversos produtos similares que podem não ser do seu interesse, por este motivo, cada palavra que você digitar vai servir como filtro, **Price_indexr** funciona com dois tipos de filtros:
+
+1. *Positivo:* São as palavras que você exige que estejam no título do produto. Isto também vai ser usado para preencher a barra de pesquisa;
+2. *Negativo:* São as palavras que você exige que ***NÃO*** estejam no título do produto. Não será usada no termo de pesquisa, pois se fosse, iria trazer mais produtos indesejados nos resultados.
+    
+Então sua pesquisa iria parecer com isto: ```"gtx 1660 -pc -notebook"```*
+    
+No exemplo acima, "gtx" e "1660" são filtros positivos, enquanto "pc" e "notebook" são negativos. Neste caso você estaria querendo pesquisar o preço de placas de vídeo do modelo "gtx 1660", mas como os resultados podem trazer PCs e Notebooks indesejados que vêm com este modelo de placa de vídeo equipado, você deveria usar estes filtros negativos para evitar adicionar estes resultados na sua base de dados. Os filtros positivos vão naturalmente garantir que você obtenha apenas o modelo desejado, em vez de outros modelos similares que também podem aparecer nos resultados, como a "gtx 1650".
+    
+*Perceba que os filtros positivos devem **sempre** aparecer primeiro.
+
+### Scheduling on Unix/macOS with Bash
+
+<details>
+    <summary> Exemplo de automação com crontab </summary>
+
+    ```
+    PYTHON_PATH="<path to desired python interpreter>"
+    SCRIPT_PATH="<path to price_indexr.py>"
+    DB_CON="<your database connection string>" 
+    # or ".csv" to save in a text file in the same folder of your script instead of a database
+
+    crontab -e
+    @monthly "$PYTHON_PATH" "$SCRIPT_PATH" "$DB_CON" "my product search"
+    # To check the schedules made:
+    crontab -l
+    ```
+</details> 
+
+### Automação no Windows
+
+<details>
+    <summary> Example of automation with Windows Task Scheduler </summary>
+
+    ```
+    $PYTHON_PATH = "<path to desired python interpreter>"
+    $SCRIPT_PATH = "<path to price_indexr.py>"
+    $DB_CON = "<your database connection string>" 
+
+    $price_indexr_action = New-ScheduledTaskAction 
+        -Execute "python3 $SCRIPT_PATH $DB_CON 'my product search'"
+    $monthly = New-ScheduledTaskTrigger -Monthly -At 0:00am
+    $task_<unique name> = Register-ScheduledTask 
+        -Action $price_indexr_action
+        -Trigger $monthly 
+        -TaskName "<unique name>" 
+        -Description "<Your Description>"
+    $task_<unique name> | Set-ScheduledTask
+    ```
+</details>
+
+Se você escolheu salvar os dados numa base de dados, uma tabela com o nome "price_indexr-produto_pesquisado" será criada no banco de dados escolhido. Futuras execuções adicionarão novas linhas de dados abaixo dos dados existentes. Se você escolheu um arquivo de texto, o nome do arquivo vai seguir o mesmo padrão de nomeação.
+
+# Resolvendo problemas
+
+1. Dependendo do user-agent, os resultados podem não aparecer para Price_indexr, normalmente, mudar o código do user-agent na linha 125 do script resolveria o problema.
+
+</details>
