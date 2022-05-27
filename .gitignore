@@ -120,3 +120,5 @@ error_log.csv
 tests.py
 *.csv
 exec_log.txt
+*.db
+*.ps1
