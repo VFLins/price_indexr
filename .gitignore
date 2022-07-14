@@ -122,3 +122,4 @@ tests.py
 exec_log.txt
 *.db
 *.ps1
+*.sqlite
