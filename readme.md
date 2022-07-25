@@ -106,6 +106,10 @@ If a database was selected to store the data, a table called "price_indexr-my_pr
 
 1. Depending on the user-agent, the results may or not appear for Price_indexr, usually, changing the user-agent on the line 125 of the script will solve the problem.
 
+# Veja também:
+
+- [Prind_Monitor:](https://github.com/VFLins/Prind_Monitor) Report generator for price data obtained by this piece of software, only compatible with SQLite databases for now. 
+
 </details>
     
 <details>
@@ -169,7 +173,7 @@ No exemplo acima, "gtx" e "1660" são filtros positivos, enquanto "pc" e "notebo
     
 *Perceba que os filtros positivos devem **sempre** aparecer primeiro.
 
-### Scheduling on Unix/macOS with Bash
+### Automação em sistemas Unix/macOS
 
 <details>
     <summary> Exemplo de automação com crontab </summary>
@@ -190,7 +194,7 @@ No exemplo acima, "gtx" e "1660" são filtros positivos, enquanto "pc" e "notebo
 ### Automação no Windows
 
 <details>
-    <summary> Example of automation with Windows Task Scheduler </summary>
+    <summary> Exemplo de automação com o Gerenciador de Tarefas do Windows </summary>
 
     ```
     $PYTHON_PATH = "<path to desired python interpreter>"
@@ -214,5 +218,9 @@ Se você escolheu salvar os dados numa base de dados, uma tabela com o nome "pri
 # Resolvendo problemas
 
 1. Dependendo do user-agent, os resultados podem não aparecer para Price_indexr, normalmente, mudar o código do user-agent na linha 125 do script resolveria o problema.
+    
+# Veja também:
+
+- [Prind_Monitor:](https://github.com/VFLins/Prind_Monitor) Gerador de relatórios para dados de preços obtidos aqui, por enquanto compatível apenas com bancos de dados SQLite.
 
 </details>
