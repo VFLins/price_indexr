@@ -164,7 +164,7 @@ try:
     while try_con <= maximum_try_con:
         
         soup = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
-        soup_grid = soup.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
+        soup_grid = soup.find_all("div", {"class": "sh-dgr__content"})
         soup_inline = soup.find_all("a", {"class": "shntl sh-np__click-target"})
 
         if len(soup_grid) + len(soup_inline) > 0:
@@ -194,7 +194,7 @@ except Exception as unexpected_error:
 output_data = []
 
 for result in soup_grid:
-    Name = result.find("h4").get_text()
+    Name = result.find("h3", {"class":"tAxDx"}).get_text()
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
     Date = date.today()
@@ -225,7 +225,7 @@ for result in soup_grid:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
 
 for result in soup_inline:
-    Name = result.find("div", {"class" : "sh-np__product-title translate-content"}).get_text()
+    Name = result.find("h3", {"class" : "sh-np__product-title translate-content"}).get_text()
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
     Date = date.today()
