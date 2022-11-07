@@ -2,11 +2,9 @@ import sqlalchemy as alch
 from sqlalchemy.ext.declarative import declarative_base
 import requests
 import re
-#import json
 from csv import writer, DictWriter
 from datetime import date, datetime
 from bs4 import BeautifulSoup
-from os.path import isfile
 from sys import argv
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
@@ -34,8 +32,7 @@ def write_message_log(error, message: str):
     # write 4 lines on the error message.
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
-        log_file.write(
-            f"[{str(datetime.now())}] {TABLE_NAME}\n")
+        log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
         # 4. Blank line
@@ -50,11 +47,39 @@ def write_sucess_log(results: list):
         # 3. Blank line
         log_file.write("\n")
 
+def strip_price_str(price_str):
+    price_str = price_str.replace("\xa0", " ")
+    price_expr = r"[\d.,]*[,.]\d*"
+    curr_expr = r"[^\d., ]*"
+    dec_expr = r"[,.](?=[^,.]*$)"
+    price = re.search(price_expr, price_str).group(0)
+    curr = re.search(curr_expr, price_str).group(0)
+    dec = re.search(dec_expr, price_str).group(0)
+
+    if dec==",": price = float( price.replace(".", "").replace(",", ".") )
+    elif dec==".": price = float( price.replace(",", "") )
+    
+    return [curr, price]
+
+def handle_data_line():
+    try:
+        current_result = {
+            "Date":Date, "Currency":strip_price_str(Price)[0], 
+            "Price":strip_price_str(Price)[1], 
+            "Name":Name, "Store":Store, "Url":Url}
+        output_data.append(current_result)
+    except IndexError:
+        current_result = {
+            "Date":Date, "Currency":None, 
+            "Price":strip_price_str(Price)[0], 
+            "Name":Name, "Store":Store, "Url":Url}
+        output_data.append(current_result)
+    except Exception as collect_error:
+        write_message_log(collect_error, "Unexpected error collecting inline results:")
+
 # DEFINE CONSTANTS
 DB_CON = argv[1]
 SEARCH_FIELD = argv[2].lower()
-if len(argv) >= 4:
-    LOCATION_CODE = argv[3]
 
 # SORT FILTERS
 try:
@@ -67,8 +92,7 @@ try:
 except TypeError as input_error:
     write_message_log(
         input_error, 
-        "Your search should start with at least one positive filter and end with negative filters, if any"
-    )
+        "Your search should start with at least one positive filter and end with negative filters, if any")
 
 POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
 NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
@@ -93,7 +117,6 @@ else:
     DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
     DB_MSESSION = DB_SESSION()
 
-    
     DB_METADATA = alch.MetaData()
     current_table = alch.Table(
         TABLE_NAME, DB_METADATA,
@@ -104,8 +127,7 @@ else:
         alch.Column("Price", alch.Float),
         alch.Column("Name", alch.String),
         alch.Column("Store", alch.String),
-        alch.Column("Url", alch.String)
-    )
+        alch.Column("Url", alch.String))
 
     DB_METADATA.create_all(DB_ENGINE, checkfirst = True)
     
@@ -127,8 +149,7 @@ else:
 
     def write_results_db(results):
         DB_ENGINE.connect().execute(
-            current_table.insert(), results
-        )
+            current_table.insert(), results)
         """
         trow_line = current_table(
             Date = row["Date"],
@@ -146,16 +167,19 @@ else:
 
 SEARCH_HEADERS = {
     "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"
-}
-SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
-if len(argv) >= 4: SEARCH_PARAMS["hl"] = LOCATION_CODE
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
 
-SEARCH_RESPONSE = requests.get(
+BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
+BING_SEARCH_RESPONSE = requests.get(
+    "https://www.bing.com/shop",
+    params = BING_SEARCH_PARAMS,
+    headers = SEARCH_HEADERS)
+
+GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
+GOOGLE_SEARCH_RESPONSE = requests.get(
     "https://www.google.com/search",
-    params = SEARCH_PARAMS,
-    headers = SEARCH_HEADERS
-)
+    params = GOOGLE_SEARCH_PARAMS,
+    headers = SEARCH_HEADERS)
 
 ### Ensure data was collected
 try:
@@ -163,107 +187,86 @@ try:
     maximum_try_con = 10
     while try_con <= maximum_try_con:
         
-        soup = BeautifulSoup(SEARCH_RESPONSE.text, "lxml")
-        soup_grid = soup.find_all("div", {"class": "sh-dgr__content"})
-        soup_inline = soup.find_all("a", {"class": "shntl sh-np__click-target"})
+        soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
+        google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
+        google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
 
-        if len(soup_grid) + len(soup_inline) > 0:
+        soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
+        bing_grid = soup_bing.find_all("li", {"class": "br-item"})
+        bing_inline = soup_bing.find_all("div", {"class": "slide"})
+
+        if ((len(google_grid)+len(google_inline) > 0) and (len(bing_grid)+len(bing_inline) > 0)):
             write_message_log(
-                f"Connection was successful after trying {try_con} times!",
-                f"Using {len(soup_grid)} grid, and {len(soup_inline)} inline results"
-            )
+                f"Using {len(google_grid)+len(google_inline)} results from google, and {len(bing_grid)+len(bing_inline)} from bing",
+                f"Connection was successful after trying {try_con} times")
             break
         
         try_con = try_con + 1
-        if try_con > maximum_try_con: raise ConnectionError(
-            "Maximum number of connection tries exceeded"
-        )
+        if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
 except TimeoutError as connection_error:
-    write_message_log(
-        connection_error, 
-        "Couldn't obtain data, check your internet connection or User-Agent used on the source code."
-    )
+    write_message_log(connection_error, 
+        "Couldn't obtain data, check your internet connection or User-Agent used on the source code.")
     quit()
 except Exception as unexpected_error:
-    write_message_log(
-        unexpected_error, 
-        "Unexpected error, closing connection...")
+    write_message_log(unexpected_error, "Unexpected error, closing connection...")
     quit()
 
 ### Structure results into a list of dictionaries
 output_data = []
+Date = date.today()
 
-for result in soup_grid:
+for result in google_grid:
     Name = result.find("h3", {"class":"tAxDx"}).get_text()
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Date = date.today()
-    Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
+    #Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
+    Price = result.find("span", {"class" : "a8Pemb"}).get_text()
     Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
     #Store = result.find("div", {"data-mr" : True})["data-mr"]
     Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
 
-    try:
-        current_result = {
-            "Date":Date, 
-            "Currency":Price[0], 
-            "Price":float( Price[1].replace(".", "").replace(",", ".") ), 
-            "Name":Name, 
-            "Store":Store, 
-            "Url":Url}
-        output_data.append(current_result)
-    except IndexError:
-        current_result = {
-            "Date":Date, 
-            "Currency":None, 
-            "Price":float( Price[0].replace(".", "").replace(",", ".") ), 
-            "Name":Name, 
-            "Store":Store, 
-            "Url":Url}
-        output_data.append(current_result)
-    except Exception as collect_error:
-        write_message_log(collect_error, "Unexpected error collecting inline results:")
+    handle_data_line()
 
-for result in soup_inline:
-    Name = result.find("h3", {"class" : "sh-np__product-title translate-content"}).get_text()
+for result in google_inline:
+    Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Date = date.today()
-    Price = result.find("b", {"class" : "translate-content"}).get_text().split("\xa0")
+    Price = result.find("b", {"class" : "translate-content"}).get_text()
     Store = result.find("span", {"class" : "E5ocAb"}).get_text()
     Url = f"https://google.com{result['href']}"
 
-    try:
-        current_result = {
-            "Date":Date, 
-            "Currency":Price[0], 
-            "Price":float( Price[1].replace(".", "").replace(",", ".") ), 
-            "Name":Name, 
-            "Store":Store, 
-            "Url":Url}
-        output_data.append(current_result)
-    except IndexError:
-        current_result = {
-            "Date":Date, 
-            "Currency":None, 
-            "Price":float( Price[0].replace(".", "").replace(",", ".") ), 
-            "Name":Name, 
-            "Store":Store, 
-            "Url":Url}
-        output_data.append(current_result)
-    except Exception as collect_error:
-        write_message_log(collect_error, "Unexpected error collecting inline results:")
+    handle_data_line()
+
+for result in bing_grid:
+    name_block = result.find("div", {"class": "br-pdItemName"}) 
+    if name_block.has_attr('title'): Name = name_block["title"]
+    else: Name = name_block.get_text()
+    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
+    Price = result.find("div", {"class": "pd-price"}).string
+    Store = result.find("span", {"class": "br-sellersCite"}).get_text()
+    Url = f"https://bing.com{result['data-url']}"
+
+    handle_data_line()
+
+for result in bing_inline:
+    name_block = result.find("div", {"class": "br-offTtl"}).find("span")
+    if name_block.has_attr('title'): Name = name_block["title"]
+    else: Name = name_block.get_text()
+    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
+    Price = result.find("div", {"class": "br-price"}).get_text().split(" ")
+    Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+    Url = result.find("a", {"class": "br-offLink"})["href"]
+
+    handle_data_line()
 
 # SAVE
-
 try:
-    if DB_CON.lower() == ".csv":
-        write_results_csv(output_data)
-    else:
-        write_results_db(output_data)
+    if DB_CON.lower() == ".csv": write_results_csv(output_data)
+    else: write_results_db(output_data)
     write_sucess_log(output_data)
 except Exception as save_error:
     write_message_log(
         save_error,
-        "Unexpected error while trying to save the data:"
-    )
+        "Unexpected error while trying to save the data:")
