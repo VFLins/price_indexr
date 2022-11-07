@@ -25,7 +25,6 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
             if not bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
             else: checks_up = False
             if not checks_up: break
-    
     return checks_up
 
 def write_message_log(error, message: str):
@@ -41,24 +40,25 @@ def write_message_log(error, message: str):
 def write_sucess_log(results: list):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"{TABLE_NAME} Successfully executed at: " + str(datetime.now()))
+        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution")
         # 2. Number of entries added
         log_file.write(f"\n{str( len(results) )} entries added")
         # 3. Blank line
         log_file.write("\n")
 
 def strip_price_str(price_str):
+    print(price_str)
     price_str = price_str.replace("\xa0", " ")
     price_expr = r"[\d.,]*[,.]\d*"
     curr_expr = r"[^\d., ]*"
     dec_expr = r"[,.](?=[^,.]*$)"
+
     price = re.search(price_expr, price_str).group(0)
     curr = re.search(curr_expr, price_str).group(0)
     dec = re.search(dec_expr, price_str).group(0)
 
     if dec==",": price = float( price.replace(".", "").replace(",", ".") )
     elif dec==".": price = float( price.replace(",", "") )
-    
     return [curr, price]
 
 def handle_data_line():
@@ -85,7 +85,6 @@ SEARCH_FIELD = argv[2].lower()
 try:
     # raise error if doesn't start with a positive filter
     if bool(re.match("-", SEARCH_FIELD)): raise TypeError
-
     SEARCH_KEYWORDS = {}
     SEARCH_KEYWORDS["negative"] = re.split(" -", SEARCH_FIELD)[1:]
     SEARCH_KEYWORDS["positive"] = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
@@ -101,7 +100,6 @@ TABLE_NAME = f"price_indexr-{'_'.join(POS_KEYWORDS_LOWER)}"
 # SETUP PLACE TO SAVE THE DATA 
 if DB_CON.upper() == ".CSV":
     CSV_FILENAME = f"{TABLE_NAME}.csv"
-
     def write_results_csv(results):
         # 'results' must be a list of lists that are ordered as 'fields' in this next line:
         fields = ["Date", "Currency", "Price", "Name", "Store", "Url"]
@@ -111,7 +109,6 @@ if DB_CON.upper() == ".CSV":
                 DictWriter(write_file, fieldnames=fields).writerow(row)
 
 else:
-    
     DB_DECBASE = declarative_base()
     DB_ENGINE = alch.create_engine(DB_CON)
     DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
@@ -120,7 +117,6 @@ else:
     DB_METADATA = alch.MetaData()
     current_table = alch.Table(
         TABLE_NAME, DB_METADATA,
-        
         alch.Column("Id", alch.Integer, primary_key = True),
         alch.Column("Date", alch.Date),
         alch.Column("Currency", alch.String),
@@ -128,7 +124,6 @@ else:
         alch.Column("Name", alch.String),
         alch.Column("Store", alch.String),
         alch.Column("Url", alch.String))
-
     DB_METADATA.create_all(DB_ENGINE, checkfirst = True)
     
     """
@@ -224,7 +219,6 @@ for result in google_grid:
     Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
     #Store = result.find("div", {"data-mr" : True})["data-mr"]
     Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-
     handle_data_line()
 
 for result in google_inline:
@@ -234,7 +228,6 @@ for result in google_inline:
     Price = result.find("b", {"class" : "translate-content"}).get_text()
     Store = result.find("span", {"class" : "E5ocAb"}).get_text()
     Url = f"https://google.com{result['href']}"
-
     handle_data_line()
 
 for result in bing_grid:
@@ -246,7 +239,6 @@ for result in bing_grid:
     Price = result.find("div", {"class": "pd-price"}).string
     Store = result.find("span", {"class": "br-sellersCite"}).get_text()
     Url = f"https://bing.com{result['data-url']}"
-
     handle_data_line()
 
 for result in bing_inline:
@@ -255,10 +247,9 @@ for result in bing_inline:
     else: Name = name_block.get_text()
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Price = result.find("div", {"class": "br-price"}).get_text().split(" ")
+    Price = result.find("div", {"class": "br-price"}).string
     Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
     Url = result.find("a", {"class": "br-offLink"})["href"]
-
     handle_data_line()
 
 # SAVE
