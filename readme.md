@@ -3,9 +3,7 @@
     
 # Description
 
-### What it does?
-
-Price_indexr is intended to get a set of product prices for a given search on google shopping and store it in a database or a .csv file. It will return up to 20 results, if no product is found at the moment it will register a message in a text file in the same folder as the script. It is recomended to automate this task to be performed periodically with [cron](https://cron-job.org/en/) to schedule new data over time.
+Price_indexr is intended to get a set of product prices for a given simultaneous search on Google shopping and Bing shopping and store it locally. To ensure you will get only the desired results, you can filter what will be saved locally based on the title each individual product. This program can be prompted manually, or scheduled to run by other softwares like [cron](https://cron-job.org/en/), or Windows's task scheduler.
 
 ### How can this help me?
 
@@ -106,7 +104,7 @@ If a database was selected to store the data, a table called "price_indexr-my_pr
 
 1. Depending on the user-agent, the results may or not appear for Price_indexr, usually, changing the user-agent on the line 125 of the script will solve the problem.
 
-# Veja também:
+# See also:
 
 - [Prind_Monitor:](https://github.com/VFLins/Prind_Monitor) Report generator for price data obtained by this piece of software, only compatible with SQLite databases for now. 
 
@@ -117,9 +115,7 @@ If a database was selected to store the data, a table called "price_indexr-my_pr
 
 # Descrição
 
-## O que faz?
-
-Price_indexr tem a intenção de obter o preço de um conjunto de bens para uma dada pesquisa no google shopping, e armazenar os dados obtidos em um arquivo de texto .csv ou numa base de dados. Ele pode retornar até ~80 resultados dependendo da pesquisa, a quantidade exata de resultados registrados fica registrada num arquivo de texto de fácil interpretação no mesmo diretório em que fica salvo o script. É recomendável automatizar esta tarefa, usando [cron](https://cron-job.org/en/) para programar a entrada de novos dados ao longo do tempo.
+Price_indexr é indicado para obter dados de preços em uma dada pesquisa simultânea no Google shopping e no Bing compras e armazenar os resultados localmente. Para garantir que você receberá os resultados desejados, você pode filtar o que será salvo localmente através de filtros baseados nos títulos dos produtos que aparecerem nos resultados. O programa pode ser executado manualmente ou configurado para executar periodicamente através de outros softwares, como o [cron](https://cron-job.org/en/), ou o agendador de tarefas do Windows.
 
 ## Como pode me ajudar?
     
