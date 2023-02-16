@@ -47,7 +47,6 @@ def write_sucess_log(results: list):
         log_file.write("\n")
 
 def strip_price_str(price_str):
-    print(price_str)
     price_str = price_str.replace("\xa0", " ")
     price_expr = r"[\d.,]*[,.]\d*"
     curr_expr = r"[^\d., ]*"
@@ -113,7 +112,7 @@ else:
     DB_ENGINE = alch.create_engine(DB_CON)
     DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
     DB_MSESSION = DB_SESSION()
-
+    
     DB_METADATA = alch.MetaData()
     current_table = alch.Table(
         TABLE_NAME, DB_METADATA,
