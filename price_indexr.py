@@ -230,26 +230,32 @@ for result in google_inline:
     handle_data_line()
 
 for result in bing_grid:
-    name_block = result.find("div", {"class": "br-pdItemName"}) 
-    if name_block.has_attr('title'): Name = name_block["title"]
-    else: Name = name_block.get_text()
-    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+    try:
+        name_block = result.find("div", {"class" : "br-pdItemName"}) 
+        if name_block.has_attr('title'): Name = name_block["title"]
+        else: Name = name_block.get_text()
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Price = result.find("div", {"class": "pd-price"}).string
-    Store = result.find("span", {"class": "br-sellersCite"}).get_text()
-    Url = f"https://bing.com{result['data-url']}"
-    handle_data_line()
+        Price = result.find("div", {"class" : "pd-price"}).string
+        Store = result.find("span", {"class" : "br-sellersCite"}).get_text()
+        Url = f"https://bing.com{result['data-url']}"
+        handle_data_line()
+    except AttributeError:
+        next
 
 for result in bing_inline:
-    name_block = result.find("div", {"class": "br-offTtl"}).find("span")
-    if name_block.has_attr('title'): Name = name_block["title"]
-    else: Name = name_block.get_text()
-    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+    try:
+        name_block = result.find("div", {"class" : "br-pdItemName-noHover "}).find("span")
+        if name_block.has_attr('title'): Name = name_block["title"]
+        else: Name = name_block.get_text()
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Price = result.find("div", {"class": "br-price"}).string
-    Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
-    Url = result.find("a", {"class": "br-offLink"})["href"]
-    handle_data_line()
+        Price = result.find("div", {"class": "br-price"}).string
+        Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+        Url = result.find("a", {"class": "br-offLink"})["href"]
+        handle_data_line()
+    except AttributeError:
+        next
 
 # SAVE
 try:
