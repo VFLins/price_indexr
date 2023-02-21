@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\vflin_\Documents\GitHub\Price_indexr\envo"
+VIRTUAL_ENV="C:\Users\vflin\OneDrive\Documentos\GitHub\Price_indexr\pyenv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
@@ -55,9 +55,9 @@ fi
 
 if [ -z "${VIRTUAL_ENV_DISABLE_PROMPT:-}" ] ; then
     _OLD_VIRTUAL_PS1="${PS1:-}"
-    PS1="(envo) ${PS1:-}"
+    PS1="(pyenv) ${PS1:-}"
     export PS1
-    VIRTUAL_ENV_PROMPT="(envo) "
+    VIRTUAL_ENV_PROMPT="(pyenv) "
     export VIRTUAL_ENV_PROMPT
 fi
 
