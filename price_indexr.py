@@ -34,20 +34,13 @@ def write_message_log(error, message: str):
         log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
-        # 4. Blank line
-        log_file.write("\n")
 
 def write_sucess_log(results: list):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution")
-        # 2. Number of entries added
-        log_file.write(f"\n{str( len(results) )} entries added")
-        # 3. Blank line
-        log_file.write("\n")
+        log_file.write(f"{TABLE_NAME} Successful execution. {str( len(results) )} entries added")
 
 def strip_price_str(price_str):
-    print(price_str)
     price_str = price_str.replace("\xa0", " ")
     price_expr = r"[\d.,]*[,.]\d*"
     curr_expr = r"[^\d., ]*"
@@ -113,7 +106,7 @@ else:
     DB_ENGINE = alch.create_engine(DB_CON)
     DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
     DB_MSESSION = DB_SESSION()
-
+    
     DB_METADATA = alch.MetaData()
     current_table = alch.Table(
         TABLE_NAME, DB_METADATA,
@@ -227,27 +220,26 @@ for result in google_inline:
 
     Price = result.find("b", {"class" : "translate-content"}).get_text()
     Store = result.find("span", {"class" : "E5ocAb"}).get_text()
-    Url = f"https://google.com{result['href']}"
+    Url = f"https://shopping.google.com{result['href']}"
     handle_data_line()
 
 for result in bing_grid:
-    name_block = result.find("div", {"class": "br-pdItemName"}) 
+    name_block = result.find("div", {"class" : "br-pdItemName"}) 
     if name_block.has_attr('title'): Name = name_block["title"]
     else: Name = name_block.get_text()
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Price = result.find("div", {"class": "pd-price"}).string
-    Store = result.find("span", {"class": "br-sellersCite"}).get_text()
+    Price = result.find("div", {"class" : "pd-price"}).get_text()
+    Store = result.find("span", {"class" : "br-sellersCite"}).get_text()
     Url = f"https://bing.com{result['data-url']}"
     handle_data_line()
 
 for result in bing_inline:
-    name_block = result.find("div", {"class": "br-offTtl"}).find("span")
-    if name_block.has_attr('title'): Name = name_block["title"]
-    else: Name = name_block.get_text()
+    name_block = result.find("span", {"title" : True})
+    Name = name_block["title"]
     if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
-    Price = result.find("div", {"class": "br-price"}).string
+    Price = result.find("div", {"class": "br-price"}).get_text()
     Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
     Url = result.find("a", {"class": "br-offLink"})["href"]
     handle_data_line()
