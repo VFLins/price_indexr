@@ -111,7 +111,7 @@ else:
             str: alch.DateTime,
             float: alch.Float,
             datetime: alch.TIMESTAMP(timezone=True),
-            "products":products.Product}
+            "products": products}
     DB_ENGINE = alch.create_engine(f"sqlite:///{SCRIPT_FOLDER}/data/database.sqlite")
     DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
     DB_MSESSION = DB_SESSION()
