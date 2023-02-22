@@ -1,7 +1,8 @@
 import sqlalchemy as alch
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 import requests
 import re
+import os
 from csv import writer, DictWriter
 from datetime import date, datetime
 from bs4 import BeautifulSoup
@@ -34,17 +35,11 @@ def write_message_log(error, message: str):
         log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
-        # 4. Blank line
-        log_file.write("\n")
 
 def write_sucess_log(results: list):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution")
-        # 2. Number of entries added
-        log_file.write(f"\n{str( len(results) )} entries added")
-        # 3. Blank line
-        log_file.write("\n")
+        log_file.write(f"{TABLE_NAME} Successful execution. {str( len(results) )} entries added")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
@@ -77,7 +72,7 @@ def handle_data_line():
         write_message_log(collect_error, "Unexpected error collecting inline results:")
 
 # DEFINE CONSTANTS
-DB_CON = argv[1]
+PRODUCT = argv[1]
 SEARCH_FIELD = argv[2].lower()
 
 # SORT FILTERS
@@ -94,12 +89,14 @@ except TypeError as input_error:
 
 POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
 NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
-TABLE_NAME = f"price_indexr-{'_'.join(POS_KEYWORDS_LOWER)}"
+TABLE_NAME = POS_KEYWORDS_LOWER
+SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 # SETUP PLACE TO SAVE THE DATA 
-if DB_CON.upper() == ".CSV":
-    CSV_FILENAME = f"{TABLE_NAME}.csv"
-    def write_results_csv(results):
+if PRODUCT.upper() == ".CSV":
+    if "/" in SCRIPT_FOLDER: CSV_FILENAME = f"{SCRIPT_FOLDER}/data/{TABLE_NAME}.csv"
+    else:                  CSV_FILENAME = f"{SCRIPT_FOLDER}\data\{TABLE_NAME}.csv"
+    def write_results(results):
         # 'results' must be a list of lists that are ordered as 'fields' in this next line:
         fields = ["Date", "Currency", "Price", "Name", "Store", "Url"]
         # write results
@@ -108,42 +105,41 @@ if DB_CON.upper() == ".CSV":
                 DictWriter(write_file, fieldnames=fields).writerow(row)
 
 else:
-    DB_DECBASE = declarative_base()
-    DB_ENGINE = alch.create_engine(DB_CON)
+    class dec_base(DeclarativeBase): 
+        type_annotation_map = {
+            int: alch.BIGINT,
+            str: alch.DateTime,
+            float: alch.Float,
+            datetime: alch.TIMESTAMP(timezone=True),
+            "products":products.Product}
+    DB_ENGINE = alch.create_engine(f"sqlite:///{SCRIPT_FOLDER}/data/database.sqlite")
     DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
     DB_MSESSION = DB_SESSION()
-    
-    DB_METADATA = alch.MetaData()
-    current_table = alch.Table(
-        TABLE_NAME, DB_METADATA,
-        alch.Column("Id", alch.Integer, primary_key = True),
-        alch.Column("Date", alch.Date),
-        alch.Column("Currency", alch.String),
-        alch.Column("Price", alch.Float),
-        alch.Column("Name", alch.String),
-        alch.Column("Store", alch.String),
-        alch.Column("Url", alch.String))
-    DB_METADATA.create_all(DB_ENGINE, checkfirst = True)
-    
-    """
-    class prices_table(DB_DECBASE):
-        __tablename__ = TABLE_NAME
-        Id = alch.Column(alch.Integer, primary_key = True)
-        Date = alch.Column(alch.Date)
-        Currency = alch.Column(alch.String)
-        Price = alch.Column(alch.Float)
-        Name = alch.Column(alch.String)
-        Store = alch.Column(alch.String)
-        Url = alch.Column(alch.String)
 
-        def __repr__(self):
-            return "<entry(Date={}, Currency={}, Price={}, Name={}, Store={}, Url={})>".format(
-            self.Date, self.Currency, self.Price, self.Name, self.Store, self.Url)
-    """
+    class prices(dec_base):
+        __tablename__: TABLE_NAME
+        ProductId: Mapped[int] = mapped_column(alch.ForeignKey("products.ProductId"))
+        Product: Mapped["products"] = relationship()
+        Model: Mapped[str] = mapped_column()
+        Date: Mapped[datetime] = mapped_column(
+            alch.DateTime(timezone=True), server_default=alch.sql.func.now())
+        Currency: Mapped[str] = mapped_column()
+        Price: Mapped[float] = mapped_column()
+        Name: Mapped[str] = mapped_column()
+        Store: Mapped[str] = mapped_column()
+        Url: Mapped[str] = mapped_column()
 
-    def write_results_db(results):
-        DB_ENGINE.connect().execute(
-            current_table.insert(), results)
+    class products(dec_base):
+        __tablename__: "products"
+        ProductId: Mapped[int] = mapped_column(primary_key=True)
+        Product: Mapped["prices"] = relationship()
+        Created: Mapped[datetime] = mapped_column(
+            alch.DateTime(timezone=True), server_default=alch.sql.func.now())
+        LastUpdate: Mapped[datetime] = mapped_column(
+            alch.DateTime(timezone=True), server_default=alch.sql.func.now())
+
+    def write_results(results):
+        DB_ENGINE.connect().execute(prices.insert(), results)
         """
         trow_line = current_table(
             Date = row["Date"],
@@ -252,10 +248,7 @@ for result in bing_inline:
 
 # SAVE
 try:
-    if DB_CON.lower() == ".csv": write_results_csv(output_data)
-    else: write_results_db(output_data)
+    write_results(output_data)
     write_sucess_log(output_data)
 except Exception as save_error:
-    write_message_log(
-        save_error,
-        "Unexpected error while trying to save the data:")
+    write_message_log(save_error, "Unexpected error while trying to save the data:")
