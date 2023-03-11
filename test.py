@@ -47,4 +47,3 @@ stmt = (
         Store="KaBuM!",
         Url="https://www.kabum.com.br/produto/320250/placa-de-video-galax-nvidia-geforce-rtx-3050-ex-oc-8gb-gddr6-lhr-1-click-128-bits-35nsl8md6yex?srsltid=Ad5pg_E93vNYIyyNwSwnn5Vm7KG2F1dCN33aqOb-c2uw65qxlW761FCmP6U"))
 
-DB_MSESSION.execute(stmt)
