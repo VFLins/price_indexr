@@ -1,5 +1,5 @@
-import sqlalchemy as alch
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, sessionmaker
 import requests
 import re
 import os
@@ -93,65 +93,50 @@ TABLE_NAME = POS_KEYWORDS_LOWER
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 # SETUP PLACE TO SAVE THE DATA 
-if PRODUCT.upper() == ".CSV":
-    if "/" in SCRIPT_FOLDER: CSV_FILENAME = f"{SCRIPT_FOLDER}/data/{TABLE_NAME}.csv"
-    else:                  CSV_FILENAME = f"{SCRIPT_FOLDER}\data\{TABLE_NAME}.csv"
-    def write_results(results):
-        # 'results' must be a list of lists that are ordered as 'fields' in this next line:
-        fields = ["Date", "Currency", "Price", "Name", "Store", "Url"]
-        # write results
-        with open(CSV_FILENAME, "a+", newline="", encoding = "UTF8") as write_file:
-            for row in results:
-                DictWriter(write_file, fieldnames=fields).writerow(row)
+class dec_base(DeclarativeBase): pass
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.sqlite", echo=True)
+#DB_SESSION = sessionmaker(bind=DB_ENGINE)
+#DB_MSESSION = DB_SESSION()
 
-else:
-    class dec_base(DeclarativeBase): 
-        type_annotation_map = {
-            int: alch.BIGINT,
-            str: alch.DateTime,
-            float: alch.Float,
-            datetime: alch.TIMESTAMP(timezone=True),
-            "products": products}
-    DB_ENGINE = alch.create_engine(f"sqlite:///{SCRIPT_FOLDER}/data/database.sqlite")
-    DB_SESSION = alch.orm.sessionmaker(bind = DB_ENGINE)
-    DB_MSESSION = DB_SESSION()
+class prices(dec_base):
+    __tablename__ = "prices"
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
+    Product: Mapped[List["products"]] = relationship(back_populates="Product")
+    Model: Mapped[str] = mapped_column()
+    Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    Currency: Mapped[str] = mapped_column()
+    Price: Mapped[float] = mapped_column()
+    Name: Mapped[str] = mapped_column()
+    Store: Mapped[str] = mapped_column()
+    Url: Mapped[str] = mapped_column()
 
-    class prices(dec_base):
-        __tablename__: TABLE_NAME
-        ProductId: Mapped[int] = mapped_column(alch.ForeignKey("products.ProductId"))
-        Product: Mapped["products"] = relationship()
-        Model: Mapped[str] = mapped_column()
-        Date: Mapped[datetime] = mapped_column(
-            alch.DateTime(timezone=True), server_default=alch.sql.func.now())
-        Currency: Mapped[str] = mapped_column()
-        Price: Mapped[float] = mapped_column()
-        Name: Mapped[str] = mapped_column()
-        Store: Mapped[str] = mapped_column()
-        Url: Mapped[str] = mapped_column()
+class products(dec_base):
+    __tablename__ = "products"
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    Product: Mapped["prices"] = relationship(back_populates="Product")
+    Created: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    class products(dec_base):
-        __tablename__: "products"
-        ProductId: Mapped[int] = mapped_column(primary_key=True)
-        Product: Mapped["prices"] = relationship()
-        Created: Mapped[datetime] = mapped_column(
-            alch.DateTime(timezone=True), server_default=alch.sql.func.now())
-        LastUpdate: Mapped[datetime] = mapped_column(
-            alch.DateTime(timezone=True), server_default=alch.sql.func.now())
 
-    def write_results(results):
-        DB_ENGINE.connect().execute(prices.insert(), results)
-        """
-        trow_line = current_table(
-            Date = row["Date"],
-            Currency = row["Currency"],
-            Price = row["Price"],
-            Name = row["Name"],
-            Store = row["Store"],
-            Url = row["Url"]
-        )
-        DB_MSESSION.add(trow_line)
-        DB_MSESSION.commit()
-        """
+dec_base.metadata.create_all(DB_ENGINE)
+
+def write_results(results):
+    DB_ENGINE.connect().execute(prices.insert(), results)
+    """
+    trow_line = current_table(
+        Date = row["Date"],
+        Currency = row["Currency"],
+        Price = row["Price"],
+        Name = row["Name"],
+        Store = row["Store"],
+        Url = row["Url"]
+    )
+    DB_MSESSION.add(trow_line)
+    DB_MSESSION.commit()
+    """
+
+dec_base.metadata.create_all(DB_ENGINE)
 
 # COLLECT DATA
 
