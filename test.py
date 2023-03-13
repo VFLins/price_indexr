@@ -8,7 +8,7 @@ from datetime import date, datetime
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 class dec_base(DeclarativeBase): pass
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.sqlite", echo=True)
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.sqlite")
 #DB_SESSION = sessionmaker(bind=DB_ENGINE)
 #DB_MSESSION = DB_SESSION()
 
@@ -63,10 +63,10 @@ with Session(DB_ENGINE) as ses:
     ses.add(stmt)
     ses.commit()
 
-
-
 with Session(DB_ENGINE) as ses:
     stmt = select(products).where(products.Id == 1)
-    result = ses.execute(stmt)
-    for i in result.scalars():
+    result = ses.execute(stmt).scalars()
+    for i in result:
         print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
+        obj = i.LastUpdate
+        print(i[0])
