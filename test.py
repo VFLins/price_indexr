@@ -1,7 +1,7 @@
 from typing import List
 import os
-from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, sessionmaker
+from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, select
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
 from typing import Optional
 from datetime import date, datetime
 
@@ -14,12 +14,12 @@ DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.sqlite", ech
 
 class prices(dec_base):
     __tablename__ = "prices"
+    Product: Mapped[List["products"]] = relationship(back_populates="Product")
+
     Id: Mapped[int] = mapped_column(primary_key=True)
     ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
-    Product: Mapped[List["products"]] = relationship(back_populates="Product")
-    Model: Mapped[str] = mapped_column()
     Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    Currency: Mapped[str] = mapped_column()
+    Currency: Mapped[str] = mapped_column(nullable=True)
     Price: Mapped[float] = mapped_column()
     Name: Mapped[str] = mapped_column()
     Store: Mapped[str] = mapped_column()
@@ -27,23 +27,46 @@ class prices(dec_base):
 
 class products(dec_base):
     __tablename__ = "products"
-    Id: Mapped[int] = mapped_column(primary_key=True)
     Product: Mapped["prices"] = relationship(back_populates="Product")
-    Created: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    ProductName: Mapped[str] = mapped_column()
+    ProductModel: Mapped[str] = mapped_column()
+    ProductBrand: Mapped[str] = mapped_column()
+    ProductFilters: Mapped[str] = mapped_column()
+    Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 dec_base.metadata.create_all(DB_ENGINE)
 
-stmt = (
-    insert(prices).
-    values(
-        Product='geforce rtx 3050', 
-        Model='galax ex',
-        Date=datetime.now(),
-        Currency="R$",
-        Price=1720.59,
-        Name="Placa De Vídeo Galax Geforce RTX 3050 Ex 8GB GDDR6",
-        Store="KaBuM!",
-        Url="https://www.kabum.com.br/produto/320250/placa-de-video-galax-nvidia-geforce-rtx-3050-ex-oc-8gb-gddr6-lhr-1-click-128-bits-35nsl8md6yex?srsltid=Ad5pg_E93vNYIyyNwSwnn5Vm7KG2F1dCN33aqOb-c2uw65qxlW761FCmP6U"))
+""" stmt = products(
+    ProductName="GeForce RTX 3050",
+    ProductModel="EX",
+    ProductBrand="Galax",
+    ProductFilters="")
 
+with Session(DB_ENGINE) as sesa:
+    with sesa.begin(): sesa.add(stmt)
+
+stmt = prices(
+    ProductId=1,
+    Date=datetime.now(),
+    Currency="R$",
+    Price=1720.59,
+    Name="Placa De Vídeo Galax Geforce RTX 3050 Ex 8GB GDDR6",
+    Store="KaBuM!",
+    Url="https://www.kabum.com.br/produto/320250/placa-de-video-galax-nvidia-geforce-rtx-3050-ex-oc-8gb-gddr6-lhr-1-click-128-bits-35nsl8md6yex?srsltid=Ad5pg_E93vNYIyyNwSwnn5Vm7KG2F1dCN33aqOb-c2uw65qxlW761FCmP6U") 
+
+with Session(DB_ENGINE) as sesa:
+    with sesa.begin(): sesa.add(stmt)"""
+
+""" with Session(DB_ENGINE) as session:
+    rows = session.execute(select(products)).all()
+    for line in rows: print(line)
+
+    rows = session.execute(select(prices)).all()
+    for line in rows: print(line) """
+with Session(DB_ENGINE) as ses:
+    result = select(products).where(products.Id == 1)
+    ses.scalars(result).all()

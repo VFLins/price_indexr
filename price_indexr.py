@@ -1,5 +1,5 @@
-from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert
-from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, sessionmaker
+from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update
+from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
 import requests
 import re
 import os
@@ -57,23 +57,24 @@ def strip_price_str(price_str):
 
 def handle_data_line():
     try:
-        current_result = {
-            "Date":Date, "Currency":strip_price_str(Price)[0], 
-            "Price":strip_price_str(Price)[1], 
-            "Name":Name, "Store":Store, "Url":Url}
+        current_result = prices(
+            ProductId=CURR_PROD_ID, Date=Date,
+            Currency=strip_price_str(Price)[0],
+            Price=strip_price_str(Price)[1],
+            Name=Name, Store=Store, Url=Url)
         output_data.append(current_result)
     except IndexError:
-        current_result = {
-            "Date":Date, "Currency":None, 
-            "Price":strip_price_str(Price)[0], 
-            "Name":Name, "Store":Store, "Url":Url}
+        current_result = prices(
+            ProductId=CURR_PROD_ID, Date=Date,
+            Currency=None,
+            Price=strip_price_str(Price)[1],
+            Name=Name, Store=Store, Url=Url)
         output_data.append(current_result)
     except Exception as collect_error:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
 
 # DEFINE CONSTANTS
-PRODUCT = argv[1]
-SEARCH_FIELD = argv[2].lower()
+CURR_PROD_ID = argv[1]
 
 # SORT FILTERS
 try:
@@ -94,7 +95,7 @@ SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
 # SETUP PLACE TO SAVE THE DATA 
 class dec_base(DeclarativeBase): pass
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.sqlite", echo=True)
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
 #DB_SESSION = sessionmaker(bind=DB_ENGINE)
 #DB_MSESSION = DB_SESSION()
 
@@ -121,20 +122,14 @@ class products(dec_base):
 
 dec_base.metadata.create_all(DB_ENGINE)
 
-def write_results(results):
-    DB_ENGINE.connect().execute(prices.insert(), results)
-    """
-    trow_line = current_table(
-        Date = row["Date"],
-        Currency = row["Currency"],
-        Price = row["Price"],
-        Name = row["Name"],
-        Store = row["Store"],
-        Url = row["Url"]
-    )
-    DB_MSESSION.add(trow_line)
-    DB_MSESSION.commit()
-    """
+def write_results(results: dict):
+    time_stmt = update(products(LastUpdate=datetime.now())).\
+        where(products.Id == CURR_PROD_ID)
+    with Session(DB_ENGINE) as ses:
+        ses.add_all(results)
+        ses.execute(time_stmt)
+        ses.commit()
+    
 
 dec_base.metadata.create_all(DB_ENGINE)
 
