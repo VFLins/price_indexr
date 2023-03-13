@@ -8,6 +8,170 @@ from datetime import date, datetime
 from bs4 import BeautifulSoup
 from sys import argv
 
+def collect_prices(CURR_PROD_ID):
+    # DATABASE ARCHITECTURE
+    DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
+
+    with Session(DB_ENGINE) as ses:
+        stmt = select(products).where(products.Id == 1)
+        result = ses.execute(stmt)
+        for i in result.scalars():
+            print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
+
+    class dec_base(DeclarativeBase): pass
+
+    class prices(dec_base):
+        __tablename__ = "prices"
+        Product: Mapped[List["products"]] = relationship(back_populates="Product")
+
+        Id: Mapped[int] = mapped_column(primary_key=True)
+        ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
+        Model: Mapped[str] = mapped_column()
+        Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+        Currency: Mapped[str] = mapped_column()
+        Price: Mapped[float] = mapped_column()
+        Name: Mapped[str] = mapped_column()
+        Store: Mapped[str] = mapped_column()
+        Url: Mapped[str] = mapped_column()
+
+    class products(dec_base):
+        __tablename__ = "products"
+        Product: Mapped["prices"] = relationship(back_populates="Product")
+
+        Id: Mapped[int] = mapped_column(primary_key=True)
+        Created: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+        LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    dec_base.metadata.create_all(DB_ENGINE)
+
+    # DEFINING CONSTANTS
+    with Session(DB_ENGINE) as ses:
+        stmt = select(products).where(products.Id == CURR_PROD_ID)
+        result = ses.execute(stmt).scalars()
+        for i in result:
+            match i.ProductFilters:
+                case "": 
+                    SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel}"
+                case _: 
+                    SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}" 
+
+    # SORT FILTERS
+    try:
+        # raise error if doesn't start with a positive filter
+        if bool(re.match("-", SEARCH_FIELD)): raise TypeError
+        SEARCH_KEYWORDS = {}
+        SEARCH_KEYWORDS["negative"] = re.split(" -", SEARCH_FIELD)[1:]
+        SEARCH_KEYWORDS["positive"] = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
+    except TypeError as input_error:
+        write_message_log(
+            input_error, 
+            "Your search should start with at least one positive filter and end with negative filters, if any")
+
+    POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
+    NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
+    TABLE_NAME = POS_KEYWORDS_LOWER
+    SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
+
+    # COLLECT DATA
+
+    SEARCH_HEADERS = {
+        "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
+
+    BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
+    BING_SEARCH_RESPONSE = requests.get(
+        "https://www.bing.com/shop",
+        params = BING_SEARCH_PARAMS,
+        headers = SEARCH_HEADERS)
+
+    GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
+    GOOGLE_SEARCH_RESPONSE = requests.get(
+        "https://www.google.com/search",
+        params = GOOGLE_SEARCH_PARAMS,
+        headers = SEARCH_HEADERS)
+
+    ### Ensure data was collected
+    try:
+        try_con = 1
+        maximum_try_con = 10
+        while try_con <= maximum_try_con:
+            
+            soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
+            google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
+            google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
+
+            soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
+            bing_grid = soup_bing.find_all("li", {"class": "br-item"})
+            bing_inline = soup_bing.find_all("div", {"class": "slide"})
+
+            if ((len(google_grid)+len(google_inline) > 0) and (len(bing_grid)+len(bing_inline) > 0)):
+                write_message_log(
+                    f"Using {len(google_grid)+len(google_inline)} results from google, and {len(bing_grid)+len(bing_inline)} from bing",
+                    f"Connection was successful after trying {try_con} times")
+                break
+            
+            try_con = try_con + 1
+            if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
+    except TimeoutError as connection_error:
+        write_message_log(connection_error, 
+            "Couldn't obtain data, check your internet connection or User-Agent used on the source code.")
+        quit()
+    except Exception as unexpected_error:
+        write_message_log(unexpected_error, "Unexpected error, closing connection...")
+        quit()
+
+    ### Structure results into a list sqlalchemy objects
+    output_data = []
+    Date = date.today()
+
+    for result in google_grid:
+        Name = result.find("h3", {"class":"tAxDx"}).get_text()
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
+        #Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
+        Price = result.find("span", {"class" : "a8Pemb"}).get_text()
+        Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+        #Store = result.find("div", {"data-mr" : True})["data-mr"]
+        Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+        handle_data_line()
+
+    for result in google_inline:
+        Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
+        Price = result.find("b", {"class" : "translate-content"}).get_text()
+        Store = result.find("span", {"class" : "E5ocAb"}).get_text()
+        Url = f"https://shopping.google.com{result['href']}"
+        handle_data_line()
+
+    for result in bing_grid:
+        name_block = result.find("div", {"class" : "br-pdItemName"}) 
+        if name_block.has_attr('title'): Name = name_block["title"]
+        else: Name = name_block.get_text()
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
+        Price = result.find("div", {"class" : "pd-price"}).get_text()
+        Store = result.find("span", {"class" : "br-sellersCite"}).get_text()
+        Url = f"https://bing.com{result['data-url']}"
+        handle_data_line()
+
+    for result in bing_inline:
+        name_block = result.find("span", {"title" : True})
+        Name = name_block["title"]
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+
+        Price = result.find("div", {"class": "br-price"}).get_text()
+        Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+        Url = result.find("a", {"class": "br-offLink"})["href"]
+        handle_data_line()
+
+    # SAVE
+    try:
+        write_results(output_data)
+        write_sucess_log(output_data)
+    except Exception as save_error:
+        write_message_log(save_error, "Unexpected error while trying to save the data:")
+
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
     """
@@ -73,58 +237,6 @@ def handle_data_line():
     except Exception as collect_error:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
 
-# SORT FILTERS
-try:
-    # raise error if doesn't start with a positive filter
-    if bool(re.match("-", SEARCH_FIELD)): raise TypeError
-    SEARCH_KEYWORDS = {}
-    SEARCH_KEYWORDS["negative"] = re.split(" -", SEARCH_FIELD)[1:]
-    SEARCH_KEYWORDS["positive"] = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
-except TypeError as input_error:
-    write_message_log(
-        input_error, 
-        "Your search should start with at least one positive filter and end with negative filters, if any")
-
-POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
-NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
-TABLE_NAME = POS_KEYWORDS_LOWER
-SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
-
-# DEFINE CONSTANTS
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
-
-with Session(DB_ENGINE) as ses:
-    stmt = select(products).where(products.Id == 1)
-    result = ses.execute(stmt)
-    for i in result.scalars():
-        print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
-CURR_PROD_ID = argv[1] 
-class dec_base(DeclarativeBase): pass
-
-
-class prices(dec_base):
-    __tablename__ = "prices"
-    Id: Mapped[int] = mapped_column(primary_key=True)
-    ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
-    Product: Mapped[List["products"]] = relationship(back_populates="Product")
-    Model: Mapped[str] = mapped_column()
-    Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    Currency: Mapped[str] = mapped_column()
-    Price: Mapped[float] = mapped_column()
-    Name: Mapped[str] = mapped_column()
-    Store: Mapped[str] = mapped_column()
-    Url: Mapped[str] = mapped_column()
-
-class products(dec_base):
-    __tablename__ = "products"
-    Id: Mapped[int] = mapped_column(primary_key=True)
-    Product: Mapped["prices"] = relationship(back_populates="Product")
-    Created: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-
-dec_base.metadata.create_all(DB_ENGINE)
-
 def write_results(results: dict):
     time_stmt = update(products(LastUpdate=datetime.now())).\
         where(products.Id == CURR_PROD_ID)
@@ -134,104 +246,5 @@ def write_results(results: dict):
         ses.commit()
     
 
-dec_base.metadata.create_all(DB_ENGINE)
 
-# COLLECT DATA
 
-SEARCH_HEADERS = {
-    "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
-
-BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
-BING_SEARCH_RESPONSE = requests.get(
-    "https://www.bing.com/shop",
-    params = BING_SEARCH_PARAMS,
-    headers = SEARCH_HEADERS)
-
-GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
-GOOGLE_SEARCH_RESPONSE = requests.get(
-    "https://www.google.com/search",
-    params = GOOGLE_SEARCH_PARAMS,
-    headers = SEARCH_HEADERS)
-
-### Ensure data was collected
-try:
-    try_con = 1
-    maximum_try_con = 10
-    while try_con <= maximum_try_con:
-        
-        soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
-        google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
-        google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
-
-        soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
-        bing_grid = soup_bing.find_all("li", {"class": "br-item"})
-        bing_inline = soup_bing.find_all("div", {"class": "slide"})
-
-        if ((len(google_grid)+len(google_inline) > 0) and (len(bing_grid)+len(bing_inline) > 0)):
-            write_message_log(
-                f"Using {len(google_grid)+len(google_inline)} results from google, and {len(bing_grid)+len(bing_inline)} from bing",
-                f"Connection was successful after trying {try_con} times")
-            break
-        
-        try_con = try_con + 1
-        if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
-except TimeoutError as connection_error:
-    write_message_log(connection_error, 
-        "Couldn't obtain data, check your internet connection or User-Agent used on the source code.")
-    quit()
-except Exception as unexpected_error:
-    write_message_log(unexpected_error, "Unexpected error, closing connection...")
-    quit()
-
-### Structure results into a list sqlalchemy objects
-output_data = []
-Date = date.today()
-
-for result in google_grid:
-    Name = result.find("h3", {"class":"tAxDx"}).get_text()
-    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
-    #Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
-    Price = result.find("span", {"class" : "a8Pemb"}).get_text()
-    Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
-    #Store = result.find("div", {"data-mr" : True})["data-mr"]
-    Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-    handle_data_line()
-
-for result in google_inline:
-    Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
-    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
-    Price = result.find("b", {"class" : "translate-content"}).get_text()
-    Store = result.find("span", {"class" : "E5ocAb"}).get_text()
-    Url = f"https://shopping.google.com{result['href']}"
-    handle_data_line()
-
-for result in bing_grid:
-    name_block = result.find("div", {"class" : "br-pdItemName"}) 
-    if name_block.has_attr('title'): Name = name_block["title"]
-    else: Name = name_block.get_text()
-    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
-    Price = result.find("div", {"class" : "pd-price"}).get_text()
-    Store = result.find("span", {"class" : "br-sellersCite"}).get_text()
-    Url = f"https://bing.com{result['data-url']}"
-    handle_data_line()
-
-for result in bing_inline:
-    name_block = result.find("span", {"title" : True})
-    Name = name_block["title"]
-    if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
-    Price = result.find("div", {"class": "br-price"}).get_text()
-    Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
-    Url = result.find("a", {"class": "br-offLink"})["href"]
-    handle_data_line()
-
-# SAVE
-try:
-    write_results(output_data)
-    write_sucess_log(output_data)
-except Exception as save_error:
-    write_message_log(save_error, "Unexpected error while trying to save the data:")
