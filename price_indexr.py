@@ -1,9 +1,9 @@
-from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update
+from typing import List
+from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update, select
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
 import requests
 import re
 import os
-from csv import writer, DictWriter
 from datetime import date, datetime
 from bs4 import BeautifulSoup
 from sys import argv
@@ -73,9 +73,6 @@ def handle_data_line():
     except Exception as collect_error:
         write_message_log(collect_error, "Unexpected error collecting inline results:")
 
-# DEFINE CONSTANTS
-CURR_PROD_ID = argv[1]
-
 # SORT FILTERS
 try:
     # raise error if doesn't start with a positive filter
@@ -93,11 +90,17 @@ NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]
 TABLE_NAME = POS_KEYWORDS_LOWER
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
-# SETUP PLACE TO SAVE THE DATA 
-class dec_base(DeclarativeBase): pass
+# DEFINE CONSTANTS
 DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
-#DB_SESSION = sessionmaker(bind=DB_ENGINE)
-#DB_MSESSION = DB_SESSION()
+
+with Session(DB_ENGINE) as ses:
+    stmt = select(products).where(products.Id == 1)
+    result = ses.execute(stmt)
+    for i in result.scalars():
+        print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
+CURR_PROD_ID = argv[1] 
+class dec_base(DeclarativeBase): pass
+
 
 class prices(dec_base):
     __tablename__ = "prices"
@@ -181,7 +184,7 @@ except Exception as unexpected_error:
     write_message_log(unexpected_error, "Unexpected error, closing connection...")
     quit()
 
-### Structure results into a list of dictionaries
+### Structure results into a list sqlalchemy objects
 output_data = []
 Date = date.today()
 

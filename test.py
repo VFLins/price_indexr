@@ -40,14 +40,15 @@ class products(dec_base):
 
 dec_base.metadata.create_all(DB_ENGINE)
 
-""" stmt = products(
+stmt = products(
     ProductName="GeForce RTX 3050",
     ProductModel="EX",
     ProductBrand="Galax",
     ProductFilters="")
 
-with Session(DB_ENGINE) as sesa:
-    with sesa.begin(): sesa.add(stmt)
+with Session(DB_ENGINE) as ses:
+    ses.add(stmt)
+    ses.commit()
 
 stmt = prices(
     ProductId=1,
@@ -58,15 +59,14 @@ stmt = prices(
     Store="KaBuM!",
     Url="https://www.kabum.com.br/produto/320250/placa-de-video-galax-nvidia-geforce-rtx-3050-ex-oc-8gb-gddr6-lhr-1-click-128-bits-35nsl8md6yex?srsltid=Ad5pg_E93vNYIyyNwSwnn5Vm7KG2F1dCN33aqOb-c2uw65qxlW761FCmP6U") 
 
-with Session(DB_ENGINE) as sesa:
-    with sesa.begin(): sesa.add(stmt)"""
-
-""" with Session(DB_ENGINE) as session:
-    rows = session.execute(select(products)).all()
-    for line in rows: print(line)
-
-    rows = session.execute(select(prices)).all()
-    for line in rows: print(line) """
 with Session(DB_ENGINE) as ses:
-    result = select(products).where(products.Id == 1)
-    ses.scalars(result).all()
+    ses.add(stmt)
+    ses.commit()
+
+
+
+with Session(DB_ENGINE) as ses:
+    stmt = select(products).where(products.Id == 1)
+    result = ses.execute(stmt)
+    for i in result.scalars():
+        print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
