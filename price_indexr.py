@@ -12,12 +12,6 @@ def collect_prices(CURR_PROD_ID):
     # DATABASE ARCHITECTURE
     DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
 
-    with Session(DB_ENGINE) as ses:
-        stmt = select(products).where(products.Id == 1)
-        result = ses.execute(stmt)
-        for i in result.scalars():
-            print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
-
     class dec_base(DeclarativeBase): pass
 
     class prices(dec_base):
@@ -39,12 +33,23 @@ def collect_prices(CURR_PROD_ID):
         Product: Mapped["prices"] = relationship(back_populates="Product")
 
         Id: Mapped[int] = mapped_column(primary_key=True)
-        Created: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-        LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+        ProductName: Mapped[str] = mapped_column()
+        ProductModel: Mapped[str] = mapped_column()
+        ProductBrand: Mapped[str] = mapped_column()
+        ProductFilters: Mapped[str] = mapped_column()
+        Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+        LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    class benchmarks(dec_base):
+        __tablename__ = "benchmarks"
+        
     dec_base.metadata.create_all(DB_ENGINE)
 
     # DEFINING CONSTANTS
+    try: CURR_PROD_ID = int(CURR_PROD_ID)
+    except Exception as param_index_error:
+        write_message_log(param_index_error, "Product id must be integer or coercible")
+
     with Session(DB_ENGINE) as ses:
         stmt = select(products).where(products.Id == CURR_PROD_ID)
         result = ses.execute(stmt).scalars()
@@ -53,19 +58,22 @@ def collect_prices(CURR_PROD_ID):
                 case "": 
                     SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel}"
                 case _: 
-                    SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}" 
-
+                    SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}"
+    
     # SORT FILTERS
     try:
         # raise error if doesn't start with a positive filter
-        if bool(re.match("-", SEARCH_FIELD)): raise TypeError
-        SEARCH_KEYWORDS = {}
-        SEARCH_KEYWORDS["negative"] = re.split(" -", SEARCH_FIELD)[1:]
-        SEARCH_KEYWORDS["positive"] = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
-    except TypeError as input_error:
+        if bool(re.match("-", SEARCH_FIELD)): raise SyntaxError
+        negf = re.split(" -", SEARCH_FIELD)[1:]
+        posf = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
+    except SyntaxError as input_error:
         write_message_log(
             input_error, 
             "Your search should start with at least one positive filter and end with negative filters, if any")
+
+    SEARCH_KEYWORDS = {}
+    SEARCH_KEYWORDS["negative"] = [x.replace("_", " ") for x in negf]
+    SEARCH_KEYWORDS["positive"] = [x.replace("_", " ") for x in posf]
 
     POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
     NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
