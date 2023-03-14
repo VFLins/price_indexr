@@ -66,7 +66,8 @@ with Session(DB_ENGINE) as ses:
 with Session(DB_ENGINE) as ses:
     stmt = select(products).where(products.Id == 1)
     result = ses.execute(stmt).scalars()
+
     for i in result:
-        print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
-        obj = i.LastUpdate
-        print(i[0])
+            print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
+            obj = i.LastUpdate
+            print(obj)
