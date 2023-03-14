@@ -61,15 +61,16 @@ def collect_prices(CURR_PROD_ID):
                     SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}"
     
     # SORT FILTERS
-    try:
-        # raise error if doesn't start with a positive filter
+    try: # raise error if doesn't start with a positive filter
         if bool(re.match("-", SEARCH_FIELD)): raise SyntaxError
-        negf = re.split(" -", SEARCH_FIELD)[1:]
-        posf = re.split(" ", re.split(" -", SEARCH_FIELD)[0])
     except SyntaxError as input_error:
         write_message_log(
             input_error, 
             "Your search should start with at least one positive filter and end with negative filters, if any")
+
+    allf = re.split(" -", SEARCH_FIELD)
+    negf = allf[1:]
+    posf = re.split(" ", allf[0])
 
     SEARCH_KEYWORDS = {}
     SEARCH_KEYWORDS["negative"] = [x.replace("_", " ") for x in negf]
@@ -86,13 +87,16 @@ def collect_prices(CURR_PROD_ID):
         "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
 
-    BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
+    BING_SEARCH_PARAMS = {
+        "q" : " ".join(SEARCH_KEYWORDS["positive"])}
     BING_SEARCH_RESPONSE = requests.get(
         "https://www.bing.com/shop",
         params = BING_SEARCH_PARAMS,
         headers = SEARCH_HEADERS)
 
-    GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
+    GOOGLE_SEARCH_PARAMS = {
+        "q" : " ".join(SEARCH_KEYWORDS["positive"]), 
+        "tbm" : "shop"}
     GOOGLE_SEARCH_RESPONSE = requests.get(
         "https://www.google.com/search",
         params = GOOGLE_SEARCH_PARAMS,
@@ -130,8 +134,8 @@ def collect_prices(CURR_PROD_ID):
 
     ### Structure results into a list sqlalchemy objects
     output_data = []
-    Date = date.today()
-
+    Date = datetime.now()
+    
     for result in google_grid:
         Name = result.find("h3", {"class":"tAxDx"}).get_text()
         if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
@@ -253,6 +257,3 @@ def write_results(results: dict):
         ses.execute(time_stmt)
         ses.commit()
     
-
-
-
