@@ -7,10 +7,10 @@ from datetime import date, datetime
 
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=False)
+
+# DATABASE ARCHITECTURE
 class dec_base(DeclarativeBase): pass
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.sqlite")
-#DB_SESSION = sessionmaker(bind=DB_ENGINE)
-#DB_MSESSION = DB_SESSION()
 
 class prices(dec_base):
     __tablename__ = "prices"
@@ -19,7 +19,7 @@ class prices(dec_base):
     Id: Mapped[int] = mapped_column(primary_key=True)
     ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
     Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    Currency: Mapped[str] = mapped_column(nullable=True)
+    Currency: Mapped[str] = mapped_column()
     Price: Mapped[float] = mapped_column()
     Name: Mapped[str] = mapped_column()
     Store: Mapped[str] = mapped_column()
@@ -37,6 +37,10 @@ class products(dec_base):
     Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    """class benchmarks(dec_base):
+    __tablename__ = "benchmarks" """
+    
+dec_base.metadata.create_all(DB_ENGINE)
 
 dec_base.metadata.create_all(DB_ENGINE)
 
@@ -49,7 +53,7 @@ stmt = products(
 with Session(DB_ENGINE) as ses:
     ses.add(stmt)
     ses.commit()
-
+"""
 stmt = prices(
     ProductId=1,
     Date=datetime.now(),
@@ -64,10 +68,9 @@ with Session(DB_ENGINE) as ses:
     ses.commit()
 
 with Session(DB_ENGINE) as ses:
-    stmt = select(products).where(products.Id == 1)
+    stmt = select(prices)
     result = ses.execute(stmt).scalars()
 
     for i in result:
-            print(f"id:{i.Id}, product:{i.ProductBrand} {i.ProductName} {i.ProductModel}")
-            obj = i.LastUpdate
-            print(obj)
+            print(f"{i.Price} //// {i.Store}")
+ """
