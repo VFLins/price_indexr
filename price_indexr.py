@@ -138,78 +138,89 @@ def collect_prices(CURR_PROD_ID):
         write_message_log(unexpected_error, "Unexpected error, closing connection...", TABLE_NAME)
         quit()
 
-    ### Structure results into a list sqlalchemy objects
+    ### Structure results into a list sqlalchemy insert statements
     output_data = []
+    filtered = 0
     Date = datetime.now()
     
     for result in google_grid:
         line = {}
         Name = result.find("h3", {"class":"tAxDx"}).get_text()
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
-        line["Name"] = Name
-        line["ProductId"] = CURR_PROD_ID
-        #Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
-        #Store = result.find("div", {"data-mr" : True})["data-mr"]
-        line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
-        line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-        line["Date"] = Date
-        Price = strip_price_str(result.find("span", {"class" : "a8Pemb"}).get_text())
-        
-        try:
-            line["Currency"] = Price[0]
-            line["Price"] = Price[1]
-        except: 
-            write_message_log("Warning!", f"error while fetching the price: {Price}, skipping...", TABLE_NAME)
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+            filtered = filtered + 1
             continue
+        Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
+
+        line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+        line["Name"] = Name
+        line["Date"] = Date
+        line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+        line["Price"] = Price[1]
+        line["Currency"] = Price[0]
+        line["ProductId"] = CURR_PROD_ID
 
         output_data.append(prices(**line))
 
     for result in google_inline:
         line = {}
         Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-        
-        line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
-        line["Url"] = f"https://shopping.google.com{result['href']}"
-        Price = result.find("b", {"class" : "translate-content"}).get_text()
-
-        if len(Price) == 2:
-            line["Currency"] = Price[0]
-            line["Price"] = Price[1]
-        elif len(Price) == 1:
-            line["Currency"] = ""
-            line["Price"] = Price[0]
-        else: 
-            write_message_log("Warning!", f"error while fetching the price: {Price}, skipping...", TABLE_NAME)
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+            filtered = filtered + 1
             continue
+        Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
+        
+        line["Url"] = f"https://shopping.google.com{result['href']}"
+        line["Name"] = Name
+        line["Date"] = Date
+        line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+        line["Price"] = Price[1]
+        line["Currency"] = Price[0]
+        line["ProductId"] = CURR_PROD_ID
 
-        handle_data_line(CURR_PROD_ID, TABLE_NAME)
+        output_data.append(prices(**line))
 
     for result in bing_grid:
+        line = {}
         name_block = result.find("div", {"class" : "br-pdItemName"}) 
         if name_block.has_attr('title'): Name = name_block["title"]
         else: Name = name_block.get_text()
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
-        Price = result.find("div", {"class" : "pd-price"}).get_text()
-        Store = result.find("span", {"class" : "br-sellersCite"}).get_text()
-        Url = f"https://bing.com{result['data-url']}"
-        handle_data_line(CURR_PROD_ID, TABLE_NAME)
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+            filtered = filtered + 1
+            continue
+        Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
+        
+        line["Url"] = f"https://bing.com{result['data-url']}"
+        line["Name"] = Name
+        line["Date"] = Date
+        line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
+        line["Price"] = Price[1]
+        line["Currency"] = Price[0]
+        line["ProductId"] = CURR_PROD_ID
+        
+        output_data.append(prices(**line))
 
     for result in bing_inline:
+        line = {}
         name_block = result.find("span", {"title" : True})
         Name = name_block["title"]
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
+        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+            filtered = filtered + 1
+            continue
+        Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
 
-        Price = result.find("div", {"class": "br-price"}).get_text()
-        Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
-        Url = result.find("a", {"class": "br-offLink"})["href"]
-        handle_data_line(CURR_PROD_ID, TABLE_NAME)
+        line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
+        line["Name"] = Name
+        line["Date"] = Date
+        line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+        line["Price"] = Price[1]
+        line["Currency"] = Price[0]
+        line["ProductId"] = CURR_PROD_ID
+
+        output_data.append(prices(**line))
 
     # SAVE
     try:
-        write_results(output_data)
+        write_results(output_data, CURR_PROD_ID, date = Date)
         write_sucess_log(output_data, TABLE_NAME=TABLE_NAME)
     except Exception as save_error:
         write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
@@ -279,9 +290,8 @@ def strip_price_str(price_str):
     except Exception as collect_error:
         write_message_log(collect_error, "Unexpected error collecting inline results:", TABLE_NAME) """
 
-def write_results(results: dict):
-    time_stmt = update(products(LastUpdate=datetime.now())).\
-        where(products.Id == CURR_PROD_ID)
+def write_results(results: list, CURR_PROD_ID: int, date: datetime):
+    time_stmt = update(products(LastUpdate=date)).where(products.Id == CURR_PROD_ID)
     with Session(DB_ENGINE) as ses:
         ses.add_all(results)
         ses.execute(time_stmt)
