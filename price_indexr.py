@@ -8,48 +8,45 @@ from datetime import date, datetime
 from bs4 import BeautifulSoup
 from sys import argv
 
+SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
+class dec_base(DeclarativeBase): pass
+
+class prices(dec_base):
+    __tablename__ = "prices"
+    Product: Mapped[List["products"]] = relationship(back_populates="Product")
+
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
+    Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    Currency: Mapped[str] = mapped_column()
+    Price: Mapped[float] = mapped_column()
+    Name: Mapped[str] = mapped_column()
+    Store: Mapped[str] = mapped_column()
+    Url: Mapped[str] = mapped_column()
+
+class products(dec_base):
+    __tablename__ = "products"
+    Product: Mapped["prices"] = relationship(back_populates="Product")
+
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    ProductName: Mapped[str] = mapped_column()
+    ProductModel: Mapped[str] = mapped_column()
+    ProductBrand: Mapped[str] = mapped_column()
+    ProductFilters: Mapped[str] = mapped_column()
+    Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    """class benchmarks(dec_base):
+    __tablename__ = "benchmarks" """
+    
+dec_base.metadata.create_all(DB_ENGINE)
+
 def collect_prices(CURR_PROD_ID):
-    # DATABASE ARCHITECTURE
-    DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
-
-    class dec_base(DeclarativeBase): pass
-
-    class prices(dec_base):
-        __tablename__ = "prices"
-        Product: Mapped[List["products"]] = relationship(back_populates="Product")
-
-        Id: Mapped[int] = mapped_column(primary_key=True)
-        ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
-        Model: Mapped[str] = mapped_column()
-        Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-        Currency: Mapped[str] = mapped_column()
-        Price: Mapped[float] = mapped_column()
-        Name: Mapped[str] = mapped_column()
-        Store: Mapped[str] = mapped_column()
-        Url: Mapped[str] = mapped_column()
-
-    class products(dec_base):
-        __tablename__ = "products"
-        Product: Mapped["prices"] = relationship(back_populates="Product")
-
-        Id: Mapped[int] = mapped_column(primary_key=True)
-        ProductName: Mapped[str] = mapped_column()
-        ProductModel: Mapped[str] = mapped_column()
-        ProductBrand: Mapped[str] = mapped_column()
-        ProductFilters: Mapped[str] = mapped_column()
-        Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-        LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-
-    class benchmarks(dec_base):
-        __tablename__ = "benchmarks"
-        
-    dec_base.metadata.create_all(DB_ENGINE)
 
     # DEFINING CONSTANTS
-    try: CURR_PROD_ID = int(CURR_PROD_ID)
-    except Exception as param_index_error:
-        write_message_log(param_index_error, "Product id must be integer or coercible")
 
+    SEARCH_FIELD = "-"
     with Session(DB_ENGINE) as ses:
         stmt = select(products).where(products.Id == CURR_PROD_ID)
         result = ses.execute(stmt).scalars()
@@ -59,14 +56,22 @@ def collect_prices(CURR_PROD_ID):
                     SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel}"
                 case _: 
                     SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}"
+
+    try: CURR_PROD_ID = int(CURR_PROD_ID)
+    except Exception as param_index_error:
+        write_message_log(param_index_error, "Product id must be integer or coercible", TABLE_NAME)
+
+    # DATABASE ARCHITECTURE
     
     # SORT FILTERS
-    try: # raise error if doesn't start with a positive filter
+    ### raise error if doesn't start with a positive filter
+    """ try: 
         if bool(re.match("-", SEARCH_FIELD)): raise SyntaxError
     except SyntaxError as input_error:
         write_message_log(
             input_error, 
-            "Your search should start with at least one positive filter and end with negative filters, if any")
+            "Your search should start with at least one positive filter and end with negative filters, if any",
+            TABLE_NAME) """
 
     allf = re.split(" -", SEARCH_FIELD)
     negf = allf[1:]
@@ -78,11 +83,10 @@ def collect_prices(CURR_PROD_ID):
 
     POS_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["positive"]]
     NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
-    TABLE_NAME = POS_KEYWORDS_LOWER
-    SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
+    
+    TABLE_NAME = " ".join(POS_KEYWORDS_LOWER)
 
     # COLLECT DATA
-
     SEARCH_HEADERS = {
         "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
@@ -119,17 +123,19 @@ def collect_prices(CURR_PROD_ID):
             if ((len(google_grid)+len(google_inline) > 0) and (len(bing_grid)+len(bing_inline) > 0)):
                 write_message_log(
                     f"Using {len(google_grid)+len(google_inline)} results from google, and {len(bing_grid)+len(bing_inline)} from bing",
-                    f"Connection was successful after trying {try_con} times")
+                    f"Connection was successful after trying {try_con} times",
+                    TABLE_NAME=TABLE_NAME)
                 break
             
             try_con = try_con + 1
             if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
     except TimeoutError as connection_error:
         write_message_log(connection_error, 
-            "Couldn't obtain data, check your internet connection or User-Agent used on the source code.")
+            "Couldn't obtain data, check your internet connection or User-Agent used on the source code.",
+            TABLE_NAME)
         quit()
     except Exception as unexpected_error:
-        write_message_log(unexpected_error, "Unexpected error, closing connection...")
+        write_message_log(unexpected_error, "Unexpected error, closing connection...", TABLE_NAME)
         quit()
 
     ### Structure results into a list sqlalchemy objects
@@ -137,24 +143,48 @@ def collect_prices(CURR_PROD_ID):
     Date = datetime.now()
     
     for result in google_grid:
+        line = {}
         Name = result.find("h3", {"class":"tAxDx"}).get_text()
         if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
 
+        line["Name"] = Name
+        line["ProductId"] = CURR_PROD_ID
         #Price = result.find("span", {"class" : "a8Pemb OFFNJ"}).get_text().split("\xa0")
-        Price = result.find("span", {"class" : "a8Pemb"}).get_text()
-        Store = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
         #Store = result.find("div", {"data-mr" : True})["data-mr"]
-        Url = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-        handle_data_line()
+        line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+        line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+        line["Date"] = Date
+        Price = strip_price_str(result.find("span", {"class" : "a8Pemb"}).get_text())
+        
+        try:
+            line["Currency"] = Price[0]
+            line["Price"] = Price[1]
+        except: 
+            write_message_log("Warning!", f"error while fetching the price: {Price}, skipping...", TABLE_NAME)
+            continue
+
+        output_data.append(prices(**line))
 
     for result in google_inline:
+        line = {}
         Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
         if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): continue
-
+        
+        line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+        line["Url"] = f"https://shopping.google.com{result['href']}"
         Price = result.find("b", {"class" : "translate-content"}).get_text()
-        Store = result.find("span", {"class" : "E5ocAb"}).get_text()
-        Url = f"https://shopping.google.com{result['href']}"
-        handle_data_line()
+
+        if len(Price) == 2:
+            line["Currency"] = Price[0]
+            line["Price"] = Price[1]
+        elif len(Price) == 1:
+            line["Currency"] = ""
+            line["Price"] = Price[0]
+        else: 
+            write_message_log("Warning!", f"error while fetching the price: {Price}, skipping...", TABLE_NAME)
+            continue
+
+        handle_data_line(CURR_PROD_ID, TABLE_NAME)
 
     for result in bing_grid:
         name_block = result.find("div", {"class" : "br-pdItemName"}) 
@@ -165,7 +195,7 @@ def collect_prices(CURR_PROD_ID):
         Price = result.find("div", {"class" : "pd-price"}).get_text()
         Store = result.find("span", {"class" : "br-sellersCite"}).get_text()
         Url = f"https://bing.com{result['data-url']}"
-        handle_data_line()
+        handle_data_line(CURR_PROD_ID, TABLE_NAME)
 
     for result in bing_inline:
         name_block = result.find("span", {"title" : True})
@@ -175,14 +205,14 @@ def collect_prices(CURR_PROD_ID):
         Price = result.find("div", {"class": "br-price"}).get_text()
         Store = result.find("span", {"class": "br-offSlrTxt"}).get_text()
         Url = result.find("a", {"class": "br-offLink"})["href"]
-        handle_data_line()
+        handle_data_line(CURR_PROD_ID, TABLE_NAME)
 
     # SAVE
     try:
         write_results(output_data)
-        write_sucess_log(output_data)
+        write_sucess_log(output_data, TABLE_NAME=TABLE_NAME)
     except Exception as save_error:
-        write_message_log(save_error, "Unexpected error while trying to save the data:")
+        write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
@@ -204,7 +234,7 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
             if not checks_up: break
     return checks_up
 
-def write_message_log(error, message: str):
+def write_message_log(error, message: str, TABLE_NAME: str):
     # write 4 lines on the error message.
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
@@ -212,7 +242,7 @@ def write_message_log(error, message: str):
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
 
-def write_sucess_log(results: list):
+def write_sucess_log(results: list, TABLE_NAME: str):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
         log_file.write(f"{TABLE_NAME} Successful execution. {str( len(results) )} entries added")
@@ -231,7 +261,7 @@ def strip_price_str(price_str):
     elif dec==".": price = float( price.replace(",", "") )
     return [curr, price]
 
-def handle_data_line():
+""" def handle_price_line(data: dict, CURR_PROD_ID: int, TABLE_NAME: str):
     try:
         current_result = prices(
             ProductId=CURR_PROD_ID, Date=Date,
@@ -247,7 +277,7 @@ def handle_data_line():
             Name=Name, Store=Store, Url=Url)
         output_data.append(current_result)
     except Exception as collect_error:
-        write_message_log(collect_error, "Unexpected error collecting inline results:")
+        write_message_log(collect_error, "Unexpected error collecting inline results:", TABLE_NAME) """
 
 def write_results(results: dict):
     time_stmt = update(products(LastUpdate=datetime.now())).\
@@ -257,3 +287,5 @@ def write_results(results: dict):
         ses.execute(time_stmt)
         ses.commit()
     
+if __name__ == "__main__":
+    collect_prices(1)
