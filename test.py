@@ -1,6 +1,6 @@
 from typing import List
 import os
-from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, select
+from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, select, update
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
 from typing import Optional
 from datetime import date, datetime
@@ -44,33 +44,37 @@ dec_base.metadata.create_all(DB_ENGINE)
 
 dec_base.metadata.create_all(DB_ENGINE)
 
-stmt = products(
+"""stmt = products(
     ProductName="GeForce RTX 3050",
     ProductModel="EX",
     ProductBrand="Galax",
     ProductFilters="")
-
 with Session(DB_ENGINE) as ses:
     ses.add(stmt)
-    ses.commit()
-"""
-stmt = prices(
+    ses.commit()"""
+
+"""stmt = prices(
     ProductId=1,
     Date=datetime.now(),
     Currency="R$",
     Price=1720.59,
     Name="Placa De Vídeo Galax Geforce RTX 3050 Ex 8GB GDDR6",
     Store="KaBuM!",
-    Url="https://www.kabum.com.br/produto/320250/placa-de-video-galax-nvidia-geforce-rtx-3050-ex-oc-8gb-gddr6-lhr-1-click-128-bits-35nsl8md6yex?srsltid=Ad5pg_E93vNYIyyNwSwnn5Vm7KG2F1dCN33aqOb-c2uw65qxlW761FCmP6U") 
+    Url="https://www.kabum.com.br/produto/320250/placa-de-video-galax-nvidia-geforce-rtx-3050-ex-oc-8gb-gddr6-lhr-1-click-128-bits-35nsl8md6yex?srsltid=Ad5pg_E93vNYIyyNwSwnn5Vm7KG2F1dCN33aqOb-c2uw65qxlW761FCmP6U")"""
 
-with Session(DB_ENGINE) as ses:
+"""with Session(DB_ENGINE) as ses:
     ses.add(stmt)
-    ses.commit()
+    ses.commit()"""
 
-with Session(DB_ENGINE) as ses:
+"""with Session(DB_ENGINE) as ses:
     stmt = select(prices)
     result = ses.execute(stmt).scalars()
 
     for i in result:
-            print(f"{i.Price} //// {i.Store}")
- """
+            print(f"{i.Price} //// {i.Store}")"""
+
+CURR_PROD_ID = 1
+time_stmt = update(products).where(products.Id == CURR_PROD_ID).values(Created = datetime.now())
+with Session(DB_ENGINE) as ses:
+    ses.execute(time_stmt)
+    ses.commit
