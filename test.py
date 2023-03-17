@@ -7,7 +7,7 @@ from datetime import date, datetime
 
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=False)
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
 
 # DATABASE ARCHITECTURE
 class dec_base(DeclarativeBase): pass
@@ -42,16 +42,14 @@ class products(dec_base):
     
 dec_base.metadata.create_all(DB_ENGINE)
 
-dec_base.metadata.create_all(DB_ENGINE)
-
-"""stmt = products(
+stmt = products(
     ProductName="GeForce RTX 3050",
     ProductModel="EX",
     ProductBrand="Galax",
     ProductFilters="")
 with Session(DB_ENGINE) as ses:
     ses.add(stmt)
-    ses.commit()"""
+    ses.commit()
 
 """stmt = prices(
     ProductId=1,
@@ -77,4 +75,4 @@ CURR_PROD_ID = 1
 time_stmt = update(products).where(products.Id == CURR_PROD_ID).values(Created = datetime.now())
 with Session(DB_ENGINE) as ses:
     ses.execute(time_stmt)
-    ses.commit
+    ses.commit()

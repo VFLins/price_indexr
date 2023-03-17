@@ -57,22 +57,6 @@ def collect_prices(CURR_PROD_ID):
                 case _: 
                     SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}"
 
-    try: CURR_PROD_ID = int(CURR_PROD_ID)
-    except Exception as param_index_error:
-        write_message_log(param_index_error, "Product id must be integer or coercible", TABLE_NAME)
-
-    # DATABASE ARCHITECTURE
-    
-    # SORT FILTERS
-    ### raise error if doesn't start with a positive filter
-    """ try: 
-        if bool(re.match("-", SEARCH_FIELD)): raise SyntaxError
-    except SyntaxError as input_error:
-        write_message_log(
-            input_error, 
-            "Your search should start with at least one positive filter and end with negative filters, if any",
-            TABLE_NAME) """
-
     allf = re.split(" -", SEARCH_FIELD)
     negf = allf[1:]
     posf = re.split(" ", allf[0])
@@ -85,6 +69,23 @@ def collect_prices(CURR_PROD_ID):
     NEG_KEYWORDS_LOWER = [keyword.lower() for keyword in SEARCH_KEYWORDS["negative"]]
     
     TABLE_NAME = " ".join(POS_KEYWORDS_LOWER)
+
+    try: CURR_PROD_ID = int(CURR_PROD_ID)
+    except Exception as param_index_error:
+        write_message_log(param_index_error, "Product id must be integer or coercible", TABLE_NAME)
+
+    # DATABASE ARCHITECTURE
+    
+    # SORT FILTERS
+    ### raise error if id does'nt exists
+    try: 
+        if SEARCH_FIELD == "-": raise IndexError
+    except IndexError as input_error:
+        write_message_log(
+            input_error, 
+            "This product id was not found in the database",
+            f"id: {CURR_PROD_ID}")
+        quit()
 
     # COLLECT DATA
     SEARCH_HEADERS = {
@@ -272,28 +273,11 @@ def strip_price_str(price_str):
     elif dec==".": price = float( price.replace(",", "") )
     return [curr, price]
 
-""" def handle_price_line(data: dict, CURR_PROD_ID: int, TABLE_NAME: str):
-    try:
-        current_result = prices(
-            ProductId=CURR_PROD_ID, Date=Date,
-            Currency=strip_price_str(Price)[0],
-            Price=strip_price_str(Price)[1],
-            Name=Name, Store=Store, Url=Url)
-        output_data.append(current_result)
-    except IndexError:
-        current_result = prices(
-            ProductId=CURR_PROD_ID, Date=Date,
-            Currency=None,
-            Price=strip_price_str(Price)[1],
-            Name=Name, Store=Store, Url=Url)
-        output_data.append(current_result)
-    except Exception as collect_error:
-        write_message_log(collect_error, "Unexpected error collecting inline results:", TABLE_NAME) """
-
 def write_results(results: list, CURR_PROD_ID: int, date: datetime):
-    time_stmt = update(products(LastUpdate=date)).where(products.Id == CURR_PROD_ID)
+    time_stmt = update(products).where(products.Id == CURR_PROD_ID).values(LastUpdate = datetime.now())
     with Session(DB_ENGINE) as ses:
         ses.add_all(results)
+        ses.commit()
         ses.execute(time_stmt)
         ses.commit()
     
