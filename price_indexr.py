@@ -252,7 +252,7 @@ def write_message_log(error, message: str, TABLE_NAME: str):
         # 1. Time and table name
         log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
-        log_file.write(f"{message}:\n{error}\n")
+        log_file.write(f"{message}:\n{error}")
 
 def write_sucess_log(results: list, TABLE_NAME: str):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
