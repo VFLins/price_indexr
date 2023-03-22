@@ -58,7 +58,7 @@ def list_products():
         print(
             f"Id: {row['id']}",
             f"Search: {row['brand']} {row['name']} {row['model']} {row['filters']}",
-            f"Last update:{row['last_update']}", sep=" | ")
+            f"Last update: {row['last_update']}", sep=" | ")
     main_menu()
 
 def create_product():
@@ -68,23 +68,37 @@ def create_product():
     model = input("Product model: ")
     filters = input("Filters: ")
 
-    stmt = products(
-        ProductName=name,
-        ProductModel=model,
-        ProductBrand=brand,
-        ProductFilters=filters,
-        Created = created)
-    with Session(DB_ENGINE) as ses:
-        ses.add(stmt)
-        ses.commit()
+    print(
+        "\nYou will create this entry:\n"
+        f"Search: {brand} {name} {model} {filters}",
+        f"Created: {created}", sep=" | ")
+    
+    checkout = input("Confirm? [Y/n] ")
+    while True:
+        match checkout.upper():
+            case "Y" | "":
+                stmt = products(
+                    ProductName=name,
+                    ProductModel=model,
+                    ProductBrand=brand,
+                    ProductFilters=filters,
+                    Created = created)
+                with Session(DB_ENGINE) as ses:
+                    ses.add(stmt)
+                    ses.commit()
 
-    stmt = select(products).where(products.Created == created)
-    result = ses.execute(stmt).scalars()
-    for i in result:
-            print(f"\nThe ID for this product is: {i.Id}")
-            created_id = i.Id
-    collect_prices(created_id)
-    main_menu()
+                stmt = select(products).where(products.Created == created)
+                result = ses.execute(stmt).scalars()
+                for i in result:
+                        print(f"\nThe ID for this product is: {i.Id}")
+                        created_id = i.Id
+                collect_prices(created_id)
+                main_menu()
+            case "N":
+                main_menu()
+            case _:
+                print("Insert a valid response (y, or n)")
+                checkout = input("Confirm? [Y/n] ")
 
 if __name__ == "__main__":
     main_menu()
