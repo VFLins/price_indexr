@@ -1,10 +1,13 @@
 from price_indexr import *
+from sqlalchemy import select
 
 print("===== Price_indexr central v0.0.1 =====",
         "Choose an operation to perform:", 
+        "C: Create a new product to price index", 
         "L: List all products", 
-        "D: Delete product by ID number", 
-        "C: Create a new product to price index", sep="\n")
+        "U: Update a recorded product",
+        "D: Delete a product by ID number", 
+        "Q: Quit", sep="\n")
 
 def scan_products() -> list:
     """Read products table to get pairs of Id and LastUpdate
@@ -33,23 +36,54 @@ def main_menu():
     inp = get_input()
     while True:
         match inp.upper():
-            case "L": run_next = "List"; break
-            case "D": run_next = "Delete"; break
             case "C": run_next = "Create"; break
+            case "L": run_next = "List"; break
+            case "U": run_next = "Update"; break
+            case "D": run_next = "Delete"; break
+            case "Q": quit()
             case _: 
                 print("Insert a valid value!")
                 inp = get_input()
 
     match run_next:
-        case "List": 
-            list_products()
-        case "Delete":
-            print("Delete")
-        case "Create":
-            print("Create")
+        case "Create": create_product()
+        case "List": list_products()
+        case "Update": print(run_next)
+        case "Delete":print(run_next)
+        
 
 def list_products():
-    print(scan_products())
+    rows = scan_products()
+    for row in rows:
+        print(
+            f"Id: {row['id']}",
+            f"Search: {row['brand']} {row['name']} {row['model']} {row['filters']}",
+            f"Last update:{row['last_update']}", sep=" | ")
+    main_menu()
+
+def create_product():
+    created = datetime.now()
+    name = input("Product name: ")
+    brand = input("Brand name: ")
+    model = input("Product model: ")
+    filters = input("Filters: ")
+
+    stmt = products(
+        ProductName=name,
+        ProductModel=model,
+        ProductBrand=brand,
+        ProductFilters=filters,
+        Created = created)
+    with Session(DB_ENGINE) as ses:
+        ses.add(stmt)
+        ses.commit()
+
+    stmt = select(products).where(products.Created == created)
+    result = ses.execute(stmt).scalars()
+    for i in result:
+            print(f"\nThe ID for this product is: {i.Id}")
+            created_id = i.Id
+    collect_prices(created_id)
     main_menu()
 
 if __name__ == "__main__":
