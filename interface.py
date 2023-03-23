@@ -29,7 +29,7 @@ def scan_products() -> list:
     return output
 
 def get_input():
-    inp = input("\nChoose a letter and press enter:")
+    inp = input("\nChoose a letter and press enter: ")
     return inp
 
 def main_menu():
@@ -59,7 +59,6 @@ def list_products():
             f"Id: {row['id']}",
             f"Search: {row['brand']} {row['name']} {row['model']} {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
-    main_menu()
 
 def create_product():
     created = datetime.now()
@@ -92,10 +91,11 @@ def create_product():
                 for i in result:
                         print(f"\nThe ID for this product is: {i.Id}")
                         created_id = i.Id
+                print("\nCollecting current prices...")
                 collect_prices(created_id)
-                main_menu()
+                print("Transaction success!")
             case "N":
-                main_menu()
+                print("Transaction cancelled!")
             case _:
                 print("Insert a valid response (y, or n)")
                 checkout = input("Confirm? [Y/n] ")
