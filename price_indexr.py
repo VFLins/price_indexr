@@ -9,8 +9,17 @@ from bs4 import BeautifulSoup
 from sys import argv
 
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
+DATA_FOLDER = SCRIPT_FOLDER + "\data"
+if not os.path.exists(DATA_FOLDER): os.makedirs(DATA_FOLDER)
 DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
 class dec_base(DeclarativeBase): pass
+
+class product_names(dec_base):
+    __tablename__ = "product_names"
+    Name: Mapped["products"] = relationship(back_populates="Name")
+
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    ProductName: Mapped[str] = mapped_column()
 
 class prices(dec_base):
     __tablename__ = "prices"
@@ -28,8 +37,10 @@ class prices(dec_base):
 class products(dec_base):
     __tablename__ = "products"
     Product: Mapped["prices"] = relationship(back_populates="Product")
+    Name: Mapped[List["product_names"]] = relationship(back_populates="Name")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
+    NameId: Mapped[int] = mapped_column(ForeignKey("product_names.Id"))
     ProductName: Mapped[str] = mapped_column()
     ProductModel: Mapped[str] = mapped_column()
     ProductBrand: Mapped[str] = mapped_column()
