@@ -48,8 +48,8 @@ def main_menu():
     match run_next:
         case "Create": create_product()
         case "List": list_products()
-        case "Update": print(run_next)
-        case "Delete":print(run_next)
+        case "Update": print(run_next); quit()
+        case "Delete": delete_product()
         
 
 def list_products() -> None:
@@ -61,7 +61,15 @@ def list_products() -> None:
             f"Filters: {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
 
-def delete_product(id_num: int) -> None:
+def delete_product() -> None:
+    while True:
+        try:
+            id_num = input("Insert the product ID to delete: ")
+            id_num = int(id_num)
+            break
+        except:
+            print("Insert a valid ID!")
+    
     rows = scan_products()
     id_exists = False
     for row in rows:
@@ -74,14 +82,14 @@ def delete_product(id_num: int) -> None:
         with Session(DB_ENGINE) as ses:
             ses.execute(stmt)
             ses.commit()
-    else: print("Try again with a valid ID!")
+    else: print("This ID does't exist yet!")
     main_menu()
-    
+
 def create_product():
     created = datetime.now()
     brand = input("Brand name: ")
-    model = input("Product model: ")
     name = input("Product name: ")
+    model = input("Product model: ")
     filters = input("Filters: ")
 
     print(
@@ -107,16 +115,19 @@ def create_product():
                 stmt = select(products).where(products.Created == created)
                 result = ses.execute(stmt).scalars()
                 for i in result:
-                        print(f"\nThe ID for this product is: {i.Id}")
-                        created_id = i.Id
+                    created_id = i.Id
                 print("\nCollecting current prices...")
                 collect_prices(created_id)
+                print(f"\nThe ID for this product is: {created_id}")
                 print("Transaction success!")
+                break
             case "N":
                 print("Transaction cancelled!")
+                break
             case _:
                 print("Insert a valid response (y, or n)")
                 checkout = input("Confirm? [Y/n] ")
+    main_menu()
 
 if __name__ == "__main__":
     main_menu()
