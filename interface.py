@@ -1,5 +1,5 @@
 from price_indexr import *
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 print("===== Price_indexr central v0.0.1 =====",
         "Choose an operation to perform:", 
@@ -52,24 +52,42 @@ def main_menu():
         case "Delete":print(run_next)
         
 
-def list_products():
+def list_products() -> None:
     rows = scan_products()
     for row in rows:
         print(
             f"Id: {row['id']}",
-            f"Search: {row['brand']} {row['name']} {row['model']} {row['filters']}",
+            f"Search: {row['brand']} {row['name']} {row['model']}",
+            f"Filters: {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
 
+def delete_product(id_num: int) -> None:
+    rows = scan_products()
+    id_exists = False
+    for row in rows:
+        if row['id'] == id_num:
+            id_exists = True
+            break
+
+    if id_exists:
+        stmt = delete(products).where(products.Id == id_num)
+        with Session(DB_ENGINE) as ses:
+            ses.execute(stmt)
+            ses.commit()
+    else: print("Try again with a valid ID!")
+    main_menu()
+    
 def create_product():
     created = datetime.now()
-    name = input("Product name: ")
     brand = input("Brand name: ")
     model = input("Product model: ")
+    name = input("Product name: ")
     filters = input("Filters: ")
 
     print(
         "\nYou will create this entry:\n"
-        f"Search: {brand} {name} {model} {filters}",
+        f"Search: {brand} {name} {model}",
+        f"Filters: {filters}",
         f"Created: {created}", sep=" | ")
     
     checkout = input("Confirm? [Y/n] ")
