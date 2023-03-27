@@ -9,9 +9,22 @@ print("===== Price_indexr central v0.0.1 =====",
         "D: Delete a product by ID number", 
         "Q: Quit", sep="\n")
 
+def scan_names() -> list:
+    """Read product_names table to get a list of rows as dicts"""
+    output = []
+    with Session(DB_ENGINE) as ses:
+        stmt = select(product_names())
+        result = ses.execute(stmt).scalars()
+
+        for i in result:
+            output.append({
+                "id": i.Id, 
+                "name": i.Name})
+    return output
+
+
 def scan_products() -> list:
-    """Read products table to get pairs of Id and LastUpdate
-    of products that hasn't been updated in the last 7 days"""
+    """Read products table to get a list of rows as dicts"""
     output = []
     with Session(DB_ENGINE) as ses:
         stmt = select(products)
@@ -19,20 +32,22 @@ def scan_products() -> list:
 
         for i in result:
             output.append({
-                "id" : i.Id, 
-                "name" : i.ProductName,
-                "model" : i.ProductModel,
-                "brand" : i.ProductBrand,
-                "filters" : i.ProductFilters,
-                "created" : i.Created,
-                "last_update" : i.LastUpdate})
+                "id": i.Id, 
+                "name_id": i.NameId,
+                "name": i.ProductName,
+                "model": i.ProductModel,
+                "brand": i.ProductBrand,
+                "filters": i.ProductFilters,
+                "created": i.Created,
+                "last_update": i.LastUpdate})
     return output
 
-def get_input():
-    inp = input("\nChoose a letter and press enter: ")
-    return inp
 
 def main_menu():
+    def get_input():
+        inp = input("\nChoose a letter and press enter: ")
+        return inp
+    
     inp = get_input()
     while True:
         match inp.upper():
@@ -52,7 +67,29 @@ def main_menu():
         case "Delete": delete_product()
         
 
+def confirmation(ask: str) -> Bool:
+    def get_input():
+        inp = input(ask + ". Confirm? [Y/n]")
+        return inp
+    
+    inp = get_input()
+    while True:
+        match inp.upper():
+            case "Y" | "": 
+                output = True
+                break
+            case "N":
+                output = False
+                break
+            case _: 
+                print("Invalid answer!")
+                inp = get_input()
+
+
+
 def list_products() -> None:
+    
+
     rows = scan_products()
     for row in rows:
         print(
@@ -98,35 +135,28 @@ def create_product():
         f"Filters: {filters}",
         f"Created: {created}", sep=" | ")
     
-    checkout = input("Confirm? [Y/n] ")
-    while True:
-        match checkout.upper():
-            case "Y" | "":
-                stmt = products(
-                    ProductName=name,
-                    ProductModel=model,
-                    ProductBrand=brand,
-                    ProductFilters=filters,
-                    Created = created)
-                with Session(DB_ENGINE) as ses:
-                    ses.add(stmt)
-                    ses.commit()
+    checkout = confirmation("This data will be saved")
+    if checkout:
+        stmt = products(
+            ProductName=name,
+            ProductModel=model,
+            ProductBrand=brand,
+            ProductFilters=filters,
+            Created = created)
+        with Session(DB_ENGINE) as ses:
+            ses.add(stmt)
+            ses.commit()
 
-                stmt = select(products).where(products.Created == created)
-                result = ses.execute(stmt).scalars()
-                for i in result:
-                    created_id = i.Id
-                print("\nCollecting current prices...")
-                collect_prices(created_id)
-                print(f"\nThe ID for this product is: {created_id}")
-                print("Transaction success!")
-                break
-            case "N":
-                print("Transaction cancelled!")
-                break
-            case _:
-                print("Insert a valid response (y, or n)")
-                checkout = input("Confirm? [Y/n] ")
+        stmt = select(products).where(products.Created == created)
+        result = ses.execute(stmt).scalars()
+        for i in result:
+            created_id = i.Id
+        print("\nCollecting current prices...")
+        collect_prices(created_id)
+        print(f"\nThe ID for this product is: {created_id}")
+        print("Transaction success!")
+    else:
+        print("Transaction cancelled!")
     main_menu()
 
 if __name__ == "__main__":
