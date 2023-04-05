@@ -67,9 +67,9 @@ def main_menu():
         case "Delete": delete_product()
         
 
-def confirmation(ask: str) -> Bool:
+def confirmation(ask: str) -> bool:
     def get_input():
-        inp = input(ask + ". Confirm? [Y/n]")
+        inp = input(ask + ". Confirm? [Y/n]: ")
         return inp
     
     inp = get_input()
@@ -88,8 +88,6 @@ def confirmation(ask: str) -> Bool:
 
 
 def list_products() -> None:
-    
-
     rows = scan_products()
     for row in rows:
         print(
@@ -122,10 +120,46 @@ def delete_product() -> None:
     else: print("This ID does't exist yet!")
     main_menu()
 
+"""
+def retry(expr, tries, **kwargs):
+    for i in tries:
+        try: return expr(**kwargs)
+        except Exception as err: 
+            print(err)
+            continue
+        else: break
+"""
+
 def create_product():
+    names_list = scan_names()
+    is_first_name = len(names_list) > 0
+
+    if is_first_name:
+        use_existing_name = confirmation("Use an existing name?")
+        if use_existing_name:
+            for i in names_list:
+                print(
+                    f"Id: {names_list['id']}",
+                    f"Name: {names_list['name']}", sep=" | ")
+            while True:
+                try: 
+                    name_id = int(input("Select the name Id: "))
+                    id_exists = False
+                    for i in names_list:
+                        if i['id'] == name_id:
+                            id_exists = True
+                            name = i['name']
+                            break
+                    if not id_exists: raise IndexError("Value not present in the data")
+                except: print("Insert a valid number!")
+                else: break
+        else: 
+            is_new_name = True
+    else:
+        name = input("Product name: ")
+
     created = datetime.now()
     brand = input("Brand name: ")
-    name = input("Product name: ")
     model = input("Product model: ")
     filters = input("Filters: ")
 
