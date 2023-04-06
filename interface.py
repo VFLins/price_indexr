@@ -13,7 +13,7 @@ def scan_names() -> list:
     """Read product_names table to get a list of rows as dicts"""
     output = []
     with Session(DB_ENGINE) as ses:
-        stmt = select(product_names())
+        stmt = select(product_names)
         result = ses.execute(stmt).scalars()
 
         for i in result:
@@ -71,20 +71,19 @@ def confirmation(ask: str) -> bool:
     def get_input():
         inp = input(ask + ". Confirm? [Y/n]: ")
         return inp
-    
+
     inp = get_input()
     while True:
-        match inp.upper():
-            case "Y" | "": 
-                output = True
-                break
-            case "N":
-                output = False
-                break
-            case _: 
-                print("Invalid answer!")
-                inp = get_input()
-
+        if inp.upper() in ["Y", ""]:
+            output = True
+            break
+        elif inp.upper() in ["N"]:
+            output = False
+            break
+        else:
+            print("Invalid answer!")
+            inp = get_input()
+    return output
 
 
 def list_products() -> None:
@@ -132,15 +131,15 @@ def retry(expr, tries, **kwargs):
 
 def create_product():
     names_list = scan_names()
-    is_first_name = len(names_list) > 0
+    is_first_name = len(names_list) == 0
 
-    if is_first_name:
+    if not is_first_name:
         use_existing_name = confirmation("Use an existing name?")
         if use_existing_name:
             for i in names_list:
                 print(
-                    f"Id: {names_list['id']}",
-                    f"Name: {names_list['name']}", sep=" | ")
+                    f"Id: {i['id']}",
+                    f"Name: {i['name']}", sep=" | ")
             while True:
                 try: 
                     name_id = int(input("Select the name Id: "))
@@ -155,13 +154,21 @@ def create_product():
                 else: break
         else: 
             is_new_name = True
+            while True:
+                try:
+                    name = input("Product name: ").title()
+                    for i in names_list:
+                        if i['name'].upper() == name.upper(): raise Exception
+                except: print("This name already exists")
+                else: break
     else:
-        name = input("Product name: ")
-
+        is_new_name = True
+        name = input("Product name: ").title()
+        
     created = datetime.now()
-    brand = input("Brand name: ")
-    model = input("Product model: ")
-    filters = input("Filters: ")
+    brand = input("Brand name: ").title()
+    model = input("Product model: ").title()
+    filters = input("Filters: ").title()
 
     print(
         "\nYou will create this entry:\n"
@@ -169,25 +176,38 @@ def create_product():
         f"Filters: {filters}",
         f"Created: {created}", sep=" | ")
     
+    # Add new name and get NameId
+    if is_new_name:
+        name_stmt = product_names(ProductName=name)
+        with Session(DB_ENGINE) as ses:
+            # Save new name
+            ses.add(name_stmt)
+            ses.commit()
+            # Get id for new name
+            stmt = select(product_names).where(product_names.ProductName == name)
+            result = ses.execute(stmt).scalars()
+            for i in result: new_name_id = i.Id
+
     checkout = confirmation("This data will be saved")
-    if checkout:
-        stmt = products(
+    if checkout:            
+        prod_stmt = products(
+            NameId=new_name_id,
             ProductName=name,
             ProductModel=model,
             ProductBrand=brand,
             ProductFilters=filters,
-            Created = created)
+            Created=created)
         with Session(DB_ENGINE) as ses:
-            ses.add(stmt)
+            ses.add(prod_stmt)
             ses.commit()
+            # Get created product id
+            stmt = select(products).where(products.Created == created)
+            result = ses.execute(stmt).scalars()
 
-        stmt = select(products).where(products.Created == created)
-        result = ses.execute(stmt).scalars()
-        for i in result:
-            created_id = i.Id
+        for i in result: new_product_id = i.Id
         print("\nCollecting current prices...")
-        collect_prices(created_id)
-        print(f"\nThe ID for this product is: {created_id}")
+        collect_prices(new_product_id)
+        print(f"\nThe ID for this product is: {new_product_id}")
         print("Transaction success!")
     else:
         print("Transaction cancelled!")
