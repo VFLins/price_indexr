@@ -42,27 +42,28 @@ def scan_products() -> list:
     return output
 
 def main_menu():
-    def get_input():
-        inp = input("\nChoose a letter and press enter: ")
-        return inp
-    
-    inp = get_input()
     while True:
-        match inp.upper():
-            case "C": run_next = "Create"; break
-            case "L": run_next = "List"; break
-            case "U": run_next = "Update"; break
-            case "D": run_next = "Delete"; break
-            case "Q": quit()
-            case _: 
-                print("Insert a valid value!")
-                inp = get_input()
+        def get_input():
+            inp = input("\nChoose a letter and press enter: ")
+            return inp
+        
+        inp = get_input()
+        while True:
+            match inp.upper():
+                case "C": run_next = "Create"; break
+                case "L": run_next = "List"; break
+                case "U": run_next = "Update"; break
+                case "D": run_next = "Delete"; break
+                case "Q": quit()
+                case _: 
+                    print("Insert a valid value!")
+                    inp = get_input()
 
-    match run_next:
-        case "Create": create_product()
-        case "List": list_products()
-        case "Update": update_product()
-        case "Delete": delete_product()        
+        match run_next:
+            case "Create": create_product()
+            case "List": list_products()
+            case "Update": update_product()
+            case "Delete": delete_product()        
 
 def confirmation(ask: str) -> bool:
     def get_input():
@@ -180,7 +181,9 @@ def create_product():
                     name = input("Product name: ").title()
                     for i in names_list:
                         if i['name'] == name: raise Exception
-                except: print("This name already exists")
+                except: 
+                    print("This name already exists")
+                    return
                 else: break
     else:
         is_new_name = True
