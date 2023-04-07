@@ -19,9 +19,8 @@ def scan_names() -> list:
         for i in result:
             output.append({
                 "id": i.Id, 
-                "name": i.Name})
+                "name": i.ProductName})
     return output
-
 
 def scan_products() -> list:
     """Read products table to get a list of rows as dicts"""
@@ -41,7 +40,6 @@ def scan_products() -> list:
                 "created": i.Created,
                 "last_update": i.LastUpdate})
     return output
-
 
 def main_menu():
     def get_input():
@@ -63,9 +61,8 @@ def main_menu():
     match run_next:
         case "Create": create_product()
         case "List": list_products()
-        case "Update": print(run_next); quit()
-        case "Delete": delete_product()
-        
+        case "Update": update_product()
+        case "Delete": delete_product()        
 
 def confirmation(ask: str) -> bool:
     def get_input():
@@ -85,8 +82,34 @@ def confirmation(ask: str) -> bool:
             inp = get_input()
     return output
 
+def pick_product_by_id(message):
+    products = scan_products()
+    
+    while True:
+        try:
+            id_num = input(message + " (leave blank to cancel): ")
+            # test if left blank
+            if id_num == "": raise Exception
+            # coerce and test for integer value, natively raise ValueError
+            id_num = int(id_num)
+            # test if exists
+            id_exists  = False
+            for row in products:
+                if id_num == row['id']: 
+                    id_exists = True
+                    product = row
+                break
+            if not id_exists: raise IndexError
+            break
+        except ValueError:
+            print("Insert a valid number!")
+        except IndexError:
+            print("This ID doesn't exists yet!")
+        except:
+            quit()
+    return product
 
-def list_products() -> None:
+def list_products():
     rows = scan_products()
     for row in rows:
         print(
@@ -95,29 +118,26 @@ def list_products() -> None:
             f"Filters: {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
 
-def delete_product() -> None:
-    while True:
+def delete_product():
+    row = pick_product_by_id("Select a product to delete")
+    id_num = row['id']
+    # show the row selected
+    print(
+        f"Id: {id_num}",
+        f"Search: {row['brand']} {row['name']} {row['model']}",
+        f"Filters: {row['filters']}",
+        f"Last update: {row['last_update']}", sep=" | ")
+    # confirm deletion to execute
+    confirm = confirmation("You will delete this record")
+    if confirm:
         try:
-            id_num = input("Insert the product ID to delete: ")
-            id_num = int(id_num)
-            break
-        except:
-            print("Insert a valid ID!")
-    
-    rows = scan_products()
-    id_exists = False
-    for row in rows:
-        if row['id'] == id_num:
-            id_exists = True
-            break
-
-    if id_exists:
-        stmt = delete(products).where(products.Id == id_num)
-        with Session(DB_ENGINE) as ses:
-            ses.execute(stmt)
-            ses.commit()
-    else: print("This ID does't exist yet!")
-    main_menu()
+            stmt = delete(products).where(products.Id == id_num)
+            with Session(DB_ENGINE) as ses:
+                ses.execute(stmt)
+                ses.commit()
+        except Exception as DeletionError:
+            print("Not able to delete", DeletionError, sep="\n")
+    else: quit()
 
 """
 def retry(expr, tries, **kwargs):
@@ -133,6 +153,7 @@ def create_product():
     names_list = scan_names()
     is_first_name = len(names_list) == 0
 
+    is_new_name = False
     if not is_first_name:
         use_existing_name = confirmation("Use an existing name?")
         if use_existing_name:
@@ -158,7 +179,7 @@ def create_product():
                 try:
                     name = input("Product name: ").title()
                     for i in names_list:
-                        if i['name'].upper() == name.upper(): raise Exception
+                        if i['name'] == name: raise Exception
                 except: print("This name already exists")
                 else: break
     else:
@@ -183,10 +204,11 @@ def create_product():
             # Save new name
             ses.add(name_stmt)
             ses.commit()
-            # Get id for new name
-            stmt = select(product_names).where(product_names.ProductName == name)
-            result = ses.execute(stmt).scalars()
-            for i in result: new_name_id = i.Id
+    with Session(DB_ENGINE) as ses:
+        # Get id for the used name
+        stmt = select(product_names).where(product_names.ProductName == name)
+        result = ses.execute(stmt).scalar_one()
+        new_name_id = result.Id
 
     checkout = confirmation("This data will be saved")
     if checkout:            
@@ -211,7 +233,26 @@ def create_product():
         print("Transaction success!")
     else:
         print("Transaction cancelled!")
-    main_menu()
+
+
+def update_product():
+    print("You can only update the filters's field in this version...")
+    row = pick_product_by_id("Select the product with the filter to update")
+    id_num = row['id']
+
+    print(
+        f"Id: {id_num}",
+        f"Search: {row['brand']} {row['name']} {row['model']}",
+        f"Filters: {row['filters']}",
+        f"Last update: {row['last_update']}", sep=" | ")
+    # confirm update and execute
+    confirm = confirmation("You will retype the filters for this record")
+    if confirm:
+        new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
+        with Session(DB_ENGINE) as ses:
+            selected_row = ses.execute(select(products).where(products.Id == id_num)).scalar_one()
+            selected_row.ProductFilters = new_filters
+            ses.commit()
 
 if __name__ == "__main__":
     main_menu()
