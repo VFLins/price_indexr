@@ -1,5 +1,6 @@
 from typing import List
 from price_indexr import *
+from interface import scan_products
 from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update, select
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
 from datetime import date, datetime, timedelta
