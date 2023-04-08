@@ -16,8 +16,5 @@ def time_and_execute():
                 collect_prices(prod["id"])
         sleep(900)
 
-if __name__ == "scheduler":
-    time_and_execute()
-
 if __name__ == "__main__":
-    print(scan_products())
+    time_and_execute()
