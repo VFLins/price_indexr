@@ -11,6 +11,8 @@ from sys import argv
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 DATA_FOLDER = SCRIPT_FOLDER + "\data"
 if not os.path.exists(DATA_FOLDER): os.makedirs(DATA_FOLDER)
+
+# DATABASE ARCHITECTURE
 DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
 class dec_base(DeclarativeBase): pass
 
@@ -48,7 +50,7 @@ class products(dec_base):
     Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    """class benchmarks(dec_base):
+"""class benchmarks(dec_base):
     __tablename__ = "benchmarks" """
     
 dec_base.metadata.create_all(DB_ENGINE)
@@ -56,22 +58,33 @@ dec_base.metadata.create_all(DB_ENGINE)
 def collect_prices(CURR_PROD_ID):
 
     # DEFINING CONSTANTS
+    try:
+        with Session(DB_ENGINE) as ses:
+            stmt = select(products).where(products.Id == CURR_PROD_ID)
+            curr_product = ses.execute(stmt).scalar_one()
+    except Exception as input_error:
+        write_message_log(
+            input_error, 
+            "This product id was not found in the database",
+            f"id: {CURR_PROD_ID}")
+        quit()
 
-    SEARCH_FIELD = "-"
-    with Session(DB_ENGINE) as ses:
-        stmt = select(products).where(products.Id == CURR_PROD_ID)
-        result = ses.execute(stmt).scalars()
-        for i in result:
-            match i.ProductFilters:
-                case "": 
-                    SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel}"
-                case _: 
-                    SEARCH_FIELD = f"{i.ProductBrand} {i.ProductName} {i.ProductModel} {i.ProductFilters}"
+    SEARCH_FIELD = f"{curr_product.ProductBrand} {curr_product.ProductName} {curr_product.ProductModel}"
+    FILTERS = curr_product.ProductFilters
 
+    '''
     allf = re.split(" -", SEARCH_FIELD)
     negf = allf[1:]
     posf = re.split(" ", allf[0])
 
+    filters treatment::
+    'pc, personal_computer, something, foo, foo_bar'
+    'pc,personal_computer,something,foo,foo_bar'
+    ['pc','personal_computer','something','foo','foo_bar']
+    ['pc','personal computer','something','foo','foo bar']
+    '''
+    posf = re.split(" ", SEARCH_FIELD)
+    negf = re.split(",", FILTERS.replace(" ", ""))
     SEARCH_KEYWORDS = {}
     SEARCH_KEYWORDS["negative"] = [x.replace("_", " ") for x in negf]
     SEARCH_KEYWORDS["positive"] = [x.replace("_", " ") for x in posf]
@@ -84,35 +97,22 @@ def collect_prices(CURR_PROD_ID):
     try: CURR_PROD_ID = int(CURR_PROD_ID)
     except Exception as param_index_error:
         write_message_log(param_index_error, "Product id must be integer or coercible", TABLE_NAME)
-
-    # DATABASE ARCHITECTURE
     
     # SORT FILTERS
     ### raise error if id does'nt exists
-    try: 
-        if SEARCH_FIELD == "-": raise IndexError
-    except IndexError as input_error:
-        write_message_log(
-            input_error, 
-            "This product id was not found in the database",
-            f"id: {CURR_PROD_ID}")
-        quit()
 
     # COLLECT DATA
     SEARCH_HEADERS = {
         "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
 
-    BING_SEARCH_PARAMS = {
-        "q" : " ".join(SEARCH_KEYWORDS["positive"])}
+    BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
     BING_SEARCH_RESPONSE = requests.get(
         "https://www.bing.com/shop",
         params = BING_SEARCH_PARAMS,
         headers = SEARCH_HEADERS)
 
-    GOOGLE_SEARCH_PARAMS = {
-        "q" : " ".join(SEARCH_KEYWORDS["positive"]), 
-        "tbm" : "shop"}
+    GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
     GOOGLE_SEARCH_RESPONSE = requests.get(
         "https://www.google.com/search",
         params = GOOGLE_SEARCH_PARAMS,
