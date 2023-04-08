@@ -13,7 +13,7 @@ DATA_FOLDER = SCRIPT_FOLDER + "\data"
 if not os.path.exists(DATA_FOLDER): os.makedirs(DATA_FOLDER)
 
 # DATABASE ARCHITECTURE
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=True)
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=False)
 class dec_base(DeclarativeBase): pass
 
 class product_names(dec_base):
@@ -244,14 +244,19 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
     and if it does NOT have the keywords it isn't supposed to have,
     with every test passed, return 'True'.
     """
+
     checks_up = False
     for word in pos_filters:
+        # skip when word is an empty string
+        if word == "": continue
+        # checks_up when the positive filter is found
         if bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
         else: checks_up = False
         if not checks_up: break
     
     if len(neg_filters) > 0 and checks_up:
         for word in neg_filters:
+            if word == "": continue
             if not bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
             else: checks_up = False
             if not checks_up: break
@@ -261,14 +266,14 @@ def write_message_log(error, message: str, TABLE_NAME: str):
     # write 4 lines on the error message.
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
-        log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
+        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
-        log_file.write(f"{message}:\n{error}")
+        log_file.write(f"{message}:\n{error}\n")
 
 def write_sucess_log(results: list, TABLE_NAME: str):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"{TABLE_NAME} Successful execution. {str( len(results) )} entries added")
+        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution. {str( len(results) )} entries added\n\n")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
@@ -293,4 +298,4 @@ def write_results(results: list, CURR_PROD_ID: int, date: datetime):
         ses.commit()
     
 if __name__ == "__main__":
-    collect_prices(1)
+    collect_prices(2)
