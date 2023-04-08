@@ -1,14 +1,6 @@
 from price_indexr import *
 from sqlalchemy import select, delete
 
-print("===== Price_indexr central v0.0.1 =====",
-        "Choose an operation to perform:", 
-        "C: Create a new product to price index", 
-        "L: List all products", 
-        "U: Update a recorded product",
-        "D: Delete a product by ID number", 
-        "Q: Quit", sep="\n")
-
 def scan_names() -> list:
     """Read product_names table to get a list of rows as dicts"""
     output = []
@@ -258,4 +250,12 @@ def update_product():
             ses.commit()
 
 if __name__ == "__main__":
+    print("===== Price_indexr central v0.1 =====",
+        "Choose an operation to perform:", 
+        "C: Create a new product to price index", 
+        "L: List all products", 
+        "U: Update a recorded product",
+        "D: Delete a product by ID number", 
+        "Q: Quit", sep="\n")
+    
     main_menu()
