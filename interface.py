@@ -91,15 +91,13 @@ def pick_product_by_id(message):
                 if id_num == row['id']: 
                     id_exists = True
                     product = row
-                break
+                    break
             if not id_exists: raise IndexError
             break
         except ValueError:
             print("Insert a valid number!")
-        except IndexError:
-            print("This ID doesn't exists yet!")
-        except:
-            quit()
+        except IndexError: return None
+        except: return None
     return product
 
 def list_products():
@@ -113,24 +111,29 @@ def list_products():
 
 def delete_product():
     row = pick_product_by_id("Select a product to delete")
-    id_num = row['id']
-    # show the row selected
-    print(
-        f"Id: {id_num}",
-        f"Search: {row['brand']} {row['name']} {row['model']}",
-        f"Filters: {row['filters']}",
-        f"Last update: {row['last_update']}", sep=" | ")
-    # confirm deletion to execute
-    confirm = confirmation("You will delete this record")
-    if confirm:
-        try:
-            stmt = delete(products).where(products.Id == id_num)
-            with Session(DB_ENGINE) as ses:
-                ses.execute(stmt)
-                ses.commit()
-        except Exception as DeletionError:
-            print("Not able to delete", DeletionError, sep="\n")
-    else: quit()
+
+    # run if row exists
+    if row:
+        id_num = row['id']
+        # show the row selected
+        print(
+            f"Id: {id_num}",
+            f"Search: {row['brand']} {row['name']} {row['model']}",
+            f"Filters: {row['filters']}",
+            f"Last update: {row['last_update']}", sep=" | ")
+        # confirm deletion to execute
+        confirm = confirmation("You will delete this record")
+        if confirm:
+            try:
+                stmt = delete(products).where(products.Id == id_num)
+                with Session(DB_ENGINE) as ses:
+                    ses.execute(stmt)
+                    ses.commit()
+            except Exception as DeletionError:
+                print("Not able to delete", DeletionError, sep="\n")
+        else: quit()
+    else:
+        print("This row Id doesn't exist!")
 
 """
 def retry(expr, tries, **kwargs):
@@ -233,21 +236,24 @@ def create_product():
 def update_product():
     print("You can only update the filters's field in this version...")
     row = pick_product_by_id("Select the product with the filter to update")
-    id_num = row['id']
 
-    print(
-        f"Id: {id_num}",
-        f"Search: {row['brand']} {row['name']} {row['model']}",
-        f"Filters: {row['filters']}",
-        f"Last update: {row['last_update']}", sep=" | ")
-    # confirm update and execute
-    confirm = confirmation("You will retype the filters for this record")
-    if confirm:
-        new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
-        with Session(DB_ENGINE) as ses:
-            selected_row = ses.execute(select(products).where(products.Id == id_num)).scalar_one()
-            selected_row.ProductFilters = new_filters
-            ses.commit()
+    if row:
+        id_num = row['id']
+        print(
+            f"Id: {id_num}",
+            f"Search: {row['brand']} {row['name']} {row['model']}",
+            f"Filters: {row['filters']}",
+            f"Last update: {row['last_update']}", sep=" | ")
+        # confirm update and execute
+        confirm = confirmation("You will retype the filters for this record")
+        if confirm:
+            new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
+            with Session(DB_ENGINE) as ses:
+                selected_row = ses.execute(select(products).where(products.Id == id_num)).scalar_one()
+                selected_row.ProductFilters = new_filters
+                ses.commit()
+    else:
+        print("This row Id doesn't exist!")
 
 if __name__ == "__main__":
     print("===== Price_indexr central v0.1 =====",
