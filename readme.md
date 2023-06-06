@@ -3,13 +3,13 @@
 
 Price_indexr is intended to get a set of product prices for a given simultaneous search on Google shopping and Bing shopping and store it locally. To ensure you will get only the desired results, you can filter what will be saved locally based on the title each individual product. This program can be prompted manually, or scheduled to run by other softwares like [cron](https://cron-job.org/en/), or Windows's task scheduler.
 
-### This branch: `Central` 
+### This branch: **`Central`**
 
 Features added to this branch:
 
 - Centralizes the prices for all different products in a single SQLite database
 - Now it's much easier to schedule for the price collection of multiple products
-- Filtering is simpler
+- Filtering and scheduling are made simpler
 
 ### How can this help me?
 
@@ -18,33 +18,19 @@ This can be used to satisfy business and personal necessities, for stablishing m
 # Requirements
 
 - Python version 3.10 or superior
-- Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
-
-<details>
-    <summary> <b>Recommended for scheduling</b> </summary>
-    
-For macOS/Unix operating systems:
-- [Bash](http://tiswww.case.edu/php/chet/bash/bashtop.html)
-- [cron/anacron](https://cron-job.org/en/) or [cronitor](https://cronitor.io) installed
-
-For Windows operating systems:
-- [PowerShell](https://docs.microsoft.com/pt-br/powershell/scripting/overview?view=powershell-7.2)
-- [Windows Task Scheduler](https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page)
-    
-</details>
+    - Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
 
 # How to use?
 
-This version is intended to be used from [interface.py](https://github.com/VFLins/Price_indexr/blob/central/interface.py), this is a TUI (Text User Interface), where you can add new products to monitor, and some other things.
+This version is intended to be used from [interface.py](https://github.com/VFLins/Price_indexr/blob/central/interface.py), this is a TUI (Text User Interface), where you can add new products to monitor, and do some other things that we will see next.
 
-```
-python price_indexr.py "<Database connection string or '.csv'>" "my product search" "<location code [optional]>"
-```
+## Adding the first product
 
-This will use python to run the ```price_indexr.py``` script with 3 different arguments in order:
-1. A connection string to a database supported by SQLAlchemy on it's [Included Dialects](https://docs.sqlalchemy.org/en/14/dialects/#included-dialects), or simply ".csv" to save in a text file;
-2. A search that you would type on google's search field. Must be inside quotes or double qutoes if it contains more than one word;
-3. [Optional] A location code for the country (e.g. "us" for the United States, or "pt-br" for Brazil). If not included, google search engine will guess the country by the IP address that you are using.
+The first thing that we'll need to do is run `interface.py`, type "`c`" and follow the instructions. Once all the steps are followed throughly, `price_indexr.py` will be called for the first time for this product, and you will be able to find a new folder with a new file inside (`data/database.db`) holding the new data that you just added!
+
+This is enough to have prices to the product you want stored in a database, but you can also schedule for new price collections. Once you registered a product, you can use `scheduler.pyw`. On windows, you can set the python interpreter as the default program to open this kind of file, and then use [Windows Task Scheduler](https://www.wintips.org/how-to-start-a-program-at-startup-with-task-scheduler/) to run this every time the computer starts.
+
+Once you've registered your product names and set the scheduler to run every time your computer starts, you will get new prices for the last 
 
 ### How the search works?
 
