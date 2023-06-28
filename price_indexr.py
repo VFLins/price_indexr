@@ -84,7 +84,9 @@ def collect_prices(CURR_PROD_ID):
     ['pc','personal computer','something','foo','foo bar']
     '''
     posf = re.split(" ", SEARCH_FIELD)
-    negf = re.split(",", FILTERS.replace(" ", ""))
+    hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador", "Fan"]
+    negf = set(re.split(",", FILTERS.replace(" ", "")) + hard_negf)
+
     SEARCH_KEYWORDS = {}
     SEARCH_KEYWORDS["negative"] = [x.replace("_", " ") for x in negf]
     SEARCH_KEYWORDS["positive"] = [x.replace("_", " ") for x in posf]
