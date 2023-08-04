@@ -32,7 +32,17 @@ To accommodate the initial need to obtain prices for GPUs from many different mo
    - Filters are used to mark words that should not appear on the targeted product title
    - Hardcoded filters are added to reduce typing time
   
-**To add a product for monitoring**: simply double-click `interface.py`, open with a python interpreter, and follow the instructions on the screen.
+### To add a product for monitoring:
+
+Simply double-click `interface.py`, open with a python interpreter, and follow the instructions on the screen.
+
+### To automate the weekly price data collection:
+
+Set `scheduler.py` to be executed when your system starts. For instructions on how to do this on Windows, follow [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd#:~:text=Add%20an%20App%20to%20Run%20Automatically%20at%20Startup,file%20location%20to%20the%20Startup%20folder.%20See%20More.).
+
+### To access your collected data:
+
+Inside the same folder that `price_indexr.py` is located, look for a folder named *data*, there you might find a `database.db` file. This is a sqlite database, you can use [SQLite Studio](https://sqlitestudio.pl/) to browse your dataset.
 
 # See also:
 
