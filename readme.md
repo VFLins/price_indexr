@@ -38,7 +38,7 @@ Simply double-click `interface.py`, open with a python interpreter, and follow t
 
 ### To automate the weekly price data collection:
 
-Set `scheduler.py` to be executed when your system starts. For instructions on how to do this on Windows, follow [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd#:~:text=Add%20an%20App%20to%20Run%20Automatically%20at%20Startup,file%20location%20to%20the%20Startup%20folder.%20See%20More.).
+Set `scheduler.pyw` to be executed when your system starts, and set a python interpreter to be the default program to run this file extension. For instructions on how to do this on Windows, follow [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd#:~:text=Add%20an%20App%20to%20Run%20Automatically%20at%20Startup,file%20location%20to%20the%20Startup%20folder.%20See%20More.) and [this other guide](https://support.microsoft.com/en-us/windows/change-default-programs-in-windows-e5d82cad-17d1-c53b-3505-f10a32e1894d) respectively.
 
 ### To access your collected data:
 
