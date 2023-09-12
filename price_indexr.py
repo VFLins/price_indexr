@@ -197,12 +197,11 @@ def collect_prices(CURR_PROD_ID):
         for result in bing_grid:
             line = {}
             try:
-                name_block = result.find("div", {"class" : "br-pdItemName"}) 
-                if name_block.has_attr('title'): Name = name_block["title"]
-                else: Name = name_block.get_text()
+                name_block = result.find("div", {"class": "br-pdItemName"})
+                Name = name_block.get_text()
             except Exception as bing_grid_name_collection_fail:
-                write_message_log(bing_grid_name_collection_fail, "Problem collecting `Name` from:", result)
-                print(bing_grid_name_collection_fail)
+                write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_grid_name_collection_fail)
+                break
 
             if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
                 filtered = filtered + 1
@@ -221,8 +220,13 @@ def collect_prices(CURR_PROD_ID):
 
         for result in bing_inline:
             line = {}
-            name_block = result.find("span", {"title" : True})
-            Name = name_block["title"]
+
+            try:
+                name_block = result.find("span", {"title" : True})
+                Name = name_block["title"]
+            except Exception as bing_inline_name_collection_fail:
+                write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_inline_name_collection_fail)
+                break
 
             if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
                 filtered = filtered + 1
