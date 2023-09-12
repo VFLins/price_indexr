@@ -1,4 +1,3 @@
-from typing import List
 from price_indexr import *
 from interface import scan_products
 from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update, select
