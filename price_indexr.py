@@ -106,7 +106,7 @@ def collect_prices(CURR_PROD_ID):
     # COLLECT DATA
     SEARCH_HEADERS = {
         "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.121 Safari/537.36"}
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
 
     BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
     BING_SEARCH_RESPONSE = requests.get(
@@ -132,7 +132,7 @@ def collect_prices(CURR_PROD_ID):
 
             soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
             bing_grid = soup_bing.find_all("li", {"class": "br-item"})
-            bing_inline = soup_bing.find_all("div", {"class": "slide"})
+            bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
 
             if ((len(google_grid)+len(google_inline) > 0) and (len(bing_grid)+len(bing_inline) > 0)):
                 write_message_log(
@@ -153,84 +153,94 @@ def collect_prices(CURR_PROD_ID):
         quit()
 
     ### Structure results into a list sqlalchemy insert statements
-    output_data = []
-    filtered = 0
-    Date = datetime.now()
-    
-    for result in google_grid:
-        line = {}
-        Name = result.find("h3", {"class":"tAxDx"}).get_text()
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-            filtered = filtered + 1
-            continue
-        Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
-
-        line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-        line["Name"] = Name
-        line["Date"] = Date
-        line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
-        line["Price"] = Price[1]
-        line["Currency"] = Price[0]
-        line["ProductId"] = CURR_PROD_ID
-
-        output_data.append(prices(**line))
-
-    for result in google_inline:
-        line = {}
-        Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-            filtered = filtered + 1
-            continue
-        Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
+    try:
+        output_data = []
+        filtered = 0
+        Date = datetime.now()
         
-        line["Url"] = f"https://shopping.google.com{result['href']}"
-        line["Name"] = Name
-        line["Date"] = Date
-        line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
-        line["Price"] = Price[1]
-        line["Currency"] = Price[0]
-        line["ProductId"] = CURR_PROD_ID
+        for result in google_grid:
+            line = {}
+            Name = result.find("h3", {"class":"tAxDx"}).get_text()
+            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                filtered = filtered + 1
+                continue
+            Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
 
-        output_data.append(prices(**line))
+            line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+            line["Name"] = Name
+            line["Date"] = Date
+            line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+            line["Price"] = Price[1]
+            line["Currency"] = Price[0]
+            line["ProductId"] = CURR_PROD_ID
 
-    for result in bing_grid:
-        line = {}
-        name_block = result.find("div", {"class" : "br-pdItemName"}) 
-        if name_block.has_attr('title'): Name = name_block["title"]
-        else: Name = name_block.get_text()
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-            filtered = filtered + 1
-            continue
-        Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
-        
-        line["Url"] = f"https://bing.com{result['data-url']}"
-        line["Name"] = Name
-        line["Date"] = Date
-        line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
-        line["Price"] = Price[1]
-        line["Currency"] = Price[0]
-        line["ProductId"] = CURR_PROD_ID
-        
-        output_data.append(prices(**line))
+            output_data.append(prices(**line))
 
-    for result in bing_inline:
-        line = {}
-        name_block = result.find("span", {"title" : True})
-        Name = name_block["title"]
-        if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-            filtered = filtered + 1
-            continue
-        Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
+        for result in google_inline:
+            line = {}
+            Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
+            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                filtered = filtered + 1
+                continue
+            Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
+            
+            line["Url"] = f"https://shopping.google.com{result['href']}"
+            line["Name"] = Name
+            line["Date"] = Date
+            line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+            line["Price"] = Price[1]
+            line["Currency"] = Price[0]
+            line["ProductId"] = CURR_PROD_ID
 
-        line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
-        line["Name"] = Name
-        line["Date"] = Date
-        line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
-        line["Price"] = Price[1]
-        line["Currency"] = Price[0]
-        line["ProductId"] = CURR_PROD_ID
+            output_data.append(prices(**line))
 
-        output_data.append(prices(**line))
+        for result in bing_grid:
+            line = {}
+            try:
+                name_block = result.find("div", {"class" : "br-pdItemName"}) 
+                if name_block.has_attr('title'): Name = name_block["title"]
+                else: Name = name_block.get_text()
+            except Exception as bing_grid_name_collection_fail:
+                write_message_log(bing_grid_name_collection_fail, "Problem collecting `Name` from:", result)
+                print(bing_grid_name_collection_fail)
+
+            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                filtered = filtered + 1
+                continue
+            Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
+            
+            line["Url"] = f"https://bing.com{result['data-url']}"
+            line["Name"] = Name
+            line["Date"] = Date
+            line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
+            line["Price"] = Price[1]
+            line["Currency"] = Price[0]
+            line["ProductId"] = CURR_PROD_ID
+            
+            output_data.append(prices(**line))
+
+        for result in bing_inline:
+            line = {}
+            name_block = result.find("span", {"title" : True})
+            Name = name_block["title"]
+
+            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                filtered = filtered + 1
+                continue
+            Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
+
+            line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
+            line["Name"] = Name
+            line["Date"] = Date
+            line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+            line["Price"] = Price[1]
+            line["Currency"] = Price[0]
+            line["ProductId"] = CURR_PROD_ID
+
+            output_data.append(prices(**line))
+    except Exception as collect_error:
+        write_message_log(collect_error, "Unexpected error while trying to collect data for", TABLE_NAME)
+        print(collect_error)
 
     # SAVE
     try:
@@ -268,7 +278,7 @@ def write_message_log(error, message: str, TABLE_NAME: str):
     # write 4 lines on the error message.
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
-        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME}\n")
+        log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
 
