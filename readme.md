@@ -1,109 +1,48 @@
    
 # Description
 
-Price_indexr is intended to get a set of product prices for a given simultaneous search on Google shopping and Bing shopping and store it locally. To ensure you will get only the desired results, you can filter what will be saved locally based on the title each individual product. This program can be prompted manually, or scheduled to run by other softwares like [cron](https://cron-job.org/en/), or Windows's task scheduler.
+Price_indexr is intended to get a set of product prices for a given simultaneous search on Google shopping and Bing shopping and store it locally. To ensure you will get only the desired results, you can filter what will be saved locally based on the title each individual product. This program can automatically update the price information for each product individually on a weekly basis.
 
 ### This branch: `Central` 
 
 Features added to this branch:
 
+- Targeted for collecting Graphics Cards prices
 - Centralizes the prices for all different products in a single SQLite database
 - Now it's much easier to schedule for the price collection of multiple products
 - Filtering is simpler
 
 ### How can this help me?
 
-This can be used to satisfy business and personal necessities, for stablishing market prices, help on calculating price indexes for specific types of products or monitoring the price of a product you want to buy.
+This can be used to satisfy business and personal necessities, for monitoring your competitor's prices, help on calculating price indexes for specific types of products or monitoring the price of a product you want to buy.
 
 # Requirements
 
 - Python version 3.10 or superior
 - Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
 
-<details>
-    <summary> <b>Recommended for scheduling</b> </summary>
-    
-For macOS/Unix operating systems:
-- [Bash](http://tiswww.case.edu/php/chet/bash/bashtop.html)
-- [cron/anacron](https://cron-job.org/en/) or [cronitor](https://cronitor.io) installed
-
-For Windows operating systems:
-- [PowerShell](https://docs.microsoft.com/pt-br/powershell/scripting/overview?view=powershell-7.2)
-- [Windows Task Scheduler](https://docs.microsoft.com/en-us/windows/win32/taskschd/task-scheduler-start-page)
-    
-</details>
-
 # How to use?
 
-This version is intended to be used from [interface.py](https://github.com/VFLins/Price_indexr/blob/central/interface.py), this is a TUI (Text User Interface), where you can add new products to monitor, and some other things.
+This version is intended to be used from [interface.py](https://github.com/VFLins/Price_indexr/blob/central/interface.py), this is a TUI (Text User Interface), where you can add new products to monitor.
 
-```
-python price_indexr.py "<Database connection string or '.csv'>" "my product search" "<location code [optional]>"
-```
+To accommodate the initial need to obtain prices for GPUs from many different models and manufacturers, the products are organized into a two-level hierarchy.
 
-This will use python to run the ```price_indexr.py``` script with 3 different arguments in order:
-1. A connection string to a database supported by SQLAlchemy on it's [Included Dialects](https://docs.sqlalchemy.org/en/14/dialects/#included-dialects), or simply ".csv" to save in a text file;
-2. A search that you would type on google's search field. Must be inside quotes or double qutoes if it contains more than one word;
-3. [Optional] A location code for the country (e.g. "us" for the United States, or "pt-br" for Brazil). If not included, google search engine will guess the country by the IP address that you are using.
+1. In the **higher level** are the "product names", originally used to store the chip names
+2. In the **lower level** are the "brand", "model" and "filters"
+   - Filters are used to mark words that should not appear on the targeted product title
+   - Hardcoded filters are added to reduce typing time
+  
+### To add a product for monitoring:
 
-### How the search works?
+Simply double-click `interface.py`, open with a python interpreter, and follow the instructions on the screen.
 
-The search results could come with a lot of similar products that doesn't meet your expectations. For that reason, every word you type in the search argument is a filter, Price_indexr works with two kinds of filters:
+### To automate the weekly price data collection:
 
-1. **Positive:** this filter contains every word that you demand to be in the title of the product. This also will be used to fill the google shopping's search bar.
-2. **Negative:** this filter contains every word that you demand ***NOT*** to be in the title of the product. This will never be used to fill the google shopping's search bar, as it would bring more unwanted results.
+Set `scheduler.pyw` to be executed when your system starts, and set a python interpreter to be the default program to run this file extension. For instructions on how to do this on Windows, follow [this guide](https://support.microsoft.com/en-us/windows/add-an-app-to-run-automatically-at-startup-in-windows-10-150da165-dcd9-7230-517b-cf3c295d89dd#:~:text=Add%20an%20App%20to%20Run%20Automatically%20at%20Startup,file%20location%20to%20the%20Startup%20folder.%20See%20More.) and [this other guide](https://support.microsoft.com/en-us/windows/change-default-programs-in-windows-e5d82cad-17d1-c53b-3505-f10a32e1894d) respectively.
 
-So your search would look like: `"gtx 1660 -pc -notebook"`*
+### To access your collected data:
 
-In the example above, "gtx" and "1660" are positive filters and "pc" and "notebook" are negative. In this case you want to search the "gtx 1660" graphics card's price, but as the results might bring unwanted computers and notebooks that comes with this graphics card equiped, you should use negative filters such as those to avoid adding them to your database. The positive filters would naturally prevent you from getting similar graphics cards such as "gtx 1650" and ensuring you get data only from the desired model.
-
- *Note that positive filters should **always** come first.
-
-### Scheduling on Unix/macOS with Bash
-
-<details>
-    <summary> Example of automation with crontab </summary>
-
-    ```
-    PYTHON_PATH="<path to desired python interpreter>"
-    SCRIPT_PATH="<path to price_indexr.py>"
-    DB_CON="<your database connection string>" 
-    # or ".csv" to save in a text file in the same folder of your script instead of a database
-
-    crontab -e
-    @monthly "$PYTHON_PATH" "$SCRIPT_PATH" "$DB_CON" "my product search"
-    # To check the schedules made:
-    crontab -l
-    ```
-</details> 
-
-### Scheduling on Windows with PowerShell
-
-<details>
-    <summary> Example of automation with Windows Task Scheduler </summary>
-
-    ```
-    $PYTHON_PATH = "<path to desired python interpreter>"
-    $SCRIPT_PATH = "<path to price_indexr.py>"
-    $DB_CON = "<your database connection string>" 
-
-    $price_indexr_action = New-ScheduledTaskAction 
-        -Execute "python3 $SCRIPT_PATH $DB_CON 'my product search'"
-    $monthly = New-ScheduledTaskTrigger -Monthly -At 0:00am
-    $task_<unique name> = Register-ScheduledTask 
-        -Action $price_indexr_action
-        -Trigger $monthly 
-        -TaskName "<unique name>" 
-        -Description "<Your Description>"
-    $task_<unique name> | Set-ScheduledTask
-    ```
-</details>
-
-If a database was selected to store the data, a table called "price_indexr-my_product_search" will be created in the database on the first execution. Next executions will append new data to the same table. If you preferred a text file, the name of the file will follow the same naming pattern.
-    
-# Troubleshooting
-
-1. Depending on the user-agent, the results may or not appear for Price_indexr, usually, changing the user-agent on the line 125 of the script will solve the problem.
+Inside the same folder that `price_indexr.py` is located, look for a folder named *data*, there you might find a `database.db` file. This is a sqlite database, you can use [SQLite Studio](https://sqlitestudio.pl/) to browse your dataset.
 
 # See also:
 
