@@ -8,7 +8,7 @@ from time import sleep
 def time_and_execute():
     while True:
         prod_list = scan_products()
-        update_time = datetime.now() - timedelta(days=7)
+        update_time = datetime.now() - timedelta(days=3)
 
         for prod in prod_list:
             if prod["last_update"] <= update_time:
