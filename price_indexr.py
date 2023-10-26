@@ -84,7 +84,7 @@ def collect_prices(CURR_PROD_ID):
     ['pc','personal computer','something','foo','foo bar']
     '''
     posf = re.split(" ", SEARCH_FIELD)
-    hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador", "Fan", "Cooler"]
+    hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador", "Fan", "Cooler", "Notebook"]
     negf = set(re.split(",", FILTERS.replace(" ", "")) + hard_negf)
 
     SEARCH_KEYWORDS = {}
@@ -153,105 +153,114 @@ def collect_prices(CURR_PROD_ID):
         quit()
 
     ### Structure results into a list sqlalchemy insert statements
-    try:
-        output_data = []
-        filtered = 0
-        Date = datetime.now()
-        
-        for result in google_grid:
-            line = {}
-            Name = result.find("h3", {"class":"tAxDx"}).get_text()
-            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                filtered = filtered + 1
-                continue
-            Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
-
-            line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-            line["Name"] = Name
-            line["Date"] = Date
-            line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
-            line["Price"] = Price[1]
-            line["Currency"] = Price[0]
-            line["ProductId"] = CURR_PROD_ID
-
-            output_data.append(prices(**line))
-
-        for result in google_inline:
-            line = {}
-            Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
-            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                filtered = filtered + 1
-                continue
-            Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
+    def gather():
+        try:
+            output_data = []
+            filtered = 0
+            Date = datetime.now()
             
-            line["Url"] = f"https://shopping.google.com{result['href']}"
-            line["Name"] = Name
-            line["Date"] = Date
-            line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
-            line["Price"] = Price[1]
-            line["Currency"] = Price[0]
-            line["ProductId"] = CURR_PROD_ID
+            for result in google_grid:
+                line = {}
+                Name = result.find("h3", {"class":"tAxDx"}).get_text()
+                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                    filtered = filtered + 1
+                    continue
+                Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
 
-            output_data.append(prices(**line))
+                line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+                line["Name"] = Name
+                line["Date"] = Date
+                line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = CURR_PROD_ID
 
-        for result in bing_grid:
-            line = {}
-            try:
-                name_block = result.find("div", {"class": "br-pdItemName"})
-                Name = name_block.get_text()
-            except Exception as bing_grid_name_collection_fail:
-                write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_grid_name_collection_fail)
-                break
+                output_data.append(prices(**line))
 
-            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                filtered = filtered + 1
-                continue
-            Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
-            
-            line["Url"] = f"https://bing.com{result['data-url']}"
-            line["Name"] = Name
-            line["Date"] = Date
-            line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
-            line["Price"] = Price[1]
-            line["Currency"] = Price[0]
-            line["ProductId"] = CURR_PROD_ID
-            
-            output_data.append(prices(**line))
+            for result in google_inline:
+                line = {}
+                Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
+                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                    filtered = filtered + 1
+                    continue
+                Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
+                
+                line["Url"] = f"https://shopping.google.com{result['href']}"
+                line["Name"] = Name
+                line["Date"] = Date
+                line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = CURR_PROD_ID
 
-        for result in bing_inline:
-            line = {}
+                output_data.append(prices(**line))
 
-            try:
-                name_block = result.find("span", {"title" : True})
-                Name = name_block["title"]
-            except Exception as bing_inline_name_collection_fail:
-                write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_inline_name_collection_fail)
-                break
+            for result in bing_grid:
+                line = {}
+                try:
+                    name_block = result.find("div", {"class": "br-pdItemName"})
+                    Name = name_block.get_text()
+                except Exception as bing_grid_name_collection_fail:
+                    write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_grid_name_collection_fail)
+                    break
 
-            if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                filtered = filtered + 1
-                continue
-            Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
+                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                    filtered = filtered + 1
+                    continue
+                Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
+                
+                line["Url"] = f"https://bing.com{result['data-url']}"
+                line["Name"] = Name
+                line["Date"] = Date
+                line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = CURR_PROD_ID
+                
+                output_data.append(prices(**line))
 
-            line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
-            line["Name"] = Name
-            line["Date"] = Date
-            line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
-            line["Price"] = Price[1]
-            line["Currency"] = Price[0]
-            line["ProductId"] = CURR_PROD_ID
+            for result in bing_inline:
+                line = {}
 
-            output_data.append(prices(**line))
-    except Exception as collect_error:
-        write_message_log(collect_error, "Unexpected error while trying to collect data for", TABLE_NAME)
-        print(collect_error)
+                try:
+                    name_block = result.find("span", {"title" : True})
+                    Name = name_block["title"]
+                except Exception as bing_inline_name_collection_fail:
+                    write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_inline_name_collection_fail)
+                    break
+
+                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
+                    filtered = filtered + 1
+                    continue
+                Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
+
+                line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
+                line["Name"] = Name
+                line["Date"] = Date
+                line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = CURR_PROD_ID
+
+                output_data.append(prices(**line))
+        except Exception as collect_error:
+            write_message_log(collect_error, "Unexpected error while trying to collect data for", TABLE_NAME)
+            print(collect_error)
+
+        return (output_data, filtered, Date)
 
     # SAVE
-    try:
-        write_results(output_data, CURR_PROD_ID, date = Date)
-        write_sucess_log(output_data, TABLE_NAME=TABLE_NAME)
-    except Exception as save_error:
-        write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
+    n_retries = 5
+    for n_tries in range(n_retries):
+        output_data, filtered, Date = gather()
+        n_results = len(output_data)
+        if n_results > 0:
+            try:
+                write_results(output_data, CURR_PROD_ID, date = Date)
+                write_sucess_log(output_data, TABLE_NAME=TABLE_NAME, n_retries=n_tries)
+            except Exception as save_error:
+                write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
+            break
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
@@ -286,10 +295,10 @@ def write_message_log(error, message: str, TABLE_NAME: str):
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
 
-def write_sucess_log(results: list, TABLE_NAME: str):
+def write_sucess_log(results: list, TABLE_NAME: str, n_retries: int):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution. {str( len(results) )} entries added\n\n")
+        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution. {str( len(results) )} entries added with {n_retries} retries\n\n")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
@@ -313,5 +322,3 @@ def write_results(results: list, CURR_PROD_ID: int, date: datetime):
         ses.execute(time_stmt)
         ses.commit()
     
-if __name__ == "__main__":
-    collect_prices(2)
