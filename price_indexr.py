@@ -104,56 +104,58 @@ def collect_prices(CURR_PROD_ID):
     ### raise error if id does'nt exists
 
     # COLLECT DATA
-    SEARCH_HEADERS = {
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
+    def connect():
+        SEARCH_HEADERS = {
+            "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
 
-    BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
-    BING_SEARCH_RESPONSE = requests.get(
-        "https://www.bing.com/shop",
-        params = BING_SEARCH_PARAMS,
-        headers = SEARCH_HEADERS)
+        BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
+        BING_SEARCH_RESPONSE = requests.get(
+            "https://www.bing.com/shop",
+            params = BING_SEARCH_PARAMS,
+            headers = SEARCH_HEADERS)
 
-    GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
-    GOOGLE_SEARCH_RESPONSE = requests.get(
-        "https://www.google.com/search",
-        params = GOOGLE_SEARCH_PARAMS,
-        headers = SEARCH_HEADERS)
+        GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
+        GOOGLE_SEARCH_RESPONSE = requests.get(
+            "https://www.google.com/search",
+            params = GOOGLE_SEARCH_PARAMS,
+            headers = SEARCH_HEADERS)
 
-    ### Ensure data was collected
-    try:
-        try_con = 1
-        maximum_try_con = 10
-        while try_con <= maximum_try_con:
-            
-            soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
-            google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
-            google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
+        ### Ensure data was collected
+        try:
+            try_con = 1
+            maximum_try_con = 10
+            while try_con <= maximum_try_con:
+                
+                soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
+                google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
+                google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
 
-            soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
-            bing_grid = soup_bing.find_all("li", {"class": "br-item"})
-            bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
+                soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
+                bing_grid = soup_bing.find_all("li", {"class": "br-item"})
+                bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
 
-            if ((len(google_grid)+len(google_inline) > 0) and (len(bing_grid)+len(bing_inline) > 0)):
-                write_message_log(
-                    f"Using {len(google_grid)+len(google_inline)} results from google, and {len(bing_grid)+len(bing_inline)} from bing",
-                    f"Connection was successful after trying {try_con} times",
-                    TABLE_NAME=TABLE_NAME)
-                break
-            
-            try_con = try_con + 1
-            if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
-    except TimeoutError as connection_error:
-        write_message_log(connection_error, 
-            "Couldn't obtain data, check your internet connection or User-Agent used on the source code.",
-            TABLE_NAME)
-        quit()
-    except Exception as unexpected_error:
-        write_message_log(unexpected_error, "Unexpected error, closing connection...", TABLE_NAME)
-        quit()
+                google_n_results = len(google_grid) + len(google_inline)
+                bing_n_results = len(bing_grid) + len(bing_inline)
+
+                if ((google_n_results > 0) and (bing_n_results > 0)):
+                    break
+                
+                try_con = try_con + 1
+                if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
+        except TimeoutError as connection_error:
+            write_message_log(connection_error, 
+                "Couldn't obtain data, check your internet connection or User-Agent used on the source code.",
+                TABLE_NAME)
+            quit()
+        except Exception as unexpected_error:
+            write_message_log(unexpected_error, "Unexpected error, closing connection...", TABLE_NAME)
+            quit()
+        return (google_grid, google_inline, bing_grid, bing_inline, google_n_results, bing_n_results, try_con)
 
     ### Structure results into a list sqlalchemy insert statements
     def gather():
+        google_grid, google_inline, bing_grid, bing_inline, google_n_results, bing_n_results, try_con = connect()
         try:
             output_data = []
             filtered = 0
@@ -247,20 +249,26 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(collect_error, "Unexpected error while trying to collect data for", TABLE_NAME)
             print(collect_error)
 
-        return (output_data, filtered, Date)
+        return (output_data, filtered, Date, google_n_results, bing_n_results, try_con)
 
     # SAVE
     n_retries = 5
     for n_tries in range(n_retries):
-        output_data, filtered, Date = gather()
+        output_data, filtered, Date, google_n_results, bing_n_results, try_con = gather()
         n_results = len(output_data)
         if n_results > 0:
             try:
                 write_results(output_data, CURR_PROD_ID, date = Date)
+                write_message_log(
+                        f"Using {google_n_results} results from google, and {bing_n_results} from bing",
+                        f"Connection was successful after trying {try_con} times",
+                        TABLE_NAME=TABLE_NAME)
                 write_sucess_log(output_data, TABLE_NAME=TABLE_NAME, n_retries=n_tries)
             except Exception as save_error:
                 write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
             break
+    else:
+        write_message_log("nenhum resultado válido encontrado", "Não foi possível coletar os preços", TABLE_NAME)
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
@@ -322,3 +330,4 @@ def write_results(results: list, CURR_PROD_ID: int, date: datetime):
         ses.execute(time_stmt)
         ses.commit()
     
+if __name__ == "__main__": collect_prices(9)
