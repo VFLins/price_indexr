@@ -84,7 +84,8 @@ def collect_prices(CURR_PROD_ID):
     ['pc','personal computer','something','foo','foo bar']
     '''
     posf = re.split(" ", SEARCH_FIELD)
-    hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador", "Fan", "Cooler", "Notebook"]
+    hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador",
+                 "Fan", "Cooler", "Notebook", "Bloco De Água", "Water Block"]
     negf = set(re.split(",", FILTERS.replace(" ", "")) + hard_negf)
 
     SEARCH_KEYWORDS = {}
@@ -281,18 +282,28 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
     checks_up = False
     for word in pos_filters:
         # skip when word is an empty string
-        if word == "": continue
+        if word == "": 
+            continue
         # checks_up when the positive filter is found
-        if bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
-        else: checks_up = False
-        if not checks_up: break
+        pos_filter_check = re.search(rf"\b{word.lower()}\b", name_to_filter.lower())
+        if bool(pos_filter_check): 
+            checks_up = True
+        else: 
+            checks_up = False
+        if not checks_up: 
+            break
     
     if len(neg_filters) > 0 and checks_up:
         for word in neg_filters:
-            if word == "": continue
-            if not bool( re.search(word.lower(), name_to_filter.lower()) ): checks_up = True
-            else: checks_up = False
-            if not checks_up: break
+            if word == "": 
+                continue
+            neg_filter_fail = re.search(rf"\b{word.lower()}\b", name_to_filter.lower())
+            if not bool(neg_filter_fail): 
+                checks_up = True
+            else: 
+                checks_up = False
+            if not checks_up: 
+                break
     return checks_up
 
 def write_message_log(error, message: str, TABLE_NAME: str):
@@ -329,5 +340,3 @@ def write_results(results: list, CURR_PROD_ID: int, date: datetime):
         ses.commit()
         ses.execute(time_stmt)
         ses.commit()
-    
-if __name__ == "__main__": collect_prices(9)
