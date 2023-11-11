@@ -250,12 +250,12 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(collect_error, "Unexpected error while trying to collect data for", TABLE_NAME)
             print(collect_error)
 
-        return (output_data, filtered, Date, google_n_results, bing_n_results, try_con)
+        return (output_data, Date, google_n_results, bing_n_results, try_con)
 
     # SAVE
     n_retries = 5
     for n_tries in range(n_retries):
-        output_data, filtered, Date, google_n_results, bing_n_results, try_con = gather()
+        output_data, Date, google_n_results, bing_n_results, try_con = gather()
         n_results = len(output_data)
         if n_results > 0:
             try:
