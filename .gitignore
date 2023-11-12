@@ -126,3 +126,4 @@ tests.py
 exec_log.txt
 *.db
 *.sqlite
+data/backup.sql
