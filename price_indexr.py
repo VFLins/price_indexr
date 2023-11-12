@@ -131,12 +131,15 @@ def collect_prices(CURR_PROD_ID):
                 soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
                 google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
                 google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
+                google_highlight = soup_google.find("div", {"class": "_-oX"}) # might bring up to 3 results but will count as 1
 
                 soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
                 bing_grid = soup_bing.find_all("li", {"class": "br-item"})
                 bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
 
                 google_n_results = len(google_grid) + len(google_inline)
+                if google_highlight:
+                    google_n_results = google_n_results + len(google_highlight)
                 bing_n_results = len(bing_grid) + len(bing_inline)
 
                 if ((google_n_results > 0) and (bing_n_results > 0)):
@@ -152,11 +155,11 @@ def collect_prices(CURR_PROD_ID):
         except Exception as unexpected_error:
             write_message_log(unexpected_error, "Unexpected error, closing connection...", TABLE_NAME)
             quit()
-        return (google_grid, google_inline, bing_grid, bing_inline, google_n_results, bing_n_results, try_con)
+        return (google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con)
 
     ### Structure results into a list sqlalchemy insert statements
     def gather():
-        google_grid, google_inline, bing_grid, bing_inline, google_n_results, bing_n_results, try_con = connect()
+        google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con = connect()
         try:
             output_data = []
             filtered = 0
@@ -179,7 +182,14 @@ def collect_prices(CURR_PROD_ID):
                 line["ProductId"] = CURR_PROD_ID
 
                 output_data.append(prices(**line))
-
+        except Exception as google_grid_faliure:
+            write_message_log(
+                google_grid_faliure, 
+                "Unexpected error while trying to collect prices from `google_grid`", 
+                TABLE_NAME
+            )
+        
+        try:
             for result in google_inline:
                 line = {}
                 Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
@@ -195,9 +205,41 @@ def collect_prices(CURR_PROD_ID):
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = CURR_PROD_ID
-
+        
                 output_data.append(prices(**line))
 
+        except Exception as google_inline_faliure:
+            write_message_log(
+                google_inline_faliure, 
+                "Unexpected error while trying to collect prices from `google_inline`", 
+                TABLE_NAME
+            )
+
+        try:
+            if  google_highlight:
+                Name = google_highlight.find("a", {"class": " _-lC sh-t__title sh-t__title-popout shntl translate-content"}).get_text()
+                line["Name"] = Name
+                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]):
+                    for result in google_highlight.find_all("div", {"class": "_-oB"}):
+                        
+                        Price = strip_price_str(result.find("span", {"class": "_-p5 _-p1"}).get_text())
+                        line["Url"] = f"https://google.com/{result.find('a', {'href': True})['href']}"
+                        line["Date"] = Date
+                        line["Store"] = result.find("div", {"class": "_-oH _-oF"}).get_text()
+                        line["Price"] = Price[1]
+                        line["Currency"] = Price[0]
+                        line["ProductId"] = CURR_PROD_ID
+
+                        output_data.append(prices(**line))
+        
+        except Exception as google_highlight_faliure:
+            write_message_log(
+                google_highlight_faliure, 
+                "Unexpected error while trying to collect prices from `google_highlight`", 
+                TABLE_NAME
+            )
+
+        try:
             for result in bing_grid:
                 line = {}
                 try:
@@ -222,6 +264,14 @@ def collect_prices(CURR_PROD_ID):
                 
                 output_data.append(prices(**line))
 
+        except Exception as bing_grid_faliure:
+            write_message_log(
+                bing_grid_faliure, 
+                "Unexpected error while trying to collect prices from `bing_grid`", 
+                TABLE_NAME
+            )
+
+        try:
             for result in bing_inline:
                 line = {}
 
@@ -246,9 +296,13 @@ def collect_prices(CURR_PROD_ID):
                 line["ProductId"] = CURR_PROD_ID
 
                 output_data.append(prices(**line))
-        except Exception as collect_error:
-            write_message_log(collect_error, "Unexpected error while trying to collect data for", TABLE_NAME)
-            print(collect_error)
+                
+        except Exception as bing_inline_faliure:
+            write_message_log(
+                bing_inline_faliure, 
+                "Unexpected error while trying to collect prices from `bing_grid`", 
+                TABLE_NAME
+            )
 
         return (output_data, Date, google_n_results, bing_n_results, try_con)
 
@@ -264,12 +318,12 @@ def collect_prices(CURR_PROD_ID):
                         f"Using {google_n_results} results from google, and {bing_n_results} from bing",
                         f"Connection was successful after trying {try_con} times",
                         TABLE_NAME=TABLE_NAME)
-                write_sucess_log(output_data, TABLE_NAME=TABLE_NAME, n_retries=n_tries)
+                write_sucess_log(output_data, TABLE_NAME=TABLE_NAME, n_retries=n_tries, prod_id=CURR_PROD_ID)
             except Exception as save_error:
                 write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
             break
     else:
-        write_message_log("nenhum resultado válido encontrado", "Não foi possível coletar os preços", TABLE_NAME)
+        write_message_log("no valid result found", "Couldn't collect prices", TABLE_NAME)
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
@@ -314,10 +368,10 @@ def write_message_log(error, message: str, TABLE_NAME: str):
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
 
-def write_sucess_log(results: list, TABLE_NAME: str, n_retries: int):
+def write_sucess_log(results: list, TABLE_NAME: str, n_retries: int, prod_id: int):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"[{str(datetime.now())}] {TABLE_NAME} Successful execution. {str( len(results) )} entries added with {n_retries} retries\n\n")
+        log_file.write(f"[{str(datetime.now())}] {prod_id} | {TABLE_NAME} Successful execution. {str( len(results) )} entries added with {n_retries} retries\n\n")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
