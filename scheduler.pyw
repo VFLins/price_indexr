@@ -6,13 +6,24 @@ from datetime import date, datetime, timedelta
 from time import sleep
 
 def time_and_execute():
+    def collection_routine(product):
+        try:
+            collect_prices(product["id"])
+        except Exception as expt:
+            write_message_log(
+                expt, "Unexpected error on collection routine:", 
+                f"{product['id']} | {product['brand']} {product['name']} {product['model']}"
+            )
+            
+            sleep(300)
+
     while True:
         prod_list = scan_products()
         update_time = datetime.now() - timedelta(days=3)
 
         for prod in prod_list:
             if prod["last_update"] <= update_time:
-                collect_prices(prod["id"])
+                collection_routine(product=prod)
         sleep(900)
 
 if __name__ == "__main__":
