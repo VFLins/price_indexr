@@ -146,7 +146,7 @@ def collect_prices(CURR_PROD_ID):
                     break
                 
                 try_con = try_con + 1
-                if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection tries exceeded")
+                if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection attempts exceeded")
         except TimeoutError as connection_error:
             write_message_log(connection_error, 
                 "Couldn't obtain data, check your internet connection or User-Agent used on the source code.",
@@ -371,7 +371,7 @@ def write_message_log(error, message: str, TABLE_NAME: str):
 def write_sucess_log(results: list, TABLE_NAME: str, n_retries: int, prod_id: int):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"[{str(datetime.now())}] {prod_id} | {TABLE_NAME} Successful execution. {str( len(results) )} entries added with {n_retries} retries\n\n")
+        log_file.write(f"[{str(datetime.now())}] {prod_id} | {TABLE_NAME} Successful execution. {str( len(results) )} entries added with {n_retries} retries\n")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
