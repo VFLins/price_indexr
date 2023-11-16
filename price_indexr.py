@@ -66,7 +66,8 @@ def collect_prices(CURR_PROD_ID):
         write_message_log(
             input_error, 
             "This product id was not found in the database",
-            f"id: {CURR_PROD_ID}")
+            f"id: {CURR_PROD_ID}", prod_id=CURR_PROD_ID
+        )
         quit()
 
     SEARCH_FIELD = f"{curr_product.ProductBrand} {curr_product.ProductName} {curr_product.ProductModel}"
@@ -99,7 +100,10 @@ def collect_prices(CURR_PROD_ID):
 
     try: CURR_PROD_ID = int(CURR_PROD_ID)
     except Exception as param_index_error:
-        write_message_log(param_index_error, "Product id must be integer or coercible", TABLE_NAME)
+        write_message_log(
+            param_index_error, "Product id must be integer or coercible", 
+            TABLE_NAME, prod_id=CURR_PROD_ID
+        )
     
     # SORT FILTERS
     ### raise error if id does'nt exists
@@ -130,7 +134,7 @@ def collect_prices(CURR_PROD_ID):
                 
                 soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
                 google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
-                google_inline = soup_google.find_all("a", {"class": "shntl sh-np__click-target"})
+                google_inline = soup_google.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
                 google_highlight = soup_google.find("div", {"class": "_-oX"}) # might bring up to 3 results but will count as 1
 
                 soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
@@ -148,12 +152,17 @@ def collect_prices(CURR_PROD_ID):
                 try_con = try_con + 1
                 if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection attempts exceeded")
         except TimeoutError as connection_error:
-            write_message_log(connection_error, 
+            write_message_log(
+                connection_error, 
                 "Couldn't obtain data, check your internet connection or User-Agent used on the source code.",
-                TABLE_NAME)
+                TABLE_NAME, prod_id=CURR_PROD_ID
+            )
             quit()
         except Exception as unexpected_error:
-            write_message_log(unexpected_error, "Unexpected error, closing connection...", TABLE_NAME)
+            write_message_log(
+                unexpected_error, "Unexpected error, closing connection...", 
+                TABLE_NAME, prod_id=CURR_PROD_ID
+            )
             quit()
         return (google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con)
 
@@ -167,7 +176,7 @@ def collect_prices(CURR_PROD_ID):
             
             for result in google_grid:
                 line = {}
-                Name = result.find("h3", {"class":"tAxDx"}).get_text()
+                Name = result.find("h3", {"class": "tAxDx"}).get_text()
                 if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
                     filtered = filtered + 1
                     continue
@@ -186,13 +195,13 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(
                 google_grid_faliure, 
                 "Unexpected error while trying to collect prices from `google_grid`", 
-                TABLE_NAME
+                TABLE_NAME, prod_id=CURR_PROD_ID
             )
         
         try:
             for result in google_inline:
                 line = {}
-                Name = result.find("h3", {"class" : "sh-np__product-title"}).get_text()
+                Name = result.find("h3", {"class": "tAxDx"}).get_text()
                 if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
                     filtered = filtered + 1
                     continue
@@ -212,7 +221,7 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(
                 google_inline_faliure, 
                 "Unexpected error while trying to collect prices from `google_inline`", 
-                TABLE_NAME
+                TABLE_NAME, prod_id=CURR_PROD_ID
             )
 
         try:
@@ -236,7 +245,7 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(
                 google_highlight_faliure, 
                 "Unexpected error while trying to collect prices from `google_highlight`", 
-                TABLE_NAME
+                TABLE_NAME, prod_id=CURR_PROD_ID
             )
 
         try:
@@ -246,7 +255,9 @@ def collect_prices(CURR_PROD_ID):
                     name_block = result.find("div", {"class": "br-pdItemName"})
                     Name = name_block.get_text()
                 except Exception as bing_grid_name_collection_fail:
-                    write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_grid_name_collection_fail)
+                    write_message_log(
+                        result, "Problem collecting `Name` from `bing_grid`", 
+                        bing_grid_name_collection_fail, prod_id=CURR_PROD_ID)
                     break
 
                 if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
@@ -268,7 +279,7 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(
                 bing_grid_faliure, 
                 "Unexpected error while trying to collect prices from `bing_grid`", 
-                TABLE_NAME
+                TABLE_NAME, prod_id=CURR_PROD_ID
             )
 
         try:
@@ -279,7 +290,10 @@ def collect_prices(CURR_PROD_ID):
                     name_block = result.find("span", {"title" : True})
                     Name = name_block["title"]
                 except Exception as bing_inline_name_collection_fail:
-                    write_message_log(result, "Problem collecting `Name` from `bing_grid`", bing_inline_name_collection_fail)
+                    write_message_log(
+                        result, "Problem collecting `Name` from `bing_grid`", 
+                        bing_inline_name_collection_fail, prod_id=CURR_PROD_ID
+                    )
                     break
 
                 if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
@@ -301,7 +315,7 @@ def collect_prices(CURR_PROD_ID):
             write_message_log(
                 bing_inline_faliure, 
                 "Unexpected error while trying to collect prices from `bing_grid`", 
-                TABLE_NAME
+                TABLE_NAME, CURR_PROD_ID
             )
 
         return (output_data, Date, google_n_results, bing_n_results, try_con)
@@ -317,13 +331,13 @@ def collect_prices(CURR_PROD_ID):
                 write_message_log(
                         f"Using {google_n_results} results from google, and {bing_n_results} from bing",
                         f"Connection was successful after trying {try_con} times",
-                        TABLE_NAME=TABLE_NAME)
+                        TABLE_NAME=TABLE_NAME, prod_id=CURR_PROD_ID)
                 write_sucess_log(output_data, TABLE_NAME=TABLE_NAME, n_retries=n_tries, prod_id=CURR_PROD_ID)
             except Exception as save_error:
-                write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME)
+                write_message_log(save_error, "Unexpected error while trying to save the data:", TABLE_NAME, CURR_PROD_ID)
             break
     else:
-        write_message_log("no valid result found", "Couldn't collect prices", TABLE_NAME)
+        write_message_log("no valid result found", "Couldn't collect prices", TABLE_NAME, CURR_PROD_ID)
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
@@ -360,18 +374,18 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
                 break
     return checks_up
 
-def write_message_log(error, message: str, TABLE_NAME: str):
+def write_message_log(error, message: str, TABLE_NAME: str, prod_id: int):
     # write 4 lines on the error message.
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Time and table name
-        log_file.write(f"\n[{str(datetime.now())}] {TABLE_NAME}\n")
+        log_file.write(f"\n[{str(datetime.now())}] {prod_id} | {TABLE_NAME}\n")
         # 2 and 3. Message and Exception
         log_file.write(f"{message}:\n{error}\n")
 
 def write_sucess_log(results: list, TABLE_NAME: str, n_retries: int, prod_id: int):
     with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
         # 1. Success message with time
-        log_file.write(f"[{str(datetime.now())}] {prod_id} | {TABLE_NAME} Successful execution. {str( len(results) )} entries added with {n_retries} retries\n")
+        log_file.write(f"[{prod_id} | {TABLE_NAME}] Successful execution: {str( len(results) )} entries added with {n_retries} retries\n")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
