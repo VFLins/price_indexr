@@ -12,7 +12,8 @@ def time_and_execute():
         except Exception as expt:
             write_message_log(
                 expt, "Unexpected error on collection routine:", 
-                f"{product['id']} | {product['brand']} {product['name']} {product['model']}"
+                f"{product['brand']} {product['name']} {product['model']}",
+                prod_id=product['id']
             )
             
             sleep(300)
