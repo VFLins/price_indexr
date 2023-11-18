@@ -21,10 +21,13 @@ def time_and_execute():
     while True:
         prod_list = scan_products()
         update_time = datetime.now() - timedelta(days=3)
+        hiatus_time = datetime.now() - timedelta(days=30)
 
         for prod in prod_list:
-            if prod["last_update"] <= update_time:
+            if (prod["last_update"] <= update_time) and (prod["last_update"] >= hiatus_time):
                 collection_routine(product=prod)
+            elif prod["last_update"] < hiatus_time:
+                continue
         sleep(900)
 
 if __name__ == "__main__":
