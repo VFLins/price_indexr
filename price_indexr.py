@@ -201,7 +201,7 @@ def collect_prices(CURR_PROD_ID):
         try:
             for result in google_inline:
                 line = {}
-                Name = result.find("h3", {"class": "tAxDx"}).get_text()
+                Name = result.find("h3", {"class": "sh-np__product-title translate-content"}).get_text()
                 if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
                     filtered = filtered + 1
                     continue
@@ -210,7 +210,7 @@ def collect_prices(CURR_PROD_ID):
                 line["Url"] = f"https://shopping.google.com{result['href']}"
                 line["Name"] = Name
                 line["Date"] = Date
-                line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+                line["Store"] = result.find("b", {"class" : "E5ocAb"}).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = CURR_PROD_ID
