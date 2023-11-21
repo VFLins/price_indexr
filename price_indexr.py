@@ -134,7 +134,7 @@ def collect_prices(CURR_PROD_ID):
                 
                 soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
                 google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
-                google_inline = soup_google.find_all("div", {"class": "sh-dgr__gr-auto sh-dgr__grid-result"})
+                google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
                 google_highlight = soup_google.find("div", {"class": "_-oX"}) # might bring up to 3 results but will count as 1
 
                 soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
@@ -207,10 +207,11 @@ def collect_prices(CURR_PROD_ID):
                     continue
                 Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
                 
-                line["Url"] = f"https://shopping.google.com{result['href']}"
+                url_complement = result.find('a', {'class': 'shntl sh-np__click-target'}).attrs['href']
+                line["Url"] = f"https://google.com{url_complement}"
                 line["Name"] = Name
                 line["Date"] = Date
-                line["Store"] = result.find("b", {"class" : "E5ocAb"}).get_text()
+                line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = CURR_PROD_ID
