@@ -18,23 +18,37 @@ This can be used to satisfy business and personal necessities, for monitoring yo
 
 # Requirements
 
-- Python version 3.10 or superior
-- Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
+1. Python [version 3.10 or superior](https://www.python.org/downloads/)
+2. "Microsoft C++ Build Tools" from [this installer](https://learn.microsoft.com/pt-BR/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022)
+3. Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
+
+To install the requirements, follow these steps:
+
+1. Open this project folder and right-click an empty space
+2. Click "Open on Terminal" or "Open PowerShell Window here"
+3. Type the following line of code, press enter, and wait the installation to complete:
+
+```
+pip install -r requirements.txt
+```
 
 # How to use?
 
-This version is intended to be used from [interface.py](https://github.com/VFLins/Price_indexr/blob/central/interface.py), this is a TUI (Text User Interface), where you can add new products to monitor.
+This version is intended to be used from [interface.py](https://github.com/VFLins/Price_indexr/blob/central/interface.py), this is a TUI (Text User Interface), where you can add new products to keep track of.
 
 To accommodate the initial need to obtain prices for GPUs from many different models and manufacturers, the products are organized into a two-level hierarchy.
 
 1. In the **higher level** are the "product names", originally used to store the chip names
 2. In the **lower level** are the "brand", "model" and "filters"
-   - Filters are used to mark words that should not appear on the targeted product title
-   - Hardcoded filters are added to reduce typing time
+   - `Filters` are used to mark words that should not appear on the targeted product title
+      - Hardcoded filters are added to reduce typing time
+      - Should be separated by commas (,)
+      - For single filters with multiple words, the words should be separated by underscore (_)
+   - Every word in `Brand`, `Model` and `Product Name` are required to appear in the result title in order for the price to be collected
   
 ### To add a product for monitoring:
 
-Simply double-click `interface.py`, open with a python interpreter, and follow the instructions on the screen.
+Simply double-click `interface.py`, open with a python interpreter, and follow the instructions on the screen. Make sure you have all the [requirements](#requirements) installed before opening `interface.py`.
 
 ### To automate the weekly price data collection:
 
