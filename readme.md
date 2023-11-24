@@ -18,17 +18,19 @@ This can be used to satisfy business and personal necessities, for monitoring yo
 
 # Requirements
 
-1. Python [version 3.10 or superior](https://www.python.org/downloads/)
-2. "Microsoft C++ Build Tools" from [this installer](https://visualstudio.microsoft.com/pt-br/visual-cpp-build-tools/)
-3. Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
+1. Python [version 3.12 or superior](https://www.python.org/downloads/) (Recommended to tick the option "Add python to PATH" if you are on Windows)
+2. Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
 
 To install the requirements, follow these steps:
 
 1. Open this project folder and right-click an empty space
 2. Click "Open on Terminal" or "Open PowerShell Window here"
-3. Type the following line of code, press enter, and wait the installation to complete:
+3. Type the following lines of code, press enter at the end of each one, and wait the installation to complete in every step:
 
 ```
+python.exe -m pip install --upgrade pip
+pip install --upgrade wheel
+pip install --upgrade setuptools
 pip install -r requirements.txt
 ```
 
