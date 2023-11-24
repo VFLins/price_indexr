@@ -19,7 +19,7 @@ This can be used to satisfy business and personal necessities, for monitoring yo
 # Requirements
 
 1. Python [version 3.10 or superior](https://www.python.org/downloads/)
-2. "Microsoft C++ Build Tools" from [this installer](https://learn.microsoft.com/pt-BR/cpp/windows/latest-supported-vc-redist?view=msvc-170#visual-studio-2015-2017-2019-and-2022)
+2. "Microsoft C++ Build Tools" from [this installer](https://visualstudio.microsoft.com/pt-br/visual-cpp-build-tools/)
 3. Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
 
 To install the requirements, follow these steps:
