@@ -199,7 +199,10 @@ def collect_prices(CURR_PROD_ID):
             )
         
         try:
+            if not google_inline:
+                raise IndexError("No `google_inline` element found, skipping...")
             for result in google_inline:
+                
                 line = {}
                 Name = result.find("h3", {"class": "sh-np__product-title translate-content"}).get_text()
                 if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
