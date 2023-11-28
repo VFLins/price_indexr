@@ -122,8 +122,13 @@ dmypy.json
 html_sopa.txt
 error_log.csv
 tests.py
+
+# Datasets
 *.csv
-exec_log.txt
 *.db
 *.sqlite
 data/backup.sql
+
+# Logs and profiling files
+exec_log.txt
+*.dat
