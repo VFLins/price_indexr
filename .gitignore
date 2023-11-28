@@ -127,7 +127,7 @@ tests.py
 *.csv
 *.db
 *.sqlite
-data/backup.sql
+backup.sql
 
 # Logs and profiling files
 exec_log.txt
