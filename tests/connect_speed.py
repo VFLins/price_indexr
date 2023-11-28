@@ -68,4 +68,4 @@ if __name__ == "__main__":
     connect()
     end_time = time.time()
 
-    print(f"\nconect time: {end_time-start_time}")
+    print(f"\nconnect time: {end_time-start_time}")
