@@ -1,7 +1,8 @@
 from typing import List
 from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update, select
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
-import requests
+from httpx import AsyncClient
+import asyncio
 import re
 import os
 from datetime import date, datetime
@@ -106,7 +107,7 @@ def collect_prices(CURR_PROD_ID):
         )
     
     # SORT FILTERS
-    ### raise error if id does'nt exists
+    ### raise error if id doesn't exists
 
     # COLLECT DATA
     def connect():
@@ -114,17 +115,19 @@ def collect_prices(CURR_PROD_ID):
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
 
-        BING_SEARCH_PARAMS = {"q" : SEARCH_FIELD}
-        BING_SEARCH_RESPONSE = requests.get(
-            "https://www.bing.com/shop",
-            params = BING_SEARCH_PARAMS,
-            headers = SEARCH_HEADERS)
+        BING_PARAMS = {"q" : SEARCH_FIELD}
+        GOOGLE_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
 
-        GOOGLE_SEARCH_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
-        GOOGLE_SEARCH_RESPONSE = requests.get(
-            "https://www.google.com/search",
-            params = GOOGLE_SEARCH_PARAMS,
-            headers = SEARCH_HEADERS)
+        URLS = ["https://www.bing.com/shop", "https://www.google.com/search"]
+        PARAMS = [BING_PARAMS, GOOGLE_PARAMS]
+        METAS = zip(URLS, PARAMS)
+        
+        async def request_webpage():
+            async with AsyncClient() as client:
+                ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in METAS)
+                return await asyncio.gather(*ets)
+    
+        BING_RESPONSE, GOOLGE_RESPONSE = asyncio.run(request_webpage())
 
         ### Ensure data was collected
         try:
@@ -132,12 +135,12 @@ def collect_prices(CURR_PROD_ID):
             maximum_try_con = 10
             while try_con <= maximum_try_con:
                 
-                soup_google = BeautifulSoup(GOOGLE_SEARCH_RESPONSE.text, "lxml")
+                soup_google = BeautifulSoup(GOOLGE_RESPONSE.text, "lxml")
                 google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
                 google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
                 google_highlight = soup_google.find("div", {"class": "_-oX"}) # might bring up to 3 results but will count as 1
 
-                soup_bing = BeautifulSoup(BING_SEARCH_RESPONSE.text, "lxml")
+                soup_bing = BeautifulSoup(BING_RESPONSE.text, "lxml")
                 bing_grid = soup_bing.find_all("li", {"class": "br-item"})
                 bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
 
