@@ -119,17 +119,17 @@ def collect_prices(CURR_PROD_ID):
         BING_PARAMS = {"q" : SEARCH_FIELD}
         GOOGLE_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
 
-        NAMES = ["bing", "google"]
         URLS = ["https://www.bing.com/shop", "https://www.google.com/search"]
         PARAMS = [BING_PARAMS, GOOGLE_PARAMS]
-        METAS = zip(NAMES, URLS, PARAMS)
-
-        async def get_response(url, param):
-            return client.get(url, params=param, headers=SEARCH_HEADERS)
-        async with httpx.AsyncClient() as client:
-            ets = {name: client.get(url, params=param, headers=SEARCH_HEADERS) for name, url, param in METAS}
-            for name, url, param in zip(NAMES, URLS, PARAMS):
-                RESPONSES[name] = client.get(url, params=param, headers=SEARCH_HEADERS)
+        METAS = zip(URLS, PARAMS)
+        
+        async def request_webpage():
+        
+            async with httpx.AsyncClient() as client:
+                ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in METAS)
+                return await asyncio.gather(*ets)
+    
+        BING_RESPONSE, GOOLGE_RESPONSE = asyncio.run(request_webpage())
             
 
         ### Ensure data was collected
@@ -138,12 +138,12 @@ def collect_prices(CURR_PROD_ID):
             maximum_try_con = 10
             while try_con <= maximum_try_con:
                 
-                soup_google = BeautifulSoup(RESPONSES["google"].text, "lxml")
+                soup_google = BeautifulSoup(GOOLGE_RESPONSE.text, "lxml")
                 google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
                 google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
                 google_highlight = soup_google.find("div", {"class": "_-oX"}) # might bring up to 3 results but will count as 1
 
-                soup_bing = BeautifulSoup(RESPONSES["bing"].text, "lxml")
+                soup_bing = BeautifulSoup(BING_RESPONSE.text, "lxml")
                 bing_grid = soup_bing.find_all("li", {"class": "br-item"})
                 bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
 
