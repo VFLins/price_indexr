@@ -20,7 +20,7 @@ def time_and_execute():
 
     while True:
         prod_list = scan_products()
-        update_time = datetime.now() - timedelta(days=3)
+        update_time = datetime.now() - timedelta(days=2)
         hiatus_time = datetime.now() - timedelta(days=30)
 
         for prod in prod_list:
