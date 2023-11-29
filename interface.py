@@ -46,6 +46,8 @@ def main_menu():
                 case "L": run_next = "List"; break
                 case "U": run_next = "Update"; break
                 case "D": run_next = "Delete"; break
+                case "H": run_next = "Help"; break 
+                case "K": run_next = "Prices"; break
                 case "Q": quit()
                 case _: 
                     print("Insert a valid value!")
@@ -55,6 +57,8 @@ def main_menu():
             case "Create": create_product()
             case "List": list_products()
             case "Update": update_product()
+            case "Help": print_help()
+            case "Prices": update_prices()
             case "Delete": delete_product()        
 
 def confirmation(ask: str) -> bool:
@@ -255,13 +259,68 @@ def update_product():
     else:
         print("This row Id doesn't exist!")
 
-if __name__ == "__main__":
-    print("===== Price_indexr central v0.1 =====",
+def print_help():
+    print(
         "Choose an operation to perform:", 
         "C: Create a new product to price index", 
         "L: List all products", 
+        "K: Collect prices",
         "U: Update a recorded product",
         "D: Delete a product by ID number", 
+        "H: Show this help message",
         "Q: Quit", sep="\n")
     
+def update_prices():
+    names_list = scan_names()
+    for row in names_list:
+        print(f"Id: {row['id']} | Name: {row['name']}")
+    while True:
+        try: 
+            name_id = int(input("Select the name Id: "))
+            id_exists = False
+            for i in names_list:
+                if i['id'] == name_id:
+                    id_exists = True
+                    break
+            if not id_exists: raise IndexError("Value not present in the data")
+        except: print("Insert a valid number!")
+        else: break
+    products = scan_products()
+    update_products = [pr for pr in products if pr["name_id"]==name_id]
+
+    use_specific = confirmation("Collect prices for a single model")
+    if not use_specific:
+        print("Working... Please wait.")
+        for prod in update_products:
+            try:
+                collect_prices(prod["id"])
+            except Exception as expt:
+                write_message_log(
+                    expt, "Unexpected error on collection routine:", 
+                    f"{prod['brand']} {prod['name']} {prod['model']}",
+                    prod_id=prod['id']
+            )
+
+    else:
+        for row in update_products:
+            print(f"Id: {row['id']} | Model: {row['name']} {row['model']}")
+        while True:
+            try: 
+                prod_id = int(input("Select the product Id: "))
+                id_exists = False
+                for i in update_products:
+                    if i['id'] == prod_id:
+                        id_exists = True
+                        break
+                if not id_exists: raise IndexError("Value not present in the data")
+            except: print("Insert a valid number!")
+            else: break
+        print("Working... Please wait.")
+        collect_prices(prod_id)
+    
+    print("Completed! Check 'exec_log.txt' for more information.")
+
+if __name__ == "__main__":
+    print("===== Price_indexr central v0.2 =====")
+    print_help()
     main_menu()
