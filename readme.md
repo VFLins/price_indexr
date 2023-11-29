@@ -60,6 +60,10 @@ Set `scheduler.pyw` to be executed when your system starts, and set a python int
 
 Inside the same folder that `price_indexr.py` is located, look for a folder named *data*, there you might find a `database.db` file. This is a sqlite database, you can use [SQLite Studio](https://sqlitestudio.pl/) to browse your dataset.
 
+### [New!] Collect prices on demand:
+
+Just use `interface.py` and follow the instructions on the screen, you can collect prices for a specific product or for groups of products.
+
 # See also:
 
 - [Prind_Monitor:](https://github.com/VFLins/Prind_Monitor) Report generator for price data obtained by this piece of software, only compatible with SQLite databases for now. 
