@@ -132,3 +132,4 @@ backup.sql
 # Logs and profiling files
 exec_log.txt
 *.dat
+price_indexr_old.py
