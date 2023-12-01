@@ -10,11 +10,11 @@ from bs4 import BeautifulSoup
 from sys import argv
 
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
-DATA_FOLDER = SCRIPT_FOLDER + "\data"
+DATA_FOLDER = SCRIPT_FOLDER + "\\data"
 if not os.path.exists(DATA_FOLDER): os.makedirs(DATA_FOLDER)
 
 # DATABASE ARCHITECTURE
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\data\database.db", echo=False)
+DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\\data\\database.db", echo=False)
 class dec_base(DeclarativeBase): pass
 
 class product_names(dec_base):
