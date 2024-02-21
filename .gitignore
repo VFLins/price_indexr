@@ -133,3 +133,4 @@ backup.sql
 exec_log.txt
 *.dat
 price_indexr_old.py
+tests/price_indexr.py
