@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update, select
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
-from httpx import AsyncClient
+from httpx import AsyncClient, TimeoutException
 import asyncio
 import re
 import os
@@ -124,7 +124,15 @@ def collect_prices(CURR_PROD_ID):
         
         async def request_webpage():
             async with AsyncClient() as client:
-                ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in METAS)
+                try:
+                    ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in METAS)
+                except TimeoutException as timeout:
+                    write_message_log(
+                        timeout, 
+                        "Connection timed out, skiping...", 
+                        TABLE_NAME, CURR_PROD_ID
+                    )
+                    return
                 return await asyncio.gather(*ets)
     
         BING_RESPONSE, GOOLGE_RESPONSE = asyncio.run(request_webpage())
@@ -167,7 +175,16 @@ def collect_prices(CURR_PROD_ID):
                 TABLE_NAME, prod_id=CURR_PROD_ID
             )
             quit()
-        return (google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con)
+        return (
+            google_grid, 
+            google_inline, 
+            google_highlight, 
+            bing_grid, 
+            bing_inline, 
+            google_n_results, 
+            bing_n_results, 
+            try_con
+        )
 
     ### Structure results into a list sqlalchemy insert statements
     def gather():
@@ -325,7 +342,13 @@ def collect_prices(CURR_PROD_ID):
                 TABLE_NAME, CURR_PROD_ID
             )
 
-        return (output_data, Date, google_n_results, bing_n_results, try_con)
+        return (
+            output_data, 
+            Date,
+            google_n_results, 
+            bing_n_results, 
+            try_con
+        )
 
     # SAVE
     n_retries = 5
