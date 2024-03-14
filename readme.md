@@ -1,6 +1,6 @@
 ![price_indexr banner](gh_banner-price_indexr.png)   
 
-Keep track of a large series of products and enable yourself to take advantage of this data!
+Keep track of the prices for a large series of products and enable yourself to take advantage of this data!
 
 # This branch: `Central` 
 
