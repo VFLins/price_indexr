@@ -1,9 +1,8 @@
-   
-# Description
+![price_indexr banner](gh_banner-price_indexr.png)   
 
-Price_indexr is intended to get a set of product prices for a given simultaneous search on Google shopping and Bing shopping and store it locally. To ensure you will get only the desired results, you can filter what will be saved locally based on the title each individual product. This program can automatically update the price information for each product individually on a weekly basis.
+Keep track of a large series of products and enable yourself to take advantage of this data!
 
-### This branch: `Central` 
+# This branch: `Central` 
 
 Features added to this branch:
 
