@@ -11,9 +11,13 @@ from datetime import date, datetime
 from bs4 import BeautifulSoup
 from sys import argv
 
+
 SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
 DATA_FOLDER = SCRIPT_FOLDER + "\\data"
-if not os.path.exists(DATA_FOLDER): os.makedirs(DATA_FOLDER)
+os.makedirs(DATA_FOLDER, exist_ok=True)
+SEARCH_HEADERS = {
+            "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
 
 # ===================== #
 # DATABASE ARCHITECTURE #
@@ -70,7 +74,7 @@ class LocalLogger():
 
         self.handler = logging.FileHandler(filename=join(SCRIPT_FOLDER, "exec_log.txt"))
         self.formatter = logging.Formatter(
-            fmt="%(levelname)s [%(asctime)s] - %(name)s :: %(message)s"
+            fmt="%(levelname)s [%(asctime)s] - %(name)s :: %(message)s\n"
         )
 
         self.handler.setFormatter(self.formatter)
@@ -97,6 +101,75 @@ class LocalLogger():
     def critical(self, message):
         """Log a `critical` level message"""
         self.logger.critical(msg=message)
+
+
+# ================ #
+# MANAGE RESPONSES #
+# ================ #
+        
+class SearchResponses:
+    def __init__(
+            self, 
+            google_inline: AsyncClient.get,
+            google_grid: AsyncClient.get,
+            bing_inline: AsyncClient.get,
+            bing_grid: AsyncClient.get,
+            product: products,
+            filter_kws: dict
+        ):
+
+        self.google_inline = google_inline
+        self.google_grid = google_grid
+        self.bing_inline = bing_inline
+        self.bing_grid = bing_grid
+        self.product = product
+        self.filter_kws = filter_kws
+
+        self.results = []
+
+    def _error_amount_handler(
+            self, 
+            error_msg: str, current_amount: int, max_amount: int = 5
+        ):
+        pass
+
+    def _parse_google_inline(self):
+        log = LocalLogger("SearchResponses._parse_google_inline")
+        if not self.google_inline:
+            log.error("No `google_inline` element found, skipping...")
+            return
+
+        for result in self.google_inline:
+            error_count = 0
+            try:
+                line = {}
+                Name = result.find("h3", {"class": "sh-np__product-title translate-content"}).get_text()
+
+                if not filtered_by_name(Name, self.filter_kws): 
+                    continue
+
+                Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
+                
+                url_complement = result.find('a', {"class": "shntl sh-np__click-target"}).attrs["href"]
+                line["Url"] = f"https://google.com{url_complement}"
+                line["Name"] = Name
+                line["Date"] = datetime.now()
+                line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = self.product.Id
+        
+                self.results.append(prices(**line))
+
+            except Exception as google_inline_faliure:
+                log.critical(
+                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"\nReason: {google_inline_faliure}")
+                error_count = error_count + 1
+
+                if error_count > 5:
+                    log.debug("Exiting for amount of erros")
+                    return
 
 
 # ===== #
@@ -179,7 +252,10 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
 # =========== #
 # GATHER DATA #
 # =========== #
-
+def collect_search(q: str):
+    BING_PARAMS = {"q" : q}
+    GOOGLE_PARAMS = {"q" : q, "tbm" : "shop"}
+    
 def collect_prices(CURR_PROD_ID):
 
     try:
@@ -189,13 +265,12 @@ def collect_prices(CURR_PROD_ID):
         return
 
     # COLLECT DATA
-    def connect():
-        SEARCH_HEADERS = {
-            "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
 
-        BING_PARAMS = {"q" : SEARCH_FIELD}
-        GOOGLE_PARAMS = {"q" : SEARCH_FIELD, "tbm" : "shop"}
+    results = collect_search(q=SEARCH_FIELD)
+    def connect():
+        
+
+        
 
         URLS = ["https://www.bing.com/shop", "https://www.google.com/search"]
         PARAMS = [BING_PARAMS, GOOGLE_PARAMS]
