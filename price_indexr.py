@@ -103,6 +103,14 @@ class LocalLogger():
         self.logger.critical(msg=message)
 
 
+# ========== #
+# EXCEPTIONS #
+# ========== #
+
+class HtmlParseError(Exception):
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)
+
 # ================ #
 # MANAGE RESPONSES #
 # ================ #
@@ -112,6 +120,7 @@ class SearchResponses:
             self, 
             google_inline: AsyncClient.get,
             google_grid: AsyncClient.get,
+            google_highlight: AsyncClient.get,
             bing_inline: AsyncClient.get,
             bing_grid: AsyncClient.get,
             product: products,
@@ -120,18 +129,43 @@ class SearchResponses:
 
         self.google_inline = google_inline
         self.google_grid = google_grid
+        self.google_highlight = google_highlight
         self.bing_inline = bing_inline
         self.bing_grid = bing_grid
         self.product = product
         self.filter_kws = filter_kws
 
+        self.Date = datetime.now()
         self.results = []
 
-    def _error_amount_handler(
-            self, 
-            error_msg: str, current_amount: int, max_amount: int = 5
-        ):
-        pass
+
+    def parse_all(self):
+        log = LocalLogger("SearchResponses.parse_all")
+        parsers = (p for p in [
+            self._parse_google_inline,
+            self._parse_google_grid,
+            self._parse_google_highlight,
+            self._parse_bing_inline,
+            self._parse_bing_grid]
+        )
+
+        _errors: int = 5
+        for parser in parsers:
+            try:
+                parser()
+            except HtmlParseError:
+                _errors = _errors - 1
+
+                if _errors == 0:
+                    results_amount = len(self.results)
+                    log.error(f"(Product ID: {self.product.Id}) Skipping data parsing, too many errors")
+                    
+                    if results_amount == 0:
+                        log.error(f"(Product ID: {self.product.Id}) No data collected")
+
+                else: 
+                    continue
+                        
 
     def _parse_google_inline(self):
         log = LocalLogger("SearchResponses._parse_google_inline")
@@ -153,7 +187,7 @@ class SearchResponses:
                 url_complement = result.find('a', {"class": "shntl sh-np__click-target"}).attrs["href"]
                 line["Url"] = f"https://google.com{url_complement}"
                 line["Name"] = Name
-                line["Date"] = datetime.now()
+                line["Date"] = self.Date
                 line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
@@ -165,12 +199,134 @@ class SearchResponses:
                 log.critical(
                     f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {google_inline_faliure}")
-                error_count = error_count + 1
 
-                if error_count > 5:
-                    log.debug("Exiting for amount of erros")
-                    return
+                raise HtmlParseError(f"Error in _parse_google_inline")
+                
 
+    def _parse_google_grid(self):
+        log = LocalLogger("SearchResponses._parse_google_grid")
+
+        for result in self.google_grid:
+            try:
+                line = {}
+                Name = result.find("h3", {"class": "tAxDx"}).get_text()
+
+                if not filtered_by_name(Name, self.filter_kws): 
+                    continue
+
+                Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
+
+                line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+                line["Name"] = Name
+                line["Date"] = self.Date
+                line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = self.product.Id
+
+                self.results.append(prices(**line))
+
+            except Exception as google_grid_faliure:
+                log.critical(
+                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"\nReason: {google_grid_faliure}")
+
+                raise HtmlParseError("Error in _parse_google_grid")
+            
+    
+    def _parse_google_highlight(self):
+        log = LocalLogger("SearchResponses._parse_google_highlight")
+
+        if  self.google_highlight:
+            try:
+                Name = self.google_highlight.find("a", {"class": " _-lC sh-t__title sh-t__title-popout shntl translate-content"}).get_text()
+
+                if not filtered_by_name(Name, self.filter_kws):
+                    for result in self.google_highlight.find_all("div", {"class": "_-oB"}):
+                        line = {}
+
+                        line["Name"] = Name
+                        Price = strip_price_str(result.find("span", {"class": "_-p5 _-p1"}).get_text())
+                        line["Url"] = f"https://google.com/{result.find('a', {'href': True})['href']}"
+                        line["Date"] = self.Date
+                        line["Store"] = result.find("div", {"class": "_-oH _-oF"}).get_text()
+                        line["Price"] = Price[1]
+                        line["Currency"] = Price[0]
+                        line["ProductId"] = self.product.Id
+
+                        self.results.append(prices(**line))
+            
+            except Exception as google_highlight_faliure:
+                log.critical(
+                f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                f"\nReason: {google_highlight_faliure}")
+
+                raise HtmlParseError("Error in _parse_google_higlight")
+
+
+    def _parse_bing_inline(self):
+        log = LocalLogger("SearchResponses._parse_bing_inline")
+
+        for result in self.bing_inline:
+            try:
+                line = {}
+                name_block = result.find("span", {"title" : True})
+                Name = name_block["title"]
+
+                if not filtered_by_name(Name, self.filter_kws): 
+                    filtered = filtered + 1
+                    continue
+                Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
+
+                line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
+                line["Name"] = Name
+                line["Date"] = self.Date
+                line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = self.product.Id
+
+                self.results.append(prices(**line))
+
+            except Exception as bing_inline_faliure:
+                log.critical(
+                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"\nReason: {bing_inline_faliure}")
+                
+                raise HtmlParseError("Error in _parse_bing_inline")
+
+
+    def _parse_bing_grid(self):
+        log = LocalLogger()
+
+        for result in self.bing_grid:
+            try:
+                line = {}
+                name_block = result.find("div", {"class": "br-pdItemName"})
+                Name = name_block.get_text()
+                
+
+                if not filtered_by_name(Name, self.filter_kws): 
+                    filtered = filtered + 1
+                    continue
+                Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
+                
+                line["Url"] = f"https://bing.com{result['data-url']}"
+                line["Name"] = Name
+                line["Date"] = self.Date
+                line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
+                line["Price"] = Price[1]
+                line["Currency"] = Price[0]
+                line["ProductId"] = self.product.Id
+                
+                self.results.append(prices(**line))
+
+            except Exception as bing_grid_faliure:
+                log.critical(
+                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"\nReason: {bing_grid_faliure}")
+                
+                raise HtmlParseError("Error in _parse_bing_grid")
 
 # ===== #
 # UTILS #
@@ -342,36 +498,8 @@ def collect_prices(CURR_PROD_ID):
 
     ### Structure results into a list sqlalchemy insert statements
     def gather():
-        google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con = connect()
-        try:
-            output_data = []
-            filtered = 0
-            Date = datetime.now()
+        google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con = connect()       
             
-            for result in google_grid:
-                line = {}
-                Name = result.find("h3", {"class": "tAxDx"}).get_text()
-                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                    filtered = filtered + 1
-                    continue
-                Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
-
-                line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-                line["Name"] = Name
-                line["Date"] = Date
-                line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
-                line["Price"] = Price[1]
-                line["Currency"] = Price[0]
-                line["ProductId"] = CURR_PROD_ID
-
-                output_data.append(prices(**line))
-        except Exception as google_grid_faliure:
-            write_message_log(
-                google_grid_faliure, 
-                "Unexpected error while trying to collect prices from `google_grid`", 
-                SEARCH_FIELD, prod_id=CURR_PROD_ID
-            )
-        
         try:
             if not google_inline:
                 raise IndexError("No `google_inline` element found, skipping...")
@@ -402,99 +530,7 @@ def collect_prices(CURR_PROD_ID):
                 SEARCH_FIELD, prod_id=CURR_PROD_ID
             )
 
-        try:
-            if  google_highlight:
-                Name = google_highlight.find("a", {"class": " _-lC sh-t__title sh-t__title-popout shntl translate-content"}).get_text()
-                line["Name"] = Name
-                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]):
-                    for result in google_highlight.find_all("div", {"class": "_-oB"}):
-                        
-                        Price = strip_price_str(result.find("span", {"class": "_-p5 _-p1"}).get_text())
-                        line["Url"] = f"https://google.com/{result.find('a', {'href': True})['href']}"
-                        line["Date"] = Date
-                        line["Store"] = result.find("div", {"class": "_-oH _-oF"}).get_text()
-                        line["Price"] = Price[1]
-                        line["Currency"] = Price[0]
-                        line["ProductId"] = CURR_PROD_ID
 
-                        output_data.append(prices(**line))
-        
-        except Exception as google_highlight_faliure:
-            write_message_log(
-                google_highlight_faliure, 
-                "Unexpected error while trying to collect prices from `google_highlight`", 
-                SEARCH_FIELD, prod_id=CURR_PROD_ID
-            )
-
-        try:
-            for result in bing_grid:
-                line = {}
-                try:
-                    name_block = result.find("div", {"class": "br-pdItemName"})
-                    Name = name_block.get_text()
-                except Exception as bing_grid_name_collection_fail:
-                    write_message_log(
-                        result, "Problem collecting `Name` from `bing_grid`", 
-                        bing_grid_name_collection_fail, prod_id=CURR_PROD_ID)
-                    break
-
-                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                    filtered = filtered + 1
-                    continue
-                Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
-                
-                line["Url"] = f"https://bing.com{result['data-url']}"
-                line["Name"] = Name
-                line["Date"] = Date
-                line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
-                line["Price"] = Price[1]
-                line["Currency"] = Price[0]
-                line["ProductId"] = CURR_PROD_ID
-                
-                output_data.append(prices(**line))
-
-        except Exception as bing_grid_faliure:
-            write_message_log(
-                bing_grid_faliure, 
-                "Unexpected error while trying to collect prices from `bing_grid`", 
-                SEARCH_FIELD, prod_id=CURR_PROD_ID
-            )
-
-        try:
-            for result in bing_inline:
-                line = {}
-
-                try:
-                    name_block = result.find("span", {"title" : True})
-                    Name = name_block["title"]
-                except Exception as bing_inline_name_collection_fail:
-                    write_message_log(
-                        result, "Problem collecting `Name` from `bing_grid`", 
-                        bing_inline_name_collection_fail, prod_id=CURR_PROD_ID
-                    )
-                    break
-
-                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                    filtered = filtered + 1
-                    continue
-                Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
-
-                line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
-                line["Name"] = Name
-                line["Date"] = Date
-                line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
-                line["Price"] = Price[1]
-                line["Currency"] = Price[0]
-                line["ProductId"] = CURR_PROD_ID
-
-                output_data.append(prices(**line))
-                
-        except Exception as bing_inline_faliure:
-            write_message_log(
-                bing_inline_faliure, 
-                "Unexpected error while trying to collect prices from `bing_grid`", 
-                SEARCH_FIELD, CURR_PROD_ID
-            )
 
         return (
             output_data, 
