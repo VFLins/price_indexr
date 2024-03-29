@@ -19,9 +19,11 @@ SEARCH_HEADERS = {
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
 
+
 # ===================== #
 # DATABASE ARCHITECTURE #
 # ===================== #
+
 DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\\data\\database.db", echo=False)
 class dec_base(DeclarativeBase): pass
 
@@ -135,6 +137,7 @@ class SearchResponses:
         self.product = product
         self.filter_kws = filter_kws
 
+        self.product_name = f"{product.ProductBrand} {product.ProductModel} {product.ProductName}"
         self.Date = datetime.now()
         self.results = []
 
@@ -165,6 +168,8 @@ class SearchResponses:
 
                 else: 
                     continue
+
+        log.info(f"Parsed {len(self.results)} results for {self.product_name}")
                         
 
     def _parse_google_inline(self):
@@ -174,7 +179,6 @@ class SearchResponses:
             return
 
         for result in self.google_inline:
-            error_count = 0
             try:
                 line = {}
                 Name = result.find("h3", {"class": "sh-np__product-title translate-content"}).get_text()
@@ -408,137 +412,65 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
 # =========== #
 # GATHER DATA #
 # =========== #
-def collect_search(q: str):
-    BING_PARAMS = {"q" : q}
-    GOOGLE_PARAMS = {"q" : q, "tbm" : "shop"}
+
+def collect_search(q: str, product: products, keywords: dict) -> SearchResponses:
+    log = LocalLogger(f"collect_search: {q}")
+
+    bing_params = {"q" : q}; google_params = {"q" : q, "tbm" : "shop"}
+
+    urls = ["https://www.bing.com/shop", "https://www.google.com/search"]
+    params = [bing_params, google_params]
+    metas = zip(urls, params)
+
+    async def request_webpage():
+            async with AsyncClient() as client:
+                try:
+                    ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in metas)
+
+                except TimeoutException as timeout:
+                    log.error("Connection timed out, skiping...")
+                    return
+
+                return await asyncio.gather(*ets)
+            
+    bing_response, google_response = asyncio.run(request_webpage())
+    soup_bing = BeautifulSoup(bing_response.text, "lxml")
+    soup_google = BeautifulSoup(google_response.text, "lxml")
+
+    return SearchResponses(
+        google_inline=soup_google.find_all("div", {"class": "KZmu8e"}),
+        google_grid=soup_google.find_all("div", {"class": "sh-dgr__content"}),
+        google_highlight=soup_google.find("div", {"class": "_-oX"}),
+        bing_inline=soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True}),
+        bing_grid=soup_bing.find_all("li", {"class": "br-item"}),
+        product=product,
+        filter_kws=keywords
+    )
+
+
+def write_results(results: list) -> None:
+    pass
+
     
 def collect_prices(CURR_PROD_ID):
+    log = LocalLogger("collect_prices")
 
     try:
         curr_product = validate_integer_input(CURR_PROD_ID)
-        SEARCH_FIELD, SEARCH_KEYWORDS = generate_filters(curr_product)
-    except Exception:
+        search_field, search_kewords = generate_filters(curr_product)
+        responses = collect_search(
+            q=search_field,
+            keywords=search_kewords,
+            product=curr_product
+        )
+        responses.parse_all()
+        write_results(responses.results)
+
+    except Exception as uncaught_exception:
+        log.critical(f"Uncaught exception on {search_field}:\n{uncaught_exception}")
         return
 
-    # COLLECT DATA
-
-    results = collect_search(q=SEARCH_FIELD)
-    def connect():
         
-
-        
-
-        URLS = ["https://www.bing.com/shop", "https://www.google.com/search"]
-        PARAMS = [BING_PARAMS, GOOGLE_PARAMS]
-        METAS = zip(URLS, PARAMS)
-        
-        async def request_webpage():
-            async with AsyncClient() as client:
-                try:
-                    ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in METAS)
-                except TimeoutException as timeout:
-                    write_message_log(
-                        timeout, 
-                        "Connection timed out, skiping...", 
-                        SEARCH_FIELD, CURR_PROD_ID
-                    )
-                    return
-                return await asyncio.gather(*ets)
-    
-        BING_RESPONSE, GOOLGE_RESPONSE = asyncio.run(request_webpage())
-
-        ### Ensure data was collected
-        try:
-            try_con = 1
-            maximum_try_con = 10
-            while try_con <= maximum_try_con:
-                
-                soup_google = BeautifulSoup(GOOLGE_RESPONSE.text, "lxml")
-                google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
-                google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
-                google_highlight = soup_google.find("div", {"class": "_-oX"}) # might bring up to 3 results but will count as 1
-
-                soup_bing = BeautifulSoup(BING_RESPONSE.text, "lxml")
-                bing_grid = soup_bing.find_all("li", {"class": "br-item"})
-                bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
-
-                google_n_results = len(google_grid) + len(google_inline)
-                if google_highlight:
-                    google_n_results = google_n_results + len(google_highlight)
-                bing_n_results = len(bing_grid) + len(bing_inline)
-
-                if ((google_n_results > 0) and (bing_n_results > 0)):
-                    break
-                
-                try_con = try_con + 1
-                if try_con > maximum_try_con: raise ConnectionError("Maximum number of connection attempts exceeded")
-        except TimeoutError as connection_error:
-            write_message_log(
-                connection_error, 
-                "Couldn't obtain data, check your internet connection or User-Agent used on the source code.",
-                SEARCH_FIELD, prod_id=CURR_PROD_ID
-            )
-            quit()
-        except Exception as unexpected_error:
-            write_message_log(
-                unexpected_error, "Unexpected error, closing connection...", 
-                SEARCH_FIELD, prod_id=CURR_PROD_ID
-            )
-            quit()
-        return (
-            google_grid, 
-            google_inline, 
-            google_highlight, 
-            bing_grid, 
-            bing_inline, 
-            google_n_results, 
-            bing_n_results, 
-            try_con
-        )
-
-    ### Structure results into a list sqlalchemy insert statements
-    def gather():
-        google_grid, google_inline, google_highlight, bing_grid, bing_inline, google_n_results, bing_n_results, try_con = connect()       
-            
-        try:
-            if not google_inline:
-                raise IndexError("No `google_inline` element found, skipping...")
-            for result in google_inline:
-                
-                line = {}
-                Name = result.find("h3", {"class": "sh-np__product-title translate-content"}).get_text()
-                if not filtered_by_name(Name, SEARCH_KEYWORDS["positive"], SEARCH_KEYWORDS["negative"]): 
-                    filtered = filtered + 1
-                    continue
-                Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
-                
-                url_complement = result.find('a', {'class': 'shntl sh-np__click-target'}).attrs['href']
-                line["Url"] = f"https://google.com{url_complement}"
-                line["Name"] = Name
-                line["Date"] = Date
-                line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
-                line["Price"] = Price[1]
-                line["Currency"] = Price[0]
-                line["ProductId"] = CURR_PROD_ID
-        
-                output_data.append(prices(**line))
-
-        except Exception as google_inline_faliure:
-            write_message_log(
-                google_inline_faliure, 
-                "Unexpected error while trying to collect prices from `google_inline`", 
-                SEARCH_FIELD, prod_id=CURR_PROD_ID
-            )
-
-
-
-        return (
-            output_data, 
-            Date,
-            google_n_results, 
-            bing_n_results, 
-            try_con
-        )
 
     # SAVE
     n_retries = 5
