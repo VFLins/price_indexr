@@ -1,7 +1,7 @@
 from typing import List
 from sqlalchemy import ForeignKey, Integer, create_engine, DateTime, insert, update, select
 from sqlalchemy.orm import Mapped, mapped_column, DeclarativeBase, relationship, Session
-from httpx import AsyncClient, TimeoutException
+from httpx import AsyncClient, ConnectTimeout, TimeoutException
 import asyncio
 import re
 import os
@@ -74,17 +74,6 @@ def collect_prices(CURR_PROD_ID):
     SEARCH_FIELD = f"{curr_product.ProductBrand} {curr_product.ProductName} {curr_product.ProductModel}"
     FILTERS = curr_product.ProductFilters
 
-    '''
-    allf = re.split(" -", SEARCH_FIELD)
-    negf = allf[1:]
-    posf = re.split(" ", allf[0])
-
-    filters treatment::
-    'pc, personal_computer, something, foo, foo_bar'
-    'pc,personal_computer,something,foo,foo_bar'
-    ['pc','personal_computer','something','foo','foo_bar']
-    ['pc','personal computer','something','foo','foo bar']
-    '''
     posf = re.split(" ", SEARCH_FIELD)
     hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador",
                  "Fan", "Cooler", "Notebook", "Bloco De Água", "Water Block"]
@@ -125,13 +114,19 @@ def collect_prices(CURR_PROD_ID):
         async def request_webpage():
             async with AsyncClient() as client:
                 try:
-                    ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in METAS)
-                except TimeoutException as timeout:
+                    ets = (client.get(url, params=param, headers=SEARCH_HEADERS, timeout=15) for url, param in METAS)
+                except ConnectTimeout as timeout:
                     write_message_log(
                         timeout, 
                         "Connection timed out, skiping...", 
                         TABLE_NAME, CURR_PROD_ID
                     )
+                except TimeoutException as timeout:
+                    write_message_log(
+                        timeout, 
+                        "An operation timed out after connection was stablished, skiping...", 
+                        TABLE_NAME, CURR_PROD_ID
+                    )  
                     return
                 return await asyncio.gather(*ets)
     
