@@ -141,8 +141,13 @@ class SearchResponses:
         self.Date = datetime.now()
         self.results = []
 
+    
+    def parse_and_save(self):
+        self._parse_all()
+        self._save_data()
 
-    def parse_all(self):
+
+    def _parse_all(self):
         log = LocalLogger("SearchResponses.parse_all")
         parsers = (p for p in [
             self._parse_google_inline,
@@ -172,7 +177,26 @@ class SearchResponses:
         log.info(f"Parsed {len(self.results)} results for {self.product_name}")
                         
 
+    def _save_data(self):
+        log = LocalLogger("SearchResponses._save_data")
+
+        n_results = len(self.results)
+        if n_results == 0:
+            log.info(f"No valid results for {self.product_name}")
+        
+        else:
+            try:
+                write_results(
+                    results=self.results,
+                    CURR_PROD_ID=self.product.Id,
+                    date=self.Date
+                )
+                log.info(f"{n_results} saved for '{self.product_name}'")
+            except Exception as unexpected_save_exception:
+                log.critical(f"Unexpected error for '{self.product_name}': {unexpected_save_exception}")
+
     def _parse_google_inline(self):
+        """Dedicated parser for google inline (promoted) elements"""
         log = LocalLogger("SearchResponses._parse_google_inline")
         if not self.google_inline:
             log.error("No `google_inline` element found, skipping...")
@@ -208,6 +232,7 @@ class SearchResponses:
                 
 
     def _parse_google_grid(self):
+        """Dedicated parser for the first page of the google shopping grid of results"""
         log = LocalLogger("SearchResponses._parse_google_grid")
 
         for result in self.google_grid:
@@ -239,6 +264,7 @@ class SearchResponses:
             
     
     def _parse_google_highlight(self):
+        """Dedicated parser for google's 'best match' section"""
         log = LocalLogger("SearchResponses._parse_google_highlight")
 
         if  self.google_highlight:
@@ -269,6 +295,7 @@ class SearchResponses:
 
 
     def _parse_bing_inline(self):
+        """Dedicated parser for bing's promoted results"""
         log = LocalLogger("SearchResponses._parse_bing_inline")
 
         for result in self.bing_inline:
@@ -301,6 +328,7 @@ class SearchResponses:
 
 
     def _parse_bing_grid(self):
+        """Dedicated parser for the first page of the bing grid of results"""
         log = LocalLogger()
 
         for result in self.bing_grid:
@@ -331,6 +359,7 @@ class SearchResponses:
                     f"\nReason: {bing_grid_faliure}")
                 
                 raise HtmlParseError("Error in _parse_bing_grid")
+
 
 # ===== #
 # UTILS #
@@ -447,10 +476,6 @@ def collect_search(q: str, product: products, keywords: dict) -> SearchResponses
         filter_kws=keywords
     )
 
-
-def write_results(results: list) -> None:
-    pass
-
     
 def collect_prices(CURR_PROD_ID):
     log = LocalLogger("collect_prices")
@@ -463,42 +488,23 @@ def collect_prices(CURR_PROD_ID):
             keywords=search_kewords,
             product=curr_product
         )
-        responses.parse_all()
-        write_results(responses.results)
+        responses.parse_and_save()
 
     except Exception as uncaught_exception:
-        log.critical(f"Uncaught exception on {search_field}:\n{uncaught_exception}")
+        log.critical(f"Uncaught exception with '{search_field}':\n{uncaught_exception}")
         return
 
-        
-
-    # SAVE
-    n_retries = 5
-    for n_tries in range(n_retries):
-        output_data, Date, google_n_results, bing_n_results, try_con = gather()
-        n_results = len(output_data)
-        if n_results > 0:
-            try:
-                write_results(output_data, CURR_PROD_ID, date = Date)
-                write_message_log(
-                        f"Using {google_n_results} results from google, and {bing_n_results} from bing",
-                        f"Connection was successful after trying {try_con} times",
-                        SEARCH_FIELD=SEARCH_FIELD, prod_id=CURR_PROD_ID)
-                write_sucess_log(output_data, SEARCH_FIELD=SEARCH_FIELD, n_retries=n_tries, prod_id=CURR_PROD_ID)
-            except Exception as save_error:
-                write_message_log(save_error, "Unexpected error while trying to save the data:", SEARCH_FIELD, CURR_PROD_ID)
-            break
-    else:
-        write_message_log("no valid result found", "Couldn't collect prices", SEARCH_FIELD, CURR_PROD_ID)
-
 # ERROR MANAGEMENT AND RESULTS FILTERING
-def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) -> bool:
+def filtered_by_name(name_to_filter: str, filters: dict) -> bool:
     """
     Checks if the product title has every keyword it is supposed to have,
     and if it does NOT have the keywords it isn't supposed to have,
     with every test passed, return 'True'.
     """
 
+    pos_filters = filters['positive']
+    neg_filters = filters['negative']
+    
     checks_up = False
     for word in pos_filters:
         # skip when word is an empty string
@@ -525,19 +531,6 @@ def filtered_by_name(name_to_filter: str, pos_filters: list, neg_filters: list) 
             if not checks_up: 
                 break
     return checks_up
-
-def write_message_log(error, message: str, SEARCH_FIELD: str, prod_id: int):
-    # write 4 lines on the error message.
-    with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
-        # 1. Time and table name
-        log_file.write(f"\n[{str(datetime.now())}] {prod_id} | {SEARCH_FIELD}\n")
-        # 2 and 3. Message and Exception
-        log_file.write(f"{message}:\n{error}\n")
-
-def write_sucess_log(results: list, SEARCH_FIELD: str, n_retries: int, prod_id: int):
-    with open("exec_log.txt", 'a+', newline='', encoding = "UTF8") as log_file:
-        # 1. Success message with time
-        log_file.write(f"[{prod_id} | {SEARCH_FIELD}] Successful execution: {str( len(results) )} entries added with {n_retries} retries\n")
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
