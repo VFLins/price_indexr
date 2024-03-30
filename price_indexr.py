@@ -305,8 +305,8 @@ class SearchResponses:
                 Name = name_block["title"]
 
                 if not filtered_by_name(Name, self.filter_kws): 
-                    filtered = filtered + 1
                     continue
+
                 Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
 
                 line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
@@ -329,18 +329,17 @@ class SearchResponses:
 
     def _parse_bing_grid(self):
         """Dedicated parser for the first page of the bing grid of results"""
-        log = LocalLogger()
+        log = LocalLogger("SearchResponses._parse_bing_grid")
 
         for result in self.bing_grid:
             try:
                 line = {}
                 name_block = result.find("div", {"class": "br-pdItemName"})
                 Name = name_block.get_text()
-                
 
                 if not filtered_by_name(Name, self.filter_kws): 
-                    filtered = filtered + 1
                     continue
+
                 Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
                 
                 line["Url"] = f"https://bing.com{result['data-url']}"
