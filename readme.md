@@ -1,4 +1,4 @@
-### Reccomended branch: [Central](https://github.com/VFLins/price_indexr/tree/central)
+### Recommended branch: [Central](https://github.com/VFLins/price_indexr/tree/central)
 
 # Description
 
