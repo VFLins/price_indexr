@@ -25,7 +25,8 @@ SEARCH_HEADERS = {
 # ===================== #
 
 DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\\data\\database.db", echo=False)
-class dec_base(DeclarativeBase): pass
+class dec_base(DeclarativeBase):
+    pass
 
 class product_names(dec_base):
     __tablename__ = "product_names"
@@ -166,15 +167,15 @@ class SearchResponses:
 
                 if _errors == 0:
                     results_amount = len(self.results)
-                    log.error(f"(Product ID: {self.product.Id}) Skipping data parsing, too many errors")
+                    log.error(f"Skipping data parsing for '{self.product_name}', too many errors")
                     
                     if results_amount == 0:
-                        log.error(f"(Product ID: {self.product.Id}) No data collected")
+                        log.error(f"No data collected for '{self.product_name}'")
 
                 else: 
                     continue
 
-        log.info(f"Parsed {len(self.results)} results for {self.product_name}")
+        log.info(f"Parsed {len(self.results)} results for '{self.product_name}'")
                         
 
     def _save_data(self):
@@ -191,7 +192,7 @@ class SearchResponses:
                     CURR_PROD_ID=self.product.Id,
                     date=self.Date
                 )
-                log.info(f"{n_results} saved for '{self.product_name}'")
+                log.info(f"Saved {n_results} results for '{self.product_name}'")
             except Exception as unexpected_save_exception:
                 log.critical(f"Unexpected error for '{self.product_name}': {unexpected_save_exception}")
 
