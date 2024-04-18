@@ -3,17 +3,16 @@ from interface import scan_products
 from datetime import date, datetime, timedelta
 from time import sleep
 
+log = LocalLogger("scheduler")
+
+
 def time_and_execute():
     def collection_routine(product):
         try:
             collect_prices(product["id"])
         except Exception as expt:
-            write_message_log(
-                expt, "Unexpected error on collection routine:", 
-                f"{product['brand']} {product['name']} {product['model']}",
-                prod_id=product['id']
-            )
-            
+            prodname = f"{product["ProductBrand"]} {product["ProductModel"]} {product["ProductName"]}"
+            log.error(f"Unexpected error collecting prices from '{prodname}'. Reason: {str(expt)}")
             sleep(300)
 
     while True:
