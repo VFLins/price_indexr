@@ -71,13 +71,13 @@ dec_base.metadata.create_all(DB_ENGINE)
 
 class LocalLogger():
     """Generate an ephemeral logger inside the function scope."""
-    def __init__(self, logger_name: str):
-        self.logger = logging.getLogger(logger_name)
+    def __init__(self):
+        self.logger = logging.getLogger("price_indexr")
         self.logger.setLevel(logging.DEBUG)
 
         self.handler = logging.FileHandler(filename=join(SCRIPT_FOLDER, "exec_log.txt"))
         self.formatter = logging.Formatter(
-            fmt="%(levelname)s [%(asctime)s] - %(name)s :: %(message)s\n"
+            fmt="%(levelname)s [%(asctime)s] - %(name)s :: %(message)s"
         )
 
         self.handler.setFormatter(self.formatter)
@@ -105,6 +105,8 @@ class LocalLogger():
         """Log a `critical` level message"""
         self.logger.critical(msg=message)
 
+
+log = LocalLogger()
 
 # ========== #
 # EXCEPTIONS #
@@ -149,7 +151,7 @@ class SearchResponses:
 
 
     def _parse_all(self):
-        log = LocalLogger("SearchResponses.parse_all")
+        _context = "SearchResponses.parse_all"
         parsers = (p for p in [
             self._parse_google_inline,
             self._parse_google_grid,
@@ -167,23 +169,23 @@ class SearchResponses:
 
                 if _errors == 0:
                     results_amount = len(self.results)
-                    log.error(f"Skipping data parsing for '{self.product_name}', too many errors")
+                    log.error(f"{_context}: Skipping data parsing for '{self.product_name}', too many errors")
                     
                     if results_amount == 0:
-                        log.error(f"No data collected for '{self.product_name}'")
+                        log.error(f"{_context}: No data collected for '{self.product_name}'")
 
                 else: 
                     continue
 
-        log.info(f"Parsed {len(self.results)} results for '{self.product_name}'")
+        log.info(f"{_context}: Parsed {len(self.results)} results for '{self.product_name}'")
                         
 
     def _save_data(self):
-        log = LocalLogger("SearchResponses._save_data")
+        _context = "SearchResponses._save_data"
 
         n_results = len(self.results)
         if n_results == 0:
-            log.info(f"No valid results for {self.product_name}")
+            log.info(f"{_context}: No valid results for {self.product_name}")
         
         else:
             try:
@@ -192,15 +194,15 @@ class SearchResponses:
                     CURR_PROD_ID=self.product.Id,
                     date=self.Date
                 )
-                log.info(f"Saved {n_results} results for '{self.product_name}'")
+                log.info(f"{_context}: Saved {n_results} results for '{self.product_name}'")
             except Exception as unexpected_save_exception:
-                log.critical(f"Unexpected error for '{self.product_name}': {unexpected_save_exception}")
+                log.critical(f"{_context}: Unexpected error for '{self.product_name}': {unexpected_save_exception}")
 
     def _parse_google_inline(self):
         """Dedicated parser for google inline (promoted) elements"""
-        log = LocalLogger("SearchResponses._parse_google_inline")
+        _context = "SearchResponses._parse_google_inline"
         if not self.google_inline:
-            log.error("No `google_inline` element found, skipping...")
+            log.error(f"{_context}: No `google_inline` element found, skipping...")
             return
 
         for result in self.google_inline:
@@ -226,7 +228,7 @@ class SearchResponses:
 
             except Exception as google_inline_faliure:
                 log.critical(
-                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"{_context}: Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {google_inline_faliure}")
 
                 raise HtmlParseError(f"Error in _parse_google_inline")
@@ -234,7 +236,7 @@ class SearchResponses:
 
     def _parse_google_grid(self):
         """Dedicated parser for the first page of the google shopping grid of results"""
-        log = LocalLogger("SearchResponses._parse_google_grid")
+        _context = "SearchResponses._parse_google_grid"
 
         for result in self.google_grid:
             try:
@@ -258,7 +260,7 @@ class SearchResponses:
 
             except Exception as google_grid_faliure:
                 log.critical(
-                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {google_grid_faliure}")
 
                 raise HtmlParseError("Error in _parse_google_grid")
@@ -266,7 +268,7 @@ class SearchResponses:
     
     def _parse_google_highlight(self):
         """Dedicated parser for google's 'best match' section"""
-        log = LocalLogger("SearchResponses._parse_google_highlight")
+        _context = "SearchResponses._parse_google_highlight"
 
         if  self.google_highlight:
             try:
@@ -289,7 +291,7 @@ class SearchResponses:
             
             except Exception as google_highlight_faliure:
                 log.critical(
-                f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                 f"\nReason: {google_highlight_faliure}")
 
                 raise HtmlParseError("Error in _parse_google_higlight")
@@ -297,7 +299,7 @@ class SearchResponses:
 
     def _parse_bing_inline(self):
         """Dedicated parser for bing's promoted results"""
-        log = LocalLogger("SearchResponses._parse_bing_inline")
+        _context = "SearchResponses._parse_bing_inline"
 
         for result in self.bing_inline:
             try:
@@ -322,7 +324,7 @@ class SearchResponses:
 
             except Exception as bing_inline_faliure:
                 log.critical(
-                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {bing_inline_faliure}")
                 
                 raise HtmlParseError("Error in _parse_bing_inline")
@@ -330,7 +332,7 @@ class SearchResponses:
 
     def _parse_bing_grid(self):
         """Dedicated parser for the first page of the bing grid of results"""
-        log = LocalLogger("SearchResponses._parse_bing_grid")
+        _context = "SearchResponses._parse_bing_grid"
 
         for result in self.bing_grid:
             try:
@@ -355,7 +357,7 @@ class SearchResponses:
 
             except Exception as bing_grid_faliure:
                 log.critical(
-                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {bing_grid_faliure}")
                 
                 raise HtmlParseError("Error in _parse_bing_grid")
@@ -379,12 +381,12 @@ def validate_integer_input(inp: int) -> products:
         `ValueError`: If the input cannot be converted to an integer.
         `IndexError`: If the specified ID is not found in the database.
     """
-    log = LocalLogger(f"validate_integer_input '{inp}'")
+    _context = f"validate_integer_input '{inp}'"
 
     try:
         inp = int(inp)
     except ValueError:
-        log.error("Input must be of type `int` or coercible to `int`")
+        log.error("{_context}: Input must be of type `int` or coercible to `int`")
         raise ValueError
     
     try:
@@ -392,7 +394,7 @@ def validate_integer_input(inp: int) -> products:
             stmt = select(products).where(products.Id == inp)
             curr_product = ses.execute(stmt).scalar_one()
     except Exception as not_found_id_error:
-        log.error(f"database returned an error: {not_found_id_error}")
+        log.error(f"{_context}: Database returned an error: {not_found_id_error}")
         raise IndexError
 
     return curr_product
@@ -419,7 +421,7 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
             `str` the product's full name (brand, name, and model)
             `dict` of filters with two keys: `'negative'` and `'positive'`
     """
-    log = LocalLogger(f"generate_filters {product}")
+    _context = f"generate_filters {product}"
 
     try:
         product_fullname = f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
@@ -432,7 +434,7 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
         keywords["negative"] = [x.replace("_", " ") for x in negf]
         keywords["positive"] = [x.replace("_", " ") for x in posf]
     except Exception as generate_filters_error:
-        log.error(generate_filters_error)
+        log.error(f"{_context}: {generate_filters_error}")
         raise Exception
     
     return product_fullname, keywords
@@ -443,7 +445,7 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
 # =========== #
 
 def collect_search(q: str, product: products, keywords: dict) -> SearchResponses:
-    log = LocalLogger(f"collect_search: {q}")
+    _context = f"collect_search: {q}"
 
     bing_params = {"q" : q}; google_params = {"q" : q, "tbm" : "shop"}
 
@@ -457,7 +459,7 @@ def collect_search(q: str, product: products, keywords: dict) -> SearchResponses
                     ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in metas)
 
                 except TimeoutException as timeout:
-                    log.error("Connection timed out, skiping...")
+                    log.error(f"{_context}: Connection timed out, skiping...")
                     return
 
                 return await asyncio.gather(*ets)
@@ -478,7 +480,7 @@ def collect_search(q: str, product: products, keywords: dict) -> SearchResponses
 
     
 def collect_prices(CURR_PROD_ID):
-    log = LocalLogger("collect_prices")
+    _context = "collect_prices"
 
     try:
         curr_product = validate_integer_input(CURR_PROD_ID)
@@ -491,7 +493,7 @@ def collect_prices(CURR_PROD_ID):
         responses.parse_and_save()
 
     except Exception as uncaught_exception:
-        log.critical(f"Uncaught exception with '{search_field}':\n{uncaught_exception}")
+        log.critical(f"{_context}: Uncaught exception with '{search_field}':\n{uncaught_exception}")
         return
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
