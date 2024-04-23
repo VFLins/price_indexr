@@ -85,25 +85,25 @@ class LocalLogger():
         self.logger.addHandler(self.handler)
         self.logger.propagate = False
 
-    def debug(self, message):
+    def debug(self, context, message):
         """Log a `debug` level message"""
-        self.logger.debug(msg=message)
+        self.logger.debug(msg=f"{context}: {message}")
 
-    def info(self, message):
+    def info(self, context, message):
         """Log a `info` level message"""
-        self.logger.info(msg=message)
+        self.logger.info(msg=f"{context}: {message}")
 
-    def warn(self, message):
+    def warn(self, context, message):
         """Log a `warning` level message"""
-        self.logger.warn(msg=message)
+        self.logger.warn(msg=f"{context}: {message}")
 
-    def error(self, message):
+    def error(self, context, message):
         """Log a `error` level message"""
-        self.logger.error(msg=message)
+        self.logger.error(msg=f"{context}: {message}")
 
-    def critical(self, message):
+    def critical(self, context, message):
         """Log a `critical` level message"""
-        self.logger.critical(msg=message)
+        self.logger.critical(msg=f"{context}: {message}")
 
 
 log = LocalLogger()
@@ -169,15 +169,13 @@ class SearchResponses:
 
                 if _errors == 0:
                     results_amount = len(self.results)
-                    log.error(f"{_context}: Skipping data parsing for '{self.product_name}', too many errors")
+                    log.error(_context, f"Skipping data parsing for '{self.product_name}', too many errors")
                     
                     if results_amount == 0:
-                        log.error(f"{_context}: No data collected for '{self.product_name}'")
+                        log.error(_context, f"No data collected for '{self.product_name}'")
 
                 else: 
                     continue
-
-        log.info(f"{_context}: Parsed {len(self.results)} results for '{self.product_name}'")
                         
 
     def _save_data(self):
@@ -185,7 +183,7 @@ class SearchResponses:
 
         n_results = len(self.results)
         if n_results == 0:
-            log.info(f"{_context}: No valid results for {self.product_name}")
+            log.info(_context, f"No valid results for {self.product_name}")
         
         else:
             try:
@@ -194,15 +192,15 @@ class SearchResponses:
                     CURR_PROD_ID=self.product.Id,
                     date=self.Date
                 )
-                log.info(f"{_context}: Saved {n_results} results for '{self.product_name}'")
+                log.info(_context, f"Saved {n_results} results for '{self.product_name}'")
             except Exception as unexpected_save_exception:
-                log.critical(f"{_context}: Unexpected error for '{self.product_name}': {unexpected_save_exception}")
+                log.critical(_context, f"Unexpected error for '{self.product_name}': {unexpected_save_exception}")
 
     def _parse_google_inline(self):
         """Dedicated parser for google inline (promoted) elements"""
         _context = "SearchResponses._parse_google_inline"
         if not self.google_inline:
-            log.error(f"{_context}: No `google_inline` element found, skipping...")
+            log.warn(_context, f"No `google_inline` element found, skipping...")
             return
 
         for result in self.google_inline:
@@ -228,7 +226,7 @@ class SearchResponses:
 
             except Exception as google_inline_faliure:
                 log.critical(
-                    f"{_context}: Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
+                    _context, f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {google_inline_faliure}")
 
                 raise HtmlParseError(f"Error in _parse_google_inline")
@@ -260,7 +258,7 @@ class SearchResponses:
 
             except Exception as google_grid_faliure:
                 log.critical(
-                    f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
+                    _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {google_grid_faliure}")
 
                 raise HtmlParseError("Error in _parse_google_grid")
@@ -291,7 +289,7 @@ class SearchResponses:
             
             except Exception as google_highlight_faliure:
                 log.critical(
-                f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
+                _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                 f"\nReason: {google_highlight_faliure}")
 
                 raise HtmlParseError("Error in _parse_google_higlight")
@@ -324,7 +322,7 @@ class SearchResponses:
 
             except Exception as bing_inline_faliure:
                 log.critical(
-                    f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
+                    _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {bing_inline_faliure}")
                 
                 raise HtmlParseError("Error in _parse_bing_inline")
@@ -357,7 +355,7 @@ class SearchResponses:
 
             except Exception as bing_grid_faliure:
                 log.critical(
-                    f"{_context}: Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
+                    _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
                     f"\nReason: {bing_grid_faliure}")
                 
                 raise HtmlParseError("Error in _parse_bing_grid")
@@ -394,7 +392,7 @@ def validate_integer_input(inp: int) -> products:
             stmt = select(products).where(products.Id == inp)
             curr_product = ses.execute(stmt).scalar_one()
     except Exception as not_found_id_error:
-        log.error(f"{_context}: Database returned an error: {not_found_id_error}")
+        log.error(_context, f"Database returned an error: {not_found_id_error}")
         raise IndexError
 
     return curr_product
@@ -434,7 +432,7 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
         keywords["negative"] = [x.replace("_", " ") for x in negf]
         keywords["positive"] = [x.replace("_", " ") for x in posf]
     except Exception as generate_filters_error:
-        log.error(f"{_context}: {generate_filters_error}")
+        log.error(_context, f"{generate_filters_error}")
         raise Exception
     
     return product_fullname, keywords
@@ -459,7 +457,7 @@ def collect_search(q: str, product: products, keywords: dict) -> SearchResponses
                     ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in metas)
 
                 except TimeoutException as timeout:
-                    log.error(f"{_context}: Connection timed out, skiping...")
+                    log.error(_context, f"Connection timed out, skiping...")
                     return
 
                 return await asyncio.gather(*ets)
@@ -493,7 +491,7 @@ def collect_prices(CURR_PROD_ID):
         responses.parse_and_save()
 
     except Exception as uncaught_exception:
-        log.critical(f"{_context}: Uncaught exception with '{search_field}':\n{uncaught_exception}")
+        log.critical(_context, f"Uncaught exception with '{search_field}':\n{uncaught_exception}")
         return
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
