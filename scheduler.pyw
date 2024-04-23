@@ -8,12 +8,15 @@ log = LocalLogger("scheduler")
 
 
 def time_and_execute():
+    _context = "time_and_execute"
+
     def collection_routine(product):
+        _context = "time_and_execute.collection_routine"
         try:
             collect_prices(product["id"])
         except Exception as expt:
             prodname = f"{product["ProductBrand"]} {product["ProductModel"]} {product["ProductName"]}"
-            log.error(f"Unexpected error collecting prices from '{prodname}'. Reason: {str(expt)}")
+            log.error(_context,f"Unexpected error collecting prices from '{prodname}'. Reason: {str(expt)}")
             sleep(300)
 
     while True:
@@ -28,7 +31,7 @@ def time_and_execute():
                 elif prod["last_update"] < hiatus_time:
                     continue
             except Exception as unexpected_error:
-                log.critical("scheduler.py", f"Unexpected error while managing price collection: {unexpected_error}")
+                log.critical(_context, f"Unexpected error while managing price collection: {unexpected_error}")
         sleep(900)
 
 if __name__ == "__main__":

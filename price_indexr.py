@@ -71,8 +71,8 @@ dec_base.metadata.create_all(DB_ENGINE)
 
 class LocalLogger():
     """Generate an ephemeral logger inside the function scope."""
-    def __init__(self):
-        self.logger = logging.getLogger("price_indexr")
+    def __init__(self, name):
+        self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
 
         self.handler = logging.FileHandler(filename=join(SCRIPT_FOLDER, "exec_log.txt"))
@@ -106,7 +106,7 @@ class LocalLogger():
         self.logger.critical(msg=f"{context}: {message}")
 
 
-log = LocalLogger()
+log = LocalLogger("price_indexr")
 
 # ========== #
 # EXCEPTIONS #
