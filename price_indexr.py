@@ -183,7 +183,7 @@ class SearchResponses:
 
         n_results = len(self.results)
         if n_results == 0:
-            log.info(_context, f"No valid results for {self.product_name}")
+            log.info(_context, f"No valid results for '{self.product_name}'")
         
         else:
             try:

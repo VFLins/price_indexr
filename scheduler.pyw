@@ -15,8 +15,8 @@ def time_and_execute():
         try:
             collect_prices(product["id"])
         except Exception as expt:
-            prodname = f"{product["ProductBrand"]} {product["ProductModel"]} {product["ProductName"]}"
-            log.error(_context,f"Unexpected error collecting prices from '{prodname}'. Reason: {str(expt)}")
+            prodname = f"{product['ProductBrand']} {product['ProductModel']} {product['ProductName']}"
+            log.error(_context, f"Unexpected error collecting prices from '{prodname}'. Reason: {str(expt)}")
             sleep(300)
 
     while True:
@@ -25,13 +25,24 @@ def time_and_execute():
         hiatus_time = datetime.now() - timedelta(days=30)
 
         for prod in prod_list:
+
             try:
-                if (prod["last_update"] <= update_time) and (prod["last_update"] >= hiatus_time):
+                if prod["last_update"] is None:
+                    prodname = f"{prod['ProductBrand']} {prod['ProductModel']} {prod['ProductName']}"
+                    log.info(_context, f"Trying to collect prices for '{prodname}' (never collected before)")
                     collection_routine(product=prod)
+
+                elif (prod["last_update"] <= update_time) and (prod["last_update"] >= hiatus_time):
+                    collection_routine(product=prod)
+
                 elif prod["last_update"] < hiatus_time:
+                    prodname = f"{prod['ProductBrand']} {prod['ProductModel']} {prod['ProductName']}"
+                    tdelta = datetime.now() - prod["last_update"]
+                    log.info(_context, f"Skipping '{prodname}', last update was too long ago ({tdelta.days} days)")
                     continue
+
             except Exception as unexpected_error:
-                log.critical(_context, f"Unexpected error while managing price collection: {unexpected_error}")
+                log.critical(_context, f"Unexpected error while managing price collection after {prodname}: {unexpected_error}")
         sleep(900)
 
 if __name__ == "__main__":
