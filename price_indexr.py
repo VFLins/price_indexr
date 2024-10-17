@@ -123,20 +123,25 @@ class HtmlParseError(Exception):
 class SearchResponses:
     def __init__(
             self, 
-            google_inline: AsyncClient.get,
-            google_grid: AsyncClient.get,
-            google_highlight: AsyncClient.get,
-            bing_inline: AsyncClient.get,
-            bing_grid: AsyncClient.get,
+            soup_bing: BeautifulSoup | None,
+            soup_google: BeautifulSoup | None,
             product: products,
             filter_kws: dict
         ):
 
-        self.google_inline = google_inline
-        self.google_grid = google_grid
-        self.google_highlight = google_highlight
-        self.bing_inline = bing_inline
-        self.bing_grid = bing_grid
+        if soup_google:
+            self.google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
+            self.google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
+            self.google_highlight = soup_google.find("div", {"class": "_-oX"})
+        else:
+            self.google_inline, self.google_grid, self.google_highlight = (None, None, None)
+
+        if soup_bing:
+            self.bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
+            self.bing_grid = soup_bing.find_all("li", {"class": "br-item"})
+        else:
+            self.bing_inline, self.bing_grid = (None, None)
+
         self.product = product
         self.filter_kws = filter_kws
 
@@ -160,14 +165,15 @@ class SearchResponses:
             self._parse_bing_grid]
         )
 
-        _errors: int = 5
+        _max_errors: int = 5
+        _errors: int = 0
         for parser in parsers:
             try:
                 parser()
             except HtmlParseError:
-                _errors = _errors - 1
+                _errors = _errors + 1
 
-                if _errors == 0:
+                if _errors == _max_errors:
                     results_amount = len(self.results)
                     log.error(_context, f"Skipping data parsing for '{self.product_name}', too many errors")
                     
@@ -452,26 +458,35 @@ def collect_search(q: str, product: products, keywords: dict) -> SearchResponses
     metas = zip(urls, params)
 
     async def request_webpage():
-            async with AsyncClient() as client:
-                try:
-                    ets = (client.get(url, params=param, headers=SEARCH_HEADERS) for url, param in metas)
+        outuput = (None, None)
+        async with AsyncClient() as client:
+            try:
+                await outuput[0] = client.get(
+                    "https://www.bing.com/shop",
+                    params={"q": q},
+                    headers=SEARCH_HEADERS
+                )
+            except Exception:
+                pass
+            
+            try:
+                await outuput[1] = client.get(
+                    "https://www.google.com/search",
+                    params={"q": q, "tbm": "shop"},
+                    headers=SEARCH_HEADERS
+                )
+            except Exception:
+                pass
 
-                except TimeoutException as timeout:
-                    log.error(_context, f"Connection timed out, skiping...")
-                    return
-
-                return await asyncio.gather(*ets)
+            return outuput
             
     bing_response, google_response = asyncio.run(request_webpage())
     soup_bing = BeautifulSoup(bing_response.text, "lxml")
     soup_google = BeautifulSoup(google_response.text, "lxml")
 
     return SearchResponses(
-        google_inline=soup_google.find_all("div", {"class": "KZmu8e"}),
-        google_grid=soup_google.find_all("div", {"class": "sh-dgr__content"}),
-        google_highlight=soup_google.find("div", {"class": "_-oX"}),
-        bing_inline=soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True}),
-        bing_grid=soup_bing.find_all("li", {"class": "br-item"}),
+        soup_bing=soup_bing,
+        soup_google=soup_google,
         product=product,
         filter_kws=keywords
     )
