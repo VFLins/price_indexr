@@ -242,6 +242,10 @@ class SearchResponses:
         """Dedicated parser for the first page of the google shopping grid of results"""
         _context = "SearchResponses._parse_google_grid"
 
+        if not self.google_grid:
+            log.warn(_context, f"No `google_grid` element found, skipping...")
+            return
+
         for result in self.google_grid:
             try:
                 line = {}
@@ -305,6 +309,10 @@ class SearchResponses:
         """Dedicated parser for bing's promoted results"""
         _context = "SearchResponses._parse_bing_inline"
 
+        if not self.bing_inline:
+            log.warn(_context, f"No `bing_inline` element found, skipping...")
+            return
+
         for result in self.bing_inline:
             try:
                 line = {}
@@ -337,6 +345,10 @@ class SearchResponses:
     def _parse_bing_grid(self):
         """Dedicated parser for the first page of the bing grid of results"""
         _context = "SearchResponses._parse_bing_grid"
+
+        if not self.bing_grid:
+            log.warn(_context, f"No `bing_inline` element found, skipping...")
+            return
 
         for result in self.bing_grid:
             try:
@@ -457,32 +469,29 @@ def collect_search(q: str, product: products, keywords: dict) -> SearchResponses
     params = [bing_params, google_params]
     metas = zip(urls, params)
 
-    async def request_webpage():
-        outuput = (None, None)
-        async with AsyncClient() as client:
-            try:
-                await outuput[0] = client.get(
-                    "https://www.bing.com/shop",
-                    params={"q": q},
-                    headers=SEARCH_HEADERS
-                )
-            except Exception:
-                pass
-            
-            try:
-                await outuput[1] = client.get(
-                    "https://www.google.com/search",
-                    params={"q": q, "tbm": "shop"},
-                    headers=SEARCH_HEADERS
-                )
-            except Exception:
-                pass
+    async def get_webpage(url, params):
+        try:
+            async with AsyncClient() as client:
+                return await client.get(url=url, params=params, headers=SEARCH_HEADERS)
+        except Exception as err:
+            log.error(_context, f"Could not get {url} contents: {err}")
+            return None
 
-            return outuput
-            
+    async def request_webpage():
+        tasks = (get_webpage(url, param) for url, param in metas)
+        return await asyncio.gather(*tasks)
+
     bing_response, google_response = asyncio.run(request_webpage())
-    soup_bing = BeautifulSoup(bing_response.text, "lxml")
-    soup_google = BeautifulSoup(google_response.text, "lxml")
+
+    if (bing_response is None) and (google_response is None):
+        log.error(_context, "Could not get responses from any webpage. Exiting...")
+        raise Exception
+
+    soup_bing, soup_google = None, None
+    if bing_response:
+        soup_bing = BeautifulSoup(bing_response.text, "lxml")
+    if google_response:
+        soup_google = BeautifulSoup(google_response.text, "lxml")
 
     return SearchResponses(
         soup_bing=soup_bing,
@@ -506,7 +515,7 @@ def collect_prices(CURR_PROD_ID):
         responses.parse_and_save()
 
     except Exception as uncaught_exception:
-        log.critical(_context, f"Uncaught exception with '{search_field}':\n{uncaught_exception}")
+        log.critical(_context, f"Uncaught exception with '{search_field}': {uncaught_exception}")
         return
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
