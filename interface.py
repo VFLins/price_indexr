@@ -1,11 +1,13 @@
-from price_indexr import *
+import price_indexr as pi
+from datetime import datetime
 from sqlalchemy import select, delete
+from sqlalchemy.orm import Session
 
 def scan_names() -> list:
     """Read product_names table to get a list of rows as dicts"""
     output = []
-    with Session(DB_ENGINE) as ses:
-        stmt = select(product_names)
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.product_names)
         result = ses.execute(stmt).scalars()
 
         for i in result:
@@ -17,8 +19,8 @@ def scan_names() -> list:
 def scan_products() -> list:
     """Read products table to get a list of rows as dicts"""
     output = []
-    with Session(DB_ENGINE) as ses:
-        stmt = select(products)
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.products)
         result = ses.execute(stmt).scalars()
 
         for i in result:
@@ -129,8 +131,8 @@ def delete_product():
         confirm = confirmation("You will delete this record")
         if confirm:
             try:
-                stmt = delete(products).where(products.Id == id_num)
-                with Session(DB_ENGINE) as ses:
+                stmt = delete(pi.products).where(pi.products.Id == id_num)
+                with Session(pi.DB_ENGINE) as ses:
                     ses.execute(stmt)
                     ses.commit()
             except Exception as DeletionError:
@@ -201,36 +203,36 @@ def create_product():
     
     # Add new name and get NameId
     if is_new_name:
-        name_stmt = product_names(ProductName=name)
-        with Session(DB_ENGINE) as ses:
+        name_stmt = pi.product_names(ProductName=name)
+        with Session(pi.DB_ENGINE) as ses:
             # Save new name
             ses.add(name_stmt)
             ses.commit()
-    with Session(DB_ENGINE) as ses:
+    with Session(pi.DB_ENGINE) as ses:
         # Get id for the used name
-        stmt = select(product_names).where(product_names.ProductName == name)
+        stmt = select(pi.product_names).where(pi.product_names.ProductName == name)
         result = ses.execute(stmt).scalar_one()
         new_name_id = result.Id
 
     checkout = confirmation("This data will be saved")
     if checkout:            
-        prod_stmt = products(
+        prod_stmt = pi.products(
             NameId=new_name_id,
             ProductName=name,
             ProductModel=model,
             ProductBrand=brand,
             ProductFilters=filters,
             Created=created)
-        with Session(DB_ENGINE) as ses:
+        with Session(pi.DB_ENGINE) as ses:
             ses.add(prod_stmt)
             ses.commit()
             # Get created product id
-            stmt = select(products).where(products.Created == created)
+            stmt = select(pi.products).where(pi.products.Created == created)
             result = ses.execute(stmt).scalars()
 
         for i in result: new_product_id = i.Id
         print("\nCollecting current prices...")
-        collect_prices(new_product_id)
+        pi.collect_prices(new_product_id)
         print(f"\nThe ID for this product is: {new_product_id}")
         print("Transaction success!")
     else:
@@ -252,8 +254,8 @@ def update_product():
         confirm = confirmation("You will retype the filters for this record")
         if confirm:
             new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
-            with Session(DB_ENGINE) as ses:
-                selected_row = ses.execute(select(products).where(products.Id == id_num)).scalar_one()
+            with Session(pi.DB_ENGINE) as ses:
+                selected_row = ses.execute(select(pi.products).where(pi.products.Id == id_num)).scalar_one()
                 selected_row.ProductFilters = new_filters
                 ses.commit()
     else:
@@ -293,13 +295,13 @@ def update_prices():
         print("Working... Please wait.")
         for prod in update_products:
             try:
-                collect_prices(prod["id"])
+                pi.collect_prices(prod["id"])
             except Exception as expt:
-                write_message_log(
+                pi.write_message_log(
                     expt, "Unexpected error on collection routine:", 
                     f"{prod['brand']} {prod['name']} {prod['model']}",
                     prod_id=prod['id']
-            )
+                )
 
     else:
         for row in update_products:
@@ -316,7 +318,7 @@ def update_prices():
             except: print("Insert a valid number!")
             else: break
         print("Working... Please wait.")
-        collect_prices(prod_id)
+        pi.collect_prices(prod_id)
     
     print("Completed! Check 'exec_log.txt' for more information.")
 
