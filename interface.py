@@ -3,6 +3,24 @@ from datetime import datetime
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
+
+HELP_MSG_MAIN = [
+    "C: Create a new product to price index", 
+    "L: List products", 
+    "U: Update a recorded product",
+    "D: Delete a product by ID number", 
+    "K: Collect prices",
+    "H: Show this help message",
+    "Q: Quit"
+]
+
+HELP_MSG_COLLECTPRICES = [
+    "A: Collect prics from all products",
+    "S: Collect prices for a specific collection of products"
+    "H: Show this help message",
+    "Q: Return to main menu"
+]
+
 def scan_names() -> list:
     """Read product_names table to get a list of rows as dicts"""
     output = []
@@ -15,6 +33,7 @@ def scan_names() -> list:
                 "id": i.Id, 
                 "name": i.ProductName})
     return output
+
 
 def scan_products() -> list:
     """Read products table to get a list of rows as dicts"""
@@ -35,13 +54,58 @@ def scan_products() -> list:
                 "last_update": i.LastUpdate})
     return output
 
-def main_menu():
+
+def get_input(menu_name: str):
+    inp = input(f"\n{menu_name}: Choose a letter and press enter: ")
+    return inp.upper()
+
+
+def options_menu(options: dict, name: str = "unnamed menu"):
+    # run help function at the beginning
+    if "H" in options.keys():
+        options["H"]()
+
     while True:
-        def get_input():
-            inp = input("\nChoose a letter and press enter: ")
-            return inp
-        
+        inp = get_input(name)
+        if (name != "Main Menu") and (inp == "Q"):
+            break
+        if inp in options:
+            options[inp]()
+        else:
+            print("Insert a valid value!")
+
+
+def main_menu():
+    options_menu(
+        options={
+            "C": (lambda: create_product()),
+            "L": (lambda: list_products()),
+            "U": (lambda: update_product()),
+            "D": (lambda: delete_product()),
+            "K": (lambda: collect_prices_menu()),
+            "H": (lambda: print_help(help_mgs=HELP_MSG_MAIN)),
+            "Q": (lambda: quit())
+        },
+        name = "Main"
+    )
+
+
+def collect_prices_menu():
+    options_menu(
+        options={
+            "A": (lambda: update_all_prices()),
+            "S": (lambda: update_prices()),
+            "H": (lambda: print_help(help_mgs=HELP_MSG_COLLECTPRICES)),
+            "Q": None
+        },
+        name = "Collect Prices"
+    )
+
+""" def main_menu():
+    while True:
+        print_help()
         inp = get_input()
+
         while True:
             match inp.upper():
                 case "C": run_next = "Create"; break
@@ -62,6 +126,8 @@ def main_menu():
             case "Help": print_help()
             case "Prices": update_prices()
             case "Delete": delete_product()        
+ """
+
 
 def confirmation(ask: str) -> bool:
     def get_input():
@@ -80,6 +146,7 @@ def confirmation(ask: str) -> bool:
             print("Invalid answer!")
             inp = get_input()
     return output
+
 
 def pick_product_by_id(message):
     products = scan_products()
@@ -106,6 +173,7 @@ def pick_product_by_id(message):
         except: return None
     return product
 
+
 def list_products():
     rows = scan_products()
     for row in rows:
@@ -114,6 +182,7 @@ def list_products():
             f"Search: {row['brand']} {row['name']} {row['model']}",
             f"Filters: {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
+
 
 def delete_product():
     row = pick_product_by_id("Select a product to delete")
@@ -140,6 +209,7 @@ def delete_product():
         else: quit()
     else:
         print("This row Id doesn't exist!")
+
 
 """
 def retry(expr, tries, **kwargs):
@@ -201,6 +271,7 @@ def create_product():
         f"Filters: {filters}",
         f"Created: {created}", sep=" | ")
     
+
     # Add new name and get NameId
     if is_new_name:
         name_stmt = pi.product_names(ProductName=name)
@@ -213,6 +284,7 @@ def create_product():
         stmt = select(pi.product_names).where(pi.product_names.ProductName == name)
         result = ses.execute(stmt).scalar_one()
         new_name_id = result.Id
+
 
     checkout = confirmation("This data will be saved")
     if checkout:            
@@ -261,17 +333,24 @@ def update_product():
     else:
         print("This row Id doesn't exist!")
 
-def print_help():
+def print_help(help_mgs: list = HELP_MSG_MAIN):
     print(
         "Choose an operation to perform:", 
-        "C: Create a new product to price index", 
-        "L: List all products", 
-        "K: Collect prices",
-        "U: Update a recorded product",
-        "D: Delete a product by ID number", 
-        "H: Show this help message",
-        "Q: Quit", sep="\n")
-    
+        *help_mgs, sep="\n")
+
+
+def update_all_prices():
+    products = scan_products()
+    n = len(products)
+    i = 0
+
+    while i <= n:
+        print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
+        pi.collect_prices(products[i]["id"])
+        i = i + 1
+    print("Completed! Check 'exec_log.txt' for more information.")
+
+
 def update_prices():
     names_list = scan_names()
     for row in names_list:
@@ -324,5 +403,4 @@ def update_prices():
 
 if __name__ == "__main__":
     print("===== Price_indexr central v0.2 =====")
-    print_help()
     main_menu()
