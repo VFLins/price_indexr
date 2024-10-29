@@ -4,23 +4,6 @@ from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 
-HELP_MSG_MAIN = [
-    "C: Create a new product to price index", 
-    "L: List products", 
-    "U: Update a recorded product",
-    "D: Delete a product by ID number", 
-    "K: Collect prices",
-    "H: Show this help message",
-    "Q: Quit"
-]
-
-HELP_MSG_COLLECTPRICES = [
-    "A: Collect prics from all products",
-    "S: Collect prices for a specific collection of products"
-    "H: Show this help message",
-    "Q: Return to main menu"
-]
-
 def scan_names() -> list:
     """Read product_names table to get a list of rows as dicts"""
     output = []
@@ -35,15 +18,23 @@ def scan_names() -> list:
     return output
 
 
-def scan_products() -> list:
-    """Read products table to get a list of rows as dicts"""
-    output = []
+def scan_products(name_id: int|None = None) -> list:
+    """
+    Read products table to get a list of rows as dicts
+
+    **Args**
+        `name_id`: ID number of the desired name. None, if should get all products.
+    """
+    rows = []
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.products)
+        if name_id:
+            stmt = select(pi.products).where(pi.products.NameId == name_id)
+        else:
+            stmt = select(pi.products)
         result = ses.execute(stmt).scalars()
 
         for i in result:
-            output.append({
+            rows.append({
                 "id": i.Id, 
                 "name_id": i.NameId,
                 "name": i.ProductName,
@@ -52,22 +43,100 @@ def scan_products() -> list:
                 "filters": i.ProductFilters,
                 "created": i.Created,
                 "last_update": i.LastUpdate})
-    return output
+    return rows
+
+
+def id_name_exists(name_id: int) -> bool:
+    """Returns a boolean value indicating wether `name_id` exist or not."""
+    names_list = scan_names()
+    id_exists = False
+    for i in names_list:
+        if i['id'] == name_id:
+            id_exists = True
+            break
+    return id_exists
+
+
+def id_product_exists(product_id: int) -> bool:
+    """Returns a boolean value indicating wether `product_id` exist or not."""
+    products_list = scan_products()
+    id_exists = False
+    for i in products_list:
+        if i['id'] == product_id:
+            id_exists = True
+            break
+    return id_exists
+
+
+def select_name_id() -> int|None:
+    """
+    Prompts the user to select a name id.
+    
+    **Returns**
+        `int` if user inserted a valid value, `None` otherwise.
+    """
+    names_list = scan_names()
+    for row in names_list:
+        print(f"Id: {row['id']} | Name: {row['name']}")
+
+    try:
+        name_id = int(input("Insert the name Id: "))
+        if not id_name_exists(name_id):
+            raise IndexError("Value not present in the data")
+        return name_id
+
+    except IndexError:
+        print("Id number not valid")
+        return None
+    except ValueError:
+        print("This is not an integer number")
+        return None
+
+
+def select_product_id() -> int|None:
+    """
+    Prompts the user to select a *product id* after selecting a *name id*.
+    
+    **Returns**
+        `int` if user inserted a valid value, `None` otherwise.
+    """
+    name_id = select_name_id()
+    if not name_id:
+        return None
+    
+    products_list = scan_products(name_id)
+    for row in products_list:
+        print(f"Id: {row['id']} | Model: {row['name']} {row['model']}")
+
+    try:
+        product_id = int(input("Insert the prodcut Id: "))
+        if not id_product_exists(product_id):
+            raise IndexError("Value not present in the data")
+        return product_id
+    
+    except IndexError:
+        print("Id number not valid")
+        return None
+    except ValueError:
+        print("This is not an integer number")
+        return None
 
 
 def get_input(menu_name: str):
-    inp = input(f"\n{menu_name}: Choose a letter and press enter: ")
+    inp = input(f"\n[{menu_name}] Choose a letter and press enter: ")
     return inp.upper()
 
 
-def options_menu(options: dict, name: str = "unnamed menu"):
+def options_menu(name: str, options: dict):
     # run help function at the beginning
     if "H" in options.keys():
         options["H"]()
 
     while True:
         inp = get_input(name)
-        if (name != "Main Menu") and (inp == "Q"):
+        if inp == "Q":
+            if name == "Main":
+                quit()
             break
         if inp in options:
             options[inp]()
@@ -77,57 +146,59 @@ def options_menu(options: dict, name: str = "unnamed menu"):
 
 def main_menu():
     options_menu(
+        name = "Main",
         options={
             "C": (lambda: create_product()),
-            "L": (lambda: list_products()),
+            "L": (lambda: list_products_menu()),
             "U": (lambda: update_product()),
             "D": (lambda: delete_product()),
             "K": (lambda: collect_prices_menu()),
-            "H": (lambda: print_help(help_mgs=HELP_MSG_MAIN)),
-            "Q": (lambda: quit())
-        },
-        name = "Main"
+            "H": (lambda: print_help([
+                "C: Create a new product to price index", 
+                "L: List products", 
+                "U: Update a recorded product",
+                "D: Delete a product by ID number", 
+                "K: Collect prices",
+                "H: Show this help message",
+                "Q: Quit"
+                ])
+            )
+        }
     )
 
 
 def collect_prices_menu():
     options_menu(
-        options={
+        name = "Collect Prices",
+        options = {
             "A": (lambda: update_all_prices()),
             "S": (lambda: update_prices()),
-            "H": (lambda: print_help(help_mgs=HELP_MSG_COLLECTPRICES)),
-            "Q": None
-        },
-        name = "Collect Prices"
+            "H": (lambda: print_help([
+                "A: Collect prices from all products",
+                "S: Collect prices for a specific collection of products",
+                "H: Show this help message",
+                "Q: Return to main menu",
+                ])
+            )
+        }
     )
 
-""" def main_menu():
-    while True:
-        print_help()
-        inp = get_input()
 
-        while True:
-            match inp.upper():
-                case "C": run_next = "Create"; break
-                case "L": run_next = "List"; break
-                case "U": run_next = "Update"; break
-                case "D": run_next = "Delete"; break
-                case "H": run_next = "Help"; break 
-                case "K": run_next = "Prices"; break
-                case "Q": quit()
-                case _: 
-                    print("Insert a valid value!")
-                    inp = get_input()
-
-        match run_next:
-            case "Create": create_product()
-            case "List": list_products()
-            case "Update": update_product()
-            case "Help": print_help()
-            case "Prices": update_prices()
-            case "Delete": delete_product()        
- """
-
+def list_products_menu():
+    options_menu(
+        name = "List Products",
+        options = {
+            "A": (lambda: list_all_products()),
+            "S": (lambda: list_products()),
+            "H": (lambda: print_help([
+                "A: List all products",
+                "S: List a specific collection of products",
+                "H: Show this help message",
+                "Q: Return to main menu",
+                ])
+            )
+        }
+    )
 
 def confirmation(ask: str) -> bool:
     def get_input():
@@ -150,7 +221,7 @@ def confirmation(ask: str) -> bool:
 
 def pick_product_by_id(message):
     products = scan_products()
-    
+
     while True:
         try:
             id_num = input(message + " (leave blank to cancel): ")
@@ -174,14 +245,27 @@ def pick_product_by_id(message):
     return product
 
 
-def list_products():
+def list_all_products():
     rows = scan_products()
     for row in rows:
         print(
             f"Id: {row['id']}",
             f"Search: {row['brand']} {row['name']} {row['model']}",
             f"Filters: {row['filters']}",
-            f"Last update: {row['last_update']}", sep=" | ")
+            f"Last update: {row['last_update']}", sep=" | "
+        )
+
+
+def list_products():
+    name_id = select_name_id()
+    rows = scan_products(name_id)
+    for row in rows:
+        print(
+            f"Id: {row['id']}",
+            f"Search: {row['brand']} {row['name']} {row['model']}",
+            f"Filters: {row['filters']}",
+            f"Last update: {row['last_update']}", sep=" | "
+        )
 
 
 def delete_product():
@@ -210,16 +294,6 @@ def delete_product():
     else:
         print("This row Id doesn't exist!")
 
-
-"""
-def retry(expr, tries, **kwargs):
-    for i in tries:
-        try: return expr(**kwargs)
-        except Exception as err: 
-            print(err)
-            continue
-        else: break
-"""
 
 def create_product():
     names_list = scan_names()
@@ -333,7 +407,8 @@ def update_product():
     else:
         print("This row Id doesn't exist!")
 
-def print_help(help_mgs: list = HELP_MSG_MAIN):
+
+def print_help(help_mgs: list):
     print(
         "Choose an operation to perform:", 
         *help_mgs, sep="\n")
@@ -344,7 +419,7 @@ def update_all_prices():
     n = len(products)
     i = 0
 
-    while i <= n:
+    while i < n:
         print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
         pi.collect_prices(products[i]["id"])
         i = i + 1
@@ -352,35 +427,20 @@ def update_all_prices():
 
 
 def update_prices():
-    names_list = scan_names()
-    for row in names_list:
-        print(f"Id: {row['id']} | Name: {row['name']}")
-    while True:
-        try: 
-            name_id = int(input("Select the name Id: "))
-            id_exists = False
-            for i in names_list:
-                if i['id'] == name_id:
-                    id_exists = True
-                    break
-            if not id_exists: raise IndexError("Value not present in the data")
-        except: print("Insert a valid number!")
-        else: break
-    products = scan_products()
-    update_products = [pr for pr in products if pr["name_id"]==name_id]
+    name_id = select_name_id()
+    if not name_id:
+        return
+    update_products = scan_products(name_id)
+    n = len(update_products)
+    i = 0
 
     use_specific = confirmation("Collect prices for a single model")
     if not use_specific:
-        print("Working... Please wait.")
-        for prod in update_products:
-            try:
-                pi.collect_prices(prod["id"])
-            except Exception as expt:
-                pi.write_message_log(
-                    expt, "Unexpected error on collection routine:", 
-                    f"{prod['brand']} {prod['name']} {prod['model']}",
-                    prod_id=prod['id']
-                )
+        while i < n:
+            print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
+            pi.collect_prices(update_products[i]["id"])
+            i = i + 1
+        print("Completed! Check 'exec_log.txt' for more information.")
 
     else:
         for row in update_products:
