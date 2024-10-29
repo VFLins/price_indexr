@@ -1,5 +1,6 @@
 import price_indexr as pi
 from datetime import datetime
+import re
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
@@ -44,6 +45,16 @@ def scan_products(name_id: int|None = None) -> list:
                 "created": i.Created,
                 "last_update": i.LastUpdate})
     return rows
+
+
+def title_name_exists(title: str) -> bool:
+    """Returns a boolean value indicating wether `title` exist in *product_names* table or not."""
+    title = re.sub(" +", " ", title.title())
+
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.product_names).where(pi.product_names.ProductName == title)
+        result = tuple( ses.execute(stmt).scalars() )
+    return bool(len(result))
 
 
 def id_name_exists(name_id: int) -> bool:
@@ -200,6 +211,7 @@ def list_products_menu():
         }
     )
 
+
 def confirmation(ask: str) -> bool:
     def get_input():
         inp = input(ask + ". Confirm? [Y/n]: ")
@@ -258,6 +270,9 @@ def list_all_products():
 
 def list_products():
     name_id = select_name_id()
+    if not name_id:
+        print("Aborting operation...")
+        return
     rows = scan_products(name_id)
     for row in rows:
         print(
@@ -303,37 +318,20 @@ def create_product():
     if not is_first_name:
         use_existing_name = confirmation("Use an existing name?")
         if use_existing_name:
-            for i in names_list:
-                print(
-                    f"Id: {i['id']}",
-                    f"Name: {i['name']}", sep=" | ")
-            while True:
-                try: 
-                    name_id = int(input("Select the name Id: "))
-                    id_exists = False
-                    for i in names_list:
-                        if i['id'] == name_id:
-                            id_exists = True
-                            name = i['name']
-                            break
-                    if not id_exists: raise IndexError("Value not present in the data")
-                except: print("Insert a valid number!")
-                else: break
-        else: 
+            name_id = select_name_id()
+            if not name_id:
+                print("Aborting operation...")
+                return
+        else:
             is_new_name = True
-            while True:
-                try:
-                    name = input("Product name: ").title()
-                    for i in names_list:
-                        if i['name'] == name: raise Exception
-                except: 
-                    print("This name already exists")
-                    return
-                else: break
+            product_name = input("Product name: ").title()
+            if title_name_exists(product_name):
+                print("This name already exists")
+                return
     else:
         is_new_name = True
         name = input("Product name: ").title()
-        
+
     created = datetime.now()
     brand = input("Brand name: ").title()
     model = input("Product model: ").title()
@@ -341,48 +339,55 @@ def create_product():
 
     print(
         "\nYou will create this entry:\n"
-        f"Search: {brand} {name} {model}",
+        f"Search: {brand} {product_name} {model}",
         f"Filters: {filters}",
         f"Created: {created}", sep=" | ")
-    
-
     # Add new name and get NameId
-    if is_new_name:
-        name_stmt = pi.product_names(ProductName=name)
-        with Session(pi.DB_ENGINE) as ses:
-            # Save new name
-            ses.add(name_stmt)
-            ses.commit()
+    
     with Session(pi.DB_ENGINE) as ses:
         # Get id for the used name
-        stmt = select(pi.product_names).where(pi.product_names.ProductName == name)
+        stmt = select(pi.product_names).where(pi.product_names.ProductName == product_name)
         result = ses.execute(stmt).scalar_one()
         new_name_id = result.Id
 
 
     checkout = confirmation("This data will be saved")
-    if checkout:            
-        prod_stmt = pi.products(
-            NameId=new_name_id,
-            ProductName=name,
-            ProductModel=model,
-            ProductBrand=brand,
-            ProductFilters=filters,
-            Created=created)
+    if checkout:
+        if is_new_name:
+            with Session(pi.DB_ENGINE) as ses:
+                stmt = pi.product_names(ProductName=product_name)
+                ses.add(stmt)
+                ses.commit()
+
         with Session(pi.DB_ENGINE) as ses:
-            ses.add(prod_stmt)
+            # Get id for the used name
+            stmt = select(pi.product_names)\
+                .where(pi.product_names.ProductName == product_name)
+            result = ses.execute(stmt).scalar_one()
+            new_name_id = result.Id
+
+        with Session(pi.DB_ENGINE) as ses:
+            stmt = pi.products(
+                NameId=new_name_id,
+                ProductName=name,
+                ProductModel=model,
+                ProductBrand=brand,
+                ProductFilters=filters,
+                Created=created)
+            ses.add(stmt)
             ses.commit()
             # Get created product id
             stmt = select(pi.products).where(pi.products.Created == created)
             result = ses.execute(stmt).scalars()
 
-        for i in result: new_product_id = i.Id
+        for i in result:
+            new_product_id = i.Id
         print("\nCollecting current prices...")
         pi.collect_prices(new_product_id)
         print(f"\nThe ID for this product is: {new_product_id}")
-        print("Transaction success!")
+        print("Transaction completed")
     else:
-        print("Transaction cancelled!")
+        print("Transaction cancelled")
 
 
 def update_product():
