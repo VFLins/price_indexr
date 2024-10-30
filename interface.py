@@ -47,6 +47,15 @@ def scan_products(name_id: int|None = None) -> list:
     return rows
 
 
+def product_name_by_id(id: int) -> str:
+    """
+    Return a product's name for a specified `id`.
+    """
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.product_names.ProductName).where(pi.product_names.Id == id)
+        return ses.execute(stmt).scalar_one()
+
+
 def title_name_exists(name: str) -> bool:
     """Returns a boolean value indicating wether `name` exist in *product_names* table or not."""
     name = re.sub(" +", " ", name.title())
@@ -315,27 +324,28 @@ def delete_product():
     row = pick_product_by_id("Select a product to delete")
 
     # run if row exists
-    if row:
-        id_num = row['id']
-        # show the row selected
-        print(
-            f"Id: {id_num}",
-            f"Search: {row['brand']} {row['name']} {row['model']}",
-            f"Filters: {row['filters']}",
-            f"Last update: {row['last_update']}", sep=" | ")
-        # confirm deletion to execute
-        confirm = input_confirm("You will delete this record")
-        if confirm:
-            try:
-                stmt = delete(pi.products).where(pi.products.Id == id_num)
-                with Session(pi.DB_ENGINE) as ses:
-                    ses.execute(stmt)
-                    ses.commit()
-            except Exception as DeletionError:
-                print("Not able to delete", DeletionError, sep="\n")
-        else: quit()
-    else:
+    if not row:
         print("This row Id doesn't exist!")
+        return
+
+    id_num = row['id']
+    # show the row selected
+    print(
+        f"Id: {id_num}",
+        f"Search: {row['brand']} {row['name']} {row['model']}",
+        f"Filters: {row['filters']}",
+        f"Last update: {row['last_update']}", sep=" | ")
+    # confirm deletion to execute
+    confirm = input_confirm("You will delete this record")
+    if confirm:
+        try:
+            stmt = delete(pi.products).where(pi.products.Id == id_num)
+            with Session(pi.DB_ENGINE) as ses:
+                ses.execute(stmt)
+                ses.commit()
+        except Exception as DeletionError:
+            print("Not able to delete", DeletionError, sep="\n")
+    else: quit()        
 
 
 def create_product():
@@ -350,6 +360,7 @@ def create_product():
             if not name_id:
                 print("Aborting operation...")
                 return
+            product_name = product_name_by_id(name_id)
         else:
             is_new_name = True
             product_name = input("Product name: ").title()
@@ -364,6 +375,7 @@ def create_product():
     brand = input("Brand name: ").title()
     model = input("Product model: ").title()
     filters = input("Filters: ").title()
+
 
     print(
         "\nYou will create this entry:\n"
@@ -495,5 +507,5 @@ def update_prices():
     print("Completed! Check 'exec_log.txt' for more information.")
 
 if __name__ == "__main__":
-    print("===== Price_indexr central v0.2 =====")
+    print("===== Price_indexr central v0.3 =====")
     main_menu()
