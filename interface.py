@@ -47,12 +47,12 @@ def scan_products(name_id: int|None = None) -> list:
     return rows
 
 
-def title_name_exists(title: str) -> bool:
-    """Returns a boolean value indicating wether `title` exist in *product_names* table or not."""
-    title = re.sub(" +", " ", title.title())
+def title_name_exists(name: str) -> bool:
+    """Returns a boolean value indicating wether `name` exist in *product_names* table or not."""
+    name = re.sub(" +", " ", name.title())
 
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_names).where(pi.product_names.ProductName == title)
+        stmt = select(pi.product_names).where(pi.product_names.ProductName == name)
         result = tuple( ses.execute(stmt).scalars() )
     return bool(len(result))
 
@@ -133,18 +133,65 @@ def select_product_id() -> int|None:
         return None
 
 
-def get_input(menu_name: str):
+def input_date(msg: str) -> datetime|None:
+    """
+    Prompts the user to insert a date.
+    
+    **Args**
+        `msg`: message to be prompted to the user
+
+    **Returns**
+        Date inserted as `datetime`, or `None` if invalid input.
+        Will return today's date if left blank.
+    """
+    response = input(msg + "(format YYYY-MM-DD): ")
+    if response.strip() == "":
+        return datetime.today().date()
+    try:
+        return datetime.strptime(response, "%Y-%m-%d").date()
+    except ValueError:
+        return
+
+
+def input_confirm(msg: str) -> bool:
+    """
+    Prompts the user to confirm an operation.
+
+    **Args**
+        `msg`: message to be prompted to the user
+
+    **Returns**
+        User's response as boolean value, `False` if "N", `True` otherwise.
+    """
+    response = input(msg + ". Confirm? [Y/n] ").upper()
+    if response == "N":
+        return False
+    else:
+        return True
+
+
+def input_option(menu_name: str) -> str:
+    """
+    Recieves inputs for navigating between menus.
+
+    **Args**
+        `menu_name`: Indicates to the user, what menu they are interacting with
+    
+    **Returns**
+        Uppercased value inserted by the user.
+    """
     inp = input(f"\n[{menu_name}] Choose a letter and press enter: ")
     return inp.upper()
 
 
-def options_menu(name: str, options: dict):
+def _options_menu(name: str, options: dict):
+    """Menu constructor to handle menu navigation, should not be used directly."""
     # run help function at the beginning
     if "H" in options.keys():
         options["H"]()
 
     while True:
-        inp = get_input(name)
+        inp = input_option(name)
         if inp == "Q":
             if name == "Main":
                 quit()
@@ -156,7 +203,7 @@ def options_menu(name: str, options: dict):
 
 
 def main_menu():
-    options_menu(
+    _options_menu(
         name = "Main",
         options={
             "C": (lambda: create_product()),
@@ -179,7 +226,7 @@ def main_menu():
 
 
 def collect_prices_menu():
-    options_menu(
+    _options_menu(
         name = "Collect Prices",
         options = {
             "A": (lambda: update_all_prices()),
@@ -196,7 +243,7 @@ def collect_prices_menu():
 
 
 def list_products_menu():
-    options_menu(
+    _options_menu(
         name = "List Products",
         options = {
             "A": (lambda: list_all_products()),
@@ -210,25 +257,6 @@ def list_products_menu():
             )
         }
     )
-
-
-def confirmation(ask: str) -> bool:
-    def get_input():
-        inp = input(ask + ". Confirm? [Y/n]: ")
-        return inp
-
-    inp = get_input()
-    while True:
-        if inp.upper() in ["Y", ""]:
-            output = True
-            break
-        elif inp.upper() in ["N"]:
-            output = False
-            break
-        else:
-            print("Invalid answer!")
-            inp = get_input()
-    return output
 
 
 def pick_product_by_id(message):
@@ -296,7 +324,7 @@ def delete_product():
             f"Filters: {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
         # confirm deletion to execute
-        confirm = confirmation("You will delete this record")
+        confirm = input_confirm("You will delete this record")
         if confirm:
             try:
                 stmt = delete(pi.products).where(pi.products.Id == id_num)
@@ -316,7 +344,7 @@ def create_product():
 
     is_new_name = False
     if not is_first_name:
-        use_existing_name = confirmation("Use an existing name?")
+        use_existing_name = input_confirm("Use an existing name?")
         if use_existing_name:
             name_id = select_name_id()
             if not name_id:
@@ -351,7 +379,7 @@ def create_product():
         new_name_id = result.Id
 
 
-    checkout = confirmation("This data will be saved")
+    checkout = input_confirm("This data will be saved")
     if checkout:
         if is_new_name:
             with Session(pi.DB_ENGINE) as ses:
@@ -402,7 +430,7 @@ def update_product():
             f"Filters: {row['filters']}",
             f"Last update: {row['last_update']}", sep=" | ")
         # confirm update and execute
-        confirm = confirmation("You will retype the filters for this record")
+        confirm = input_confirm("You will retype the filters for this record")
         if confirm:
             new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
             with Session(pi.DB_ENGINE) as ses:
@@ -439,7 +467,7 @@ def update_prices():
     n = len(update_products)
     i = 0
 
-    use_specific = confirmation("Collect prices for a single model")
+    use_specific = input_confirm("Collect prices for a single model")
     if not use_specific:
         while i < n:
             print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
