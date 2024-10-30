@@ -1,65 +1,58 @@
 import price_indexr as pi
 from datetime import datetime
+from typing import Literal
 import re
 from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 
-def scan_names() -> list:
+def scan_names() -> list[pi.product_names]:
     """Read product_names table to get a list of rows as dicts"""
-    output = []
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.product_names)
         result = ses.execute(stmt).scalars()
-
-        for i in result:
-            output.append({
-                "id": i.Id, 
-                "name": i.ProductName})
-    return output
+    return [row for row in result]
 
 
-def scan_products(name_id: int|None = None) -> list:
+def scan_products(name_id: int|None = None) -> list[pi.products]:
     """
     Read products table to get a list of rows as dicts
 
     **Args**
         `name_id`: ID number of the desired name. None, if should get all products.
     """
-    rows = []
     with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.products)
         if name_id:
-            stmt = select(pi.products).where(pi.products.NameId == name_id)
-        else:
-            stmt = select(pi.products)
+            stmt = stmt.where(pi.products.NameId == name_id)
         result = ses.execute(stmt).scalars()
-
-        for i in result:
-            rows.append({
-                "id": i.Id, 
-                "name_id": i.NameId,
-                "name": i.ProductName,
-                "model": i.ProductModel,
-                "brand": i.ProductBrand,
-                "filters": i.ProductFilters,
-                "created": i.Created,
-                "last_update": i.LastUpdate})
-    return rows
+    return [row for row in result]
 
 
-def product_name_by_id(id: int) -> str:
-    """
-    Return a product's name for a specified `id`.
-    """
+def product_name_by_id(id: int) -> pi.product_names|None:
+    """Return an entry from product names table with the specified `id`. `None` if it doesn't exist."""
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_names.ProductName).where(pi.product_names.Id == id)
-        return ses.execute(stmt).scalar_one()
+        stmt = select(pi.product_names).where(pi.product_names.Id == id)
+        return ses.execute(stmt).scalar_one_or_none()
+
+
+def product_by_id(id: int) -> pi.products|None:
+    """Return an entry from products table with the specified `id`. `None` if it doesn't exist."""
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.products).where(pi.product_names.Id == id)
+        return ses.execute(stmt).scalar_one_or_none()
+
+
+def price_by_id(id: int) -> pi.prices|None:
+    """Return an entry from prices table with the specified `id`. `None` if it doesn't exist."""
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.prices).where(pi.product_names.Id == id)
+        return ses.execute(stmt).scalar_one_or_none()
 
 
 def title_name_exists(name: str) -> bool:
     """Returns a boolean value indicating wether `name` exist in *product_names* table or not."""
     name = re.sub(" +", " ", name.title())
-
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.product_names).where(pi.product_names.ProductName == name)
         result = tuple( ses.execute(stmt).scalars() )
@@ -68,13 +61,10 @@ def title_name_exists(name: str) -> bool:
 
 def id_name_exists(name_id: int) -> bool:
     """Returns a boolean value indicating wether `name_id` exist or not."""
-    names_list = scan_names()
-    id_exists = False
-    for i in names_list:
-        if i['id'] == name_id:
-            id_exists = True
-            break
-    return id_exists
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.product_names).where(pi.product_names.Id == name_id)
+        result = tuple( ses.execute(stmt).scalars() )
+    return bool(len(result))
 
 
 def id_product_exists(product_id: int) -> bool:
@@ -82,7 +72,7 @@ def id_product_exists(product_id: int) -> bool:
     products_list = scan_products()
     id_exists = False
     for i in products_list:
-        if i['id'] == product_id:
+        if i.Id == product_id:
             id_exists = True
             break
     return id_exists
@@ -91,7 +81,7 @@ def id_product_exists(product_id: int) -> bool:
 def select_name_id() -> int|None:
     """
     Prompts the user to select a name id.
-    
+
     **Returns**
         `int` if user inserted a valid value, `None` otherwise.
     """
@@ -102,14 +92,10 @@ def select_name_id() -> int|None:
     try:
         name_id = int(input("Insert the name Id: "))
         if not id_name_exists(name_id):
-            raise IndexError("Value not present in the data")
+            raise ValueError()
         return name_id
-
-    except IndexError:
-        print("Id number not valid")
-        return None
     except ValueError:
-        print("This is not an integer number")
+        print("Not a valid Id number")
         return None
 
 
@@ -126,7 +112,7 @@ def select_product_id() -> int|None:
     
     products_list = scan_products(name_id)
     for row in products_list:
-        print(f"Id: {row['id']} | Model: {row['name']} {row['model']}")
+        print(f"Id: {row.Id} | Model: {row.ProductBrand} {row.ProductModel}")
 
     try:
         product_id = int(input("Insert the prodcut Id: "))
@@ -281,7 +267,7 @@ def pick_product_by_id(message):
             # test if exists
             id_exists  = False
             for row in products:
-                if id_num == row['id']: 
+                if id_num == row.Id: 
                     id_exists = True
                     product = row
                     break
@@ -294,30 +280,28 @@ def pick_product_by_id(message):
     return product
 
 
-def list_all_products():
-    rows = scan_products()
+def print_products(rows: list[pi.products]):
     for row in rows:
         print(
-            f"Id: {row['id']}",
-            f"Search: {row['brand']} {row['name']} {row['model']}",
-            f"Filters: {row['filters']}",
-            f"Last update: {row['last_update']}", sep=" | "
+            f"Id: {row.Id}",
+            f"Search: {row.ProductBrand} {row.ProductName} {row.ProductModel}",
+            f"Filters: {row.ProductFilters}",
+            f"Last update: {row.LastUpdate}", sep=" | "
         )
+
+
+def list_all_products():
+    rows = scan_products()
+    print_products(rows)
 
 
 def list_products():
     name_id = select_name_id()
-    if not name_id:
-        print("Aborting operation...")
+    if name_id:
+        rows = scan_products(name_id)
+        print_products(rows)
         return
-    rows = scan_products(name_id)
-    for row in rows:
-        print(
-            f"Id: {row['id']}",
-            f"Search: {row['brand']} {row['name']} {row['model']}",
-            f"Filters: {row['filters']}",
-            f"Last update: {row['last_update']}", sep=" | "
-        )
+    print("Aborting operation...\n")   
 
 
 def delete_product():
@@ -474,12 +458,13 @@ def update_all_prices():
 def update_prices():
     name_id = select_name_id()
     if not name_id:
+        print("Invalid Id provided.\n")
         return
+
     update_products = scan_products(name_id)
     n = len(update_products)
     i = 0
-
-    use_specific = input_confirm("Collect prices for a single model")
+    use_specific = input_confirm("Collect prices for a single model?")
     if not use_specific:
         while i < n:
             print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
@@ -489,18 +474,13 @@ def update_prices():
 
     else:
         for row in update_products:
-            print(f"Id: {row['id']} | Model: {row['name']} {row['model']}")
-        while True:
-            try: 
-                prod_id = int(input("Select the product Id: "))
-                id_exists = False
-                for i in update_products:
-                    if i['id'] == prod_id:
-                        id_exists = True
-                        break
-                if not id_exists: raise IndexError("Value not present in the data")
-            except: print("Insert a valid number!")
-            else: break
+            print(f"Id: {row['id']} | Model: {row['brand']} {row['model']}")
+
+        prod_id = int(input("Select the product Id: "))
+        if not id_product_exists(prod_id):
+            print("Invalid Id provided.\n")
+            return
+
         print("Working... Please wait.")
         pi.collect_prices(prod_id)
     
