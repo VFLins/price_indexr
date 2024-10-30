@@ -11,7 +11,7 @@ def scan_names() -> list[pi.product_names]:
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.product_names)
         result = ses.execute(stmt).scalars()
-    return [row for row in result]
+        return [row for row in result]
 
 
 def scan_products(name_id: int|None = None) -> list[pi.products]:
@@ -26,7 +26,7 @@ def scan_products(name_id: int|None = None) -> list[pi.products]:
         if name_id:
             stmt = stmt.where(pi.products.NameId == name_id)
         result = ses.execute(stmt).scalars()
-    return [row for row in result]
+        return [row for row in result]
 
 
 def product_name_by_id(id: int) -> pi.product_names|None:
@@ -87,7 +87,7 @@ def select_name_id() -> int|None:
     """
     names_list = scan_names()
     for row in names_list:
-        print(f"Id: {row['id']} | Name: {row['name']}")
+        print(f"Id: {row.Id} | Name: {row.ProductName}")
 
     try:
         name_id = int(input("Insert the name Id: "))
@@ -158,7 +158,7 @@ def input_confirm(msg: str) -> bool:
     **Returns**
         User's response as boolean value, `False` if "N", `True` otherwise.
     """
-    response = input(msg + ". Confirm? [Y/n] ").upper()
+    response = input(msg + " [Y/n]: ").upper()
     if response == "N":
         return False
     else:
@@ -312,15 +312,15 @@ def delete_product():
         print("This row Id doesn't exist!")
         return
 
-    id_num = row['id']
+    id_num = row.Id
     # show the row selected
     print(
         f"Id: {id_num}",
-        f"Search: {row['brand']} {row['name']} {row['model']}",
-        f"Filters: {row['filters']}",
-        f"Last update: {row['last_update']}", sep=" | ")
+        f"Search: {row.ProductBrand} {row.ProductName} {row.ProductModel}",
+        f"Filters: {row.ProductFilters}",
+        f"Last update: {row.LastUpdate}", sep=" | ")
     # confirm deletion to execute
-    confirm = input_confirm("You will delete this record")
+    confirm = input_confirm("Delete this product?")
     if confirm:
         try:
             stmt = delete(pi.products).where(pi.products.Id == id_num)
@@ -344,7 +344,7 @@ def create_product():
             if not name_id:
                 print("Aborting operation...")
                 return
-            product_name = product_name_by_id(name_id)
+            product_name = product_name_by_id(name_id).ProductName
         else:
             is_new_name = True
             product_name = input("Product name: ").title()
@@ -366,16 +366,9 @@ def create_product():
         f"Search: {brand} {product_name} {model}",
         f"Filters: {filters}",
         f"Created: {created}", sep=" | ")
+
     # Add new name and get NameId
-    
-    with Session(pi.DB_ENGINE) as ses:
-        # Get id for the used name
-        stmt = select(pi.product_names).where(pi.product_names.ProductName == product_name)
-        result = ses.execute(stmt).scalar_one()
-        new_name_id = result.Id
-
-
-    checkout = input_confirm("This data will be saved")
+    checkout = input_confirm("Save this data?")
     if checkout:
         if is_new_name:
             with Session(pi.DB_ENGINE) as ses:
@@ -393,7 +386,7 @@ def create_product():
         with Session(pi.DB_ENGINE) as ses:
             stmt = pi.products(
                 NameId=new_name_id,
-                ProductName=name,
+                ProductName=product_name,
                 ProductModel=model,
                 ProductBrand=brand,
                 ProductFilters=filters,
@@ -403,9 +396,9 @@ def create_product():
             # Get created product id
             stmt = select(pi.products).where(pi.products.Created == created)
             result = ses.execute(stmt).scalars()
+            for i in result:
+                new_product_id = i.Id
 
-        for i in result:
-            new_product_id = i.Id
         print("\nCollecting current prices...")
         pi.collect_prices(new_product_id)
         print(f"\nThe ID for this product is: {new_product_id}")
@@ -449,8 +442,8 @@ def update_all_prices():
     i = 0
 
     while i < n:
-        print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
-        pi.collect_prices(products[i]["id"])
+        print(f" Collecting... {i/n*100:.2f}%", end="\r\r")
+        pi.collect_prices(products[i].Id)
         i = i + 1
     print("Completed! Check 'exec_log.txt' for more information.")
 
@@ -467,14 +460,12 @@ def update_prices():
     use_specific = input_confirm("Collect prices for a single model?")
     if not use_specific:
         while i < n:
-            print(f"Collecting... {i/n*100:.2f}%", end="\r\r")
-            pi.collect_prices(update_products[i]["id"])
+            print(f" Collecting... {i/n*100:.2f}%", end="\r\r")
+            pi.collect_prices(update_products[i].Id)
             i = i + 1
-        print("Completed! Check 'exec_log.txt' for more information.")
-
     else:
         for row in update_products:
-            print(f"Id: {row['id']} | Model: {row['brand']} {row['model']}")
+            print(f"Id: {row.Id} | Model: {row.ProductBrand} {row.ProductModel}")
 
         prod_id = int(input("Select the product Id: "))
         if not id_product_exists(prod_id):
