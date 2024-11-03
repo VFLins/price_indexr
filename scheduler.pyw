@@ -1,22 +1,22 @@
-from price_indexr import *
+import price_indexr as pi
 from interface import scan_products
 from datetime import date, datetime, timedelta
 from time import sleep
 
 
-log = LocalLogger("scheduler")
+log = pi.LocalLogger("scheduler")
 
 
 def time_and_execute():
     _context = "time_and_execute"
 
-    def collection_routine(product):
+    def collection_routine(product: pi.products):
         _context = "time_and_execute.collection_routine"
         try:
-            collect_prices(product["id"])
-        except Exception as expt:
-            prodname = f"{product['ProductBrand']} {product['ProductModel']} {product['ProductName']}"
-            log.error(_context, f"Unexpected error collecting prices from '{prodname}'. Reason: {str(expt)}")
+            pi.collect_prices(product.Id)
+        except Exception as err:
+            prodname = f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
+            log.error(_context,f"Unexpected error collecting prices from '{prodname}'. Reason: {str(err)}")
             sleep(300)
 
     while True:
@@ -25,24 +25,22 @@ def time_and_execute():
         hiatus_time = datetime.now() - timedelta(days=30)
 
         for prod in prod_list:
-
+            prodname = f"{prod.ProductBrand} {prod.ProductName} {prod.ProductModel}"
             try:
-                if prod["last_update"] is None:
-                    prodname = f"{prod['ProductBrand']} {prod['ProductModel']} {prod['ProductName']}"
+                if prod.LastUpdate is None:
                     log.info(_context, f"Trying to collect prices for '{prodname}' (never collected before)")
                     collection_routine(product=prod)
 
-                elif (prod["last_update"] <= update_time) and (prod["last_update"] >= hiatus_time):
+                elif (prod.LastUpdate <= update_time) and (prod.LastUpdate >= hiatus_time):
                     collection_routine(product=prod)
 
-                elif prod["last_update"] < hiatus_time:
-                    prodname = f"{prod['ProductBrand']} {prod['ProductModel']} {prod['ProductName']}"
-                    tdelta = datetime.now() - prod["last_update"]
+                elif prod.LastUpdate < hiatus_time:
+                    tdelta = datetime.now() - prod.LastUpdate
                     log.info(_context, f"Skipping '{prodname}', last update was too long ago ({tdelta.days} days)")
                     continue
 
-            except Exception as unexpected_error:
-                log.critical(_context, f"Unexpected error while managing price collection after {prodname}: {unexpected_error}")
+            except Exception as err:
+                log.critical(_context, f"Unexpected error while managing price collection after {prodname}: {err}")
         sleep(900)
 
 if __name__ == "__main__":
