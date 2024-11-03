@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 
 def scan_names() -> list[pi.product_names]:
-    """Read product_names table to get a list of rows as dicts"""
+    """Read product_names table to get a list of rows."""
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.product_names)
         result = ses.execute(stmt).scalars()
@@ -16,10 +16,10 @@ def scan_names() -> list[pi.product_names]:
 
 def scan_products(name_id: int|None = None) -> list[pi.products]:
     """
-    Read products table to get a list of rows as dicts
+    Read products table to get a list of rows.
 
     **Args**
-        `name_id`: ID number of the desired name. None, if should get all products.
+        `name_id`: ID number of the desired name. `None`, if should get all products.
     """
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.products)
@@ -39,14 +39,14 @@ def product_name_by_id(id: int) -> pi.product_names|None:
 def product_by_id(id: int) -> pi.products|None:
     """Return an entry from products table with the specified `id`. `None` if it doesn't exist."""
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.products).where(pi.product_names.Id == id)
+        stmt = select(pi.products).where(pi.products.Id == id)
         return ses.execute(stmt).scalar_one_or_none()
 
 
 def price_by_id(id: int) -> pi.prices|None:
     """Return an entry from prices table with the specified `id`. `None` if it doesn't exist."""
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.prices).where(pi.product_names.Id == id)
+        stmt = select(pi.prices).where(pi.prices.Id == id)
         return ses.execute(stmt).scalar_one_or_none()
 
 
@@ -85,10 +85,7 @@ def select_name_id() -> int|None:
     **Returns**
         `int` if user inserted a valid value, `None` otherwise.
     """
-    names_list = scan_names()
-    for row in names_list:
-        print(f"Id: {row.Id} | Name: {row.ProductName}")
-
+    print_product_names()
     try:
         name_id = int(input("Insert the name Id: "))
         if not id_name_exists(name_id):
@@ -175,7 +172,8 @@ def input_option(menu_name: str) -> str:
     **Returns**
         Uppercased value inserted by the user.
     """
-    inp = input(f"\n[{menu_name}] Choose a letter and press enter: ")
+    BOLD, ENDSTYLE = "\033[1m", "\033[0m"
+    inp = input(f"\n{BOLD}[{menu_name}]{ENDSTYLE} Choose a letter and press enter: ")
     return inp.upper()
 
 
@@ -254,30 +252,24 @@ def list_products_menu():
     )
 
 
-def pick_product_by_id(message):
-    products = scan_products()
+def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
+    """Gets an input fom the user and returns a product if valid, `None` otherwise."""
+    id_num = input(message + " (leave blank to cancel): ")
+    try:
+        id_num = int(id_num)
+    except ValueError:
+        print("Not a valid ID number.")
+        return None
+    if not id_product_exists(id_num):
+        print("This ID is not present on data.")
+        return None
+    return product_by_id(id_num)
 
-    while True:
-        try:
-            id_num = input(message + " (leave blank to cancel): ")
-            # test if left blank
-            if id_num == "": raise Exception
-            # coerce and test for integer value, natively raise ValueError
-            id_num = int(id_num)
-            # test if exists
-            id_exists  = False
-            for row in products:
-                if id_num == row.Id: 
-                    id_exists = True
-                    product = row
-                    break
-            if not id_exists: raise IndexError
-            break
-        except ValueError:
-            print("Insert a valid number!")
-        except IndexError: return None
-        except: return None
-    return product
+
+def print_product_names():
+    rows = scan_names()
+    for row in rows:
+        print(f"Id: {row.Id}", f"{row.ProductName}", sep=" | ")
 
 
 def print_products(rows: list[pi.products]):
@@ -353,12 +345,12 @@ def create_product():
                 return
     else:
         is_new_name = True
-        name = input("Product name: ").title()
+        product_name = input("Product name: ").title()
 
     created = datetime.now()
     brand = input("Brand name: ").title()
     model = input("Product model: ").title()
-    filters = input("Filters: ").title()
+    filters = input("Filters (e.g: foo, bar, multi_word_filter): ").title()
 
 
     print(
@@ -410,42 +402,33 @@ def create_product():
 def update_product():
     print("You can only update the filters's field in this version...")
     row = pick_product_by_id("Select the product with the filter to update")
-
-    if row:
-        id_num = row['id']
-        print(
-            f"Id: {id_num}",
-            f"Search: {row['brand']} {row['name']} {row['model']}",
-            f"Filters: {row['filters']}",
-            f"Last update: {row['last_update']}", sep=" | ")
-        # confirm update and execute
-        confirm = input_confirm("You will retype the filters for this record")
-        if confirm:
-            new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
-            with Session(pi.DB_ENGINE) as ses:
-                selected_row = ses.execute(select(pi.products).where(pi.products.Id == id_num)).scalar_one()
-                selected_row.ProductFilters = new_filters
-                ses.commit()
-    else:
+    if not row:
         print("This row Id doesn't exist!")
+        return
+
+    print_products(rows=[row])
+    confirm = input_confirm("Retype the filters for this record?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+
+    new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
+    with Session(pi.DB_ENGINE) as ses:
+        selected_row = ses.execute(select(pi.products).where(pi.products.Id == row.Id)).scalar_one()
+        selected_row.ProductFilters = new_filters
+        ses.commit()
 
 
-def print_help(help_mgs: list):
-    print(
-        "Choose an operation to perform:", 
-        *help_mgs, sep="\n")
+def print_help(help_mgs: list[str]):
+    print("Choose an operation to perform:", *help_mgs, sep="\n")
 
 
-def update_all_prices():
-    products = scan_products()
-    n = len(products)
-    i = 0
-
+def collect_prices_from_products(rows: list[pi.products]):
+    n, i = len(rows), 0
     while i < n:
-        print(f" Collecting... {i/n*100:.2f}%", end="\r\r")
-        pi.collect_prices(products[i].Id)
+        print(f" Collecting... {(i+1)/n*100:.2f}%", end="\r\r")
+        pi.collect_prices(rows[i].Id)
         i = i + 1
-    print("Completed! Check 'exec_log.txt' for more information.")
 
 
 def update_prices():
@@ -453,29 +436,23 @@ def update_prices():
     if not name_id:
         print("Invalid Id provided.\n")
         return
-
     update_products = scan_products(name_id)
-    n = len(update_products)
-    i = 0
+
     use_specific = input_confirm("Collect prices for a single model?")
     if not use_specific:
-        while i < n:
-            print(f" Collecting... {i/n*100:.2f}%", end="\r\r")
-            pi.collect_prices(update_products[i].Id)
-            i = i + 1
-    else:
-        for row in update_products:
-            print(f"Id: {row.Id} | Model: {row.ProductBrand} {row.ProductModel}")
+        collect_prices_from_products(rows=update_products)
+        return
 
-        prod_id = int(input("Select the product Id: "))
-        if not id_product_exists(prod_id):
-            print("Invalid Id provided.\n")
-            return
-
-        print("Working... Please wait.")
-        pi.collect_prices(prod_id)
+    print_products(update_products)
+    selected_prod = pick_product_by_id("Pick a product to collect prices")
+    if not selected_prod:
+        print("Aborting operation...")
+        return
+    if selected_prod.Id not in [i.Id for i in update_products]:
+        print("Not valid ID, aborting operation...")
+        return
+    collect_prices_from_products(rows=[selected_prod])
     
-    print("Completed! Check 'exec_log.txt' for more information.")
 
 if __name__ == "__main__":
     print("===== Price_indexr central v0.3 =====")
