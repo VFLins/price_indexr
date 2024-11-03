@@ -222,7 +222,7 @@ def collect_prices_menu():
     _options_menu(
         name = "Collect Prices",
         options = {
-            "A": (lambda: update_all_prices()),
+            "A": (lambda: collect_prices_from_products(scan_products())),
             "S": (lambda: update_prices()),
             "H": (lambda: print_help([
                 "A: Collect prices from all products",
