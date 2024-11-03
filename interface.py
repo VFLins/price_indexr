@@ -69,18 +69,15 @@ def id_name_exists(name_id: int) -> bool:
 
 def id_product_exists(product_id: int) -> bool:
     """Returns a boolean value indicating wether `product_id` exist or not."""
-    products_list = scan_products()
-    id_exists = False
-    for i in products_list:
-        if i.Id == product_id:
-            id_exists = True
-            break
-    return id_exists
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.products).where(pi.products.Id == product_id)
+        result = tuple( ses.execute(stmt).scalars() )
+    return bool(len(result))
 
 
 def select_name_id() -> int|None:
     """
-    Prompts the user to select a name id.
+    Displays available names and then prompts the user to select a name id.
 
     **Returns**
         `int` if user inserted a valid value, `None` otherwise.
@@ -222,7 +219,7 @@ def collect_prices_menu():
     _options_menu(
         name = "Collect Prices",
         options = {
-            "A": (lambda: collect_prices_from_products(scan_products())),
+            "A": (lambda: collect_prices_from_products(rows=scan_products())),
             "S": (lambda: update_prices()),
             "H": (lambda: print_help([
                 "A: Collect prices from all products",
@@ -239,8 +236,8 @@ def list_products_menu():
     _options_menu(
         name = "List Products",
         options = {
-            "A": (lambda: list_all_products()),
-            "S": (lambda: list_products()),
+            "A": (lambda: print_products(rows=scan_names())),
+            "S": (lambda: list_products_by_name()),
             "H": (lambda: print_help([
                 "A: List all products",
                 "S: List a specific collection of products",
@@ -267,12 +264,14 @@ def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
 
 
 def print_product_names():
+    """Displays all product names to the user."""
     rows = scan_names()
     for row in rows:
         print(f"Id: {row.Id}", f"{row.ProductName}", sep=" | ")
 
 
 def print_products(rows: list[pi.products]):
+    """Displays products in `rows` to the user."""
     for row in rows:
         print(
             f"Id: {row.Id}",
@@ -282,12 +281,10 @@ def print_products(rows: list[pi.products]):
         )
 
 
-def list_all_products():
-    rows = scan_products()
-    print_products(rows)
-
-
-def list_products():
+def list_products_by_name():
+    """
+    Displays available names and prompts the user to select one, if the user selects correctly, displays products with the name selected.
+    """
     name_id = select_name_id()
     if name_id:
         rows = scan_products(name_id)
@@ -298,30 +295,23 @@ def list_products():
 
 def delete_product():
     row = pick_product_by_id("Select a product to delete")
-
-    # run if row exists
     if not row:
         print("This row Id doesn't exist!")
         return
 
-    id_num = row.Id
-    # show the row selected
-    print(
-        f"Id: {id_num}",
-        f"Search: {row.ProductBrand} {row.ProductName} {row.ProductModel}",
-        f"Filters: {row.ProductFilters}",
-        f"Last update: {row.LastUpdate}", sep=" | ")
-    # confirm deletion to execute
+    print_products(rows=[row])
     confirm = input_confirm("Delete this product?")
-    if confirm:
-        try:
-            stmt = delete(pi.products).where(pi.products.Id == id_num)
-            with Session(pi.DB_ENGINE) as ses:
-                ses.execute(stmt)
-                ses.commit()
-        except Exception as DeletionError:
-            print("Not able to delete", DeletionError, sep="\n")
-    else: quit()        
+    if not confirm:
+        print("Aborting operation...")
+        return
+
+    try:
+        stmt = delete(pi.products).where(pi.products.Id == row.Id)
+        with Session(pi.DB_ENGINE) as ses:
+            ses.execute(stmt)
+            ses.commit()
+    except Exception as err:
+        print("Not able to delete", str(err), sep="\n")    
 
 
 def create_product():
@@ -351,7 +341,6 @@ def create_product():
     brand = input("Brand name: ").title()
     model = input("Product model: ").title()
     filters = input("Filters (e.g: foo, bar, multi_word_filter): ").title()
-
 
     print(
         "\nYou will create this entry:\n"
@@ -449,7 +438,7 @@ def update_prices():
         print("Aborting operation...")
         return
     if selected_prod.Id not in [i.Id for i in update_products]:
-        print("Not valid ID, aborting operation...")
+        print("ID not in the list, aborting operation...")
         return
     collect_prices_from_products(rows=[selected_prod])
     
