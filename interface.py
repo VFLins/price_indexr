@@ -53,6 +53,7 @@ def scan_prices(
         result = ses.execute(stmt).scalars()
         return [row for row in result]
 
+
 def product_name_by_id(id: int) -> pi.product_names|None:
     """Return an entry from product names table with the specified `id`. `None` if it doesn't exist."""
     with Session(pi.DB_ENGINE) as ses:
@@ -194,7 +195,7 @@ def input_option(menu_name: str) -> str:
         Uppercased value inserted by the user.
     """
     BOLD, ENDSTYLE = "\033[1m", "\033[0m"
-    inp = input(f"\n{BOLD}[{menu_name}]{ENDSTYLE} Choose a letter and press enter: ")
+    inp = input(f"{BOLD}[{menu_name}]{ENDSTYLE} Choose a letter and press enter: ")
     return inp.upper()
 
 
@@ -221,13 +222,13 @@ def main_menu():
         name = "Main",
         options={
             "C": (lambda: create_product()),
-            "L": (lambda: list_products_menu()),
+            "L": (lambda: navigate_menu()),
             "U": (lambda: update_product()),
             "D": (lambda: delete_product()),
-            "K": (lambda: collect_prices_menu()),
+            "K": (lambda: collect_menu()),
             "H": (lambda: print_help([
                 "C: Create a new product to price index", 
-                "L: List products", 
+                "L: Navigate the database", 
                 "U: Update a recorded product",
                 "D: Delete a product by ID number", 
                 "K: Collect prices",
@@ -239,9 +240,9 @@ def main_menu():
     )
 
 
-def collect_prices_menu():
+def collect_menu():
     _options_menu(
-        name = "Collect Prices",
+        name = "Main > Collect",
         options = {
             "A": (lambda: collect_prices_from_products(rows=scan_products())),
             "S": (lambda: update_prices()),
@@ -256,9 +257,9 @@ def collect_prices_menu():
     )
 
 
-def list_products_menu():
+def navigate_menu():
     _options_menu(
-        name = "List Products",
+        name = "Main > Navigate",
         options = {
             "A": (lambda: print_products(rows=scan_names())),
             "S": (lambda: list_products_by_name()),
@@ -269,6 +270,18 @@ def list_products_menu():
                 "Q: Return to main menu",
                 ])
             )
+        }
+    )
+
+
+def navigate_prices_menu():
+    _options_menu(
+        name = "Main > Navigate > Prices",
+        options = {
+            "H": (lambda: print_help([
+                "H: Show this help message",
+                "Q: Return to navigate menu"
+            ]))
         }
     )
 
@@ -310,8 +323,9 @@ def print_prices(rows: list[pi.prices]):
     for row in rows:
         print(
             f"Id: {row.Id}",
-            f"Date: {row.Date.strftime('%Y-%m-%d')}",
-            f"Title: {row.Name}", sep=" | "
+            f"{row.Date.strftime('%Y-%m-%d')}",
+            f"{row.Currency} {row.Price:.2f}",
+            f"{row.Name}", sep=" | "
         )
 
 
@@ -443,7 +457,7 @@ def update_product():
 
 
 def print_help(help_mgs: list[str]):
-    print("Choose an operation to perform:", *help_mgs, sep="\n")
+    print("\nChoose an operation to perform:", *help_mgs, sep="\n")
 
 
 def collect_prices_from_products(rows: list[pi.products]):
