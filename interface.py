@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 
 def scan_names() -> list[pi.product_names]:
-    """Read product_names table to get a list of rows."""
+    """Read *product_names* table to get a list of rows."""
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.product_names)
         result = ses.execute(stmt).scalars()
@@ -16,18 +16,42 @@ def scan_names() -> list[pi.product_names]:
 
 def scan_products(name_id: int|None = None) -> list[pi.products]:
     """
-    Read products table to get a list of rows.
+    Read *products* table to get a list of rows.
 
     **Args**
         `name_id`: ID number of the desired name. `None`, if should get all products.
     """
+    stmt = select(pi.products)
+    if name_id:
+        stmt = stmt.where(pi.products.NameId == name_id)
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.products)
-        if name_id:
-            stmt = stmt.where(pi.products.NameId == name_id)
         result = ses.execute(stmt).scalars()
         return [row for row in result]
 
+
+def scan_prices(
+        product_id: int|None = None,
+        date_max: datetime|None = None,
+        date_min: datetime|None = None
+    ) -> list[pi.prices]:
+    """
+    Read *prices* table to get a list of rows.
+
+    **Args**
+        `name_id`: ID number of the desired product. `None` if should get all products.
+        `date_max`: Maximum date to retrieve prices. `None` if should get up to the latest.
+        `date_max`: Minimum date to retrieve prices. `None` if should get down to the first.
+    """
+    stmt = select(pi.prices)
+    if product_id:
+        stmt = stmt.where(pi.prices.ProductId == product_id)
+    if date_max:
+        stmt = stmt.where(pi.prices.Date <= date_max)
+    if date_min:
+        stmt = stmt.where(pi.prices.Date >= date_min)
+    with Session(pi.DB_ENGINE) as ses:
+        result = ses.execute(stmt).scalars()
+        return [row for row in result]
 
 def product_name_by_id(id: int) -> pi.product_names|None:
     """Return an entry from product names table with the specified `id`. `None` if it doesn't exist."""
@@ -264,20 +288,30 @@ def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
 
 
 def print_product_names():
-    """Displays all product names to the user."""
+    """Displays all rows from *product_names* table to the user."""
     rows = scan_names()
     for row in rows:
         print(f"Id: {row.Id}", f"{row.ProductName}", sep=" | ")
 
 
 def print_products(rows: list[pi.products]):
-    """Displays products in `rows` to the user."""
+    """Displays a list of `rows` from *products* table to the user."""
     for row in rows:
         print(
             f"Id: {row.Id}",
             f"Search: {row.ProductBrand} {row.ProductName} {row.ProductModel}",
             f"Filters: {row.ProductFilters}",
             f"Last update: {row.LastUpdate}", sep=" | "
+        )
+
+
+def print_prices(rows: list[pi.prices]):
+    """Display a list of `rows` from *prices* table to the user."""
+    for row in rows:
+        print(
+            f"Id: {row.Id}",
+            f"Date: {row.Date.strftime('%Y-%m-%d')}",
+            f"Title: {row.Name}", sep=" | "
         )
 
 
@@ -441,7 +475,7 @@ def update_prices():
         print("ID not in the list, aborting operation...")
         return
     collect_prices_from_products(rows=[selected_prod])
-    
+
 
 if __name__ == "__main__":
     print("===== Price_indexr central v0.3 =====")
