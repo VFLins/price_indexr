@@ -30,7 +30,7 @@ def scan_products(name_id: int|None = None) -> list[pi.products]:
 
 
 def scan_prices(
-        product_id: int|None = None,
+        product_ids: list[int]|None = None,
         date_max: datetime|None = None,
         date_min: datetime|None = None
     ) -> list[pi.prices]:
@@ -43,8 +43,8 @@ def scan_prices(
         `date_max`: Minimum date to retrieve prices. `None` if should get down to the first.
     """
     stmt = select(pi.prices)
-    if product_id:
-        stmt = stmt.where(pi.prices.ProductId == product_id)
+    if product_ids:
+        stmt = stmt.where(pi.prices.ProductId.in_(product_ids))
     if date_max:
         stmt = stmt.where(pi.prices.Date <= date_max)
     if date_min:
@@ -263,9 +263,11 @@ def navigate_menu():
         options = {
             "A": (lambda: print_products(rows=scan_names())),
             "S": (lambda: list_products_by_name()),
+            "P": (lambda: navigate_prices_menu()),
             "H": (lambda: print_help([
                 "A: List all products",
                 "S: List a specific collection of products",
+                "P: Prices menu",
                 "H: Show this help message",
                 "Q: Return to main menu",
                 ])
@@ -278,7 +280,11 @@ def navigate_prices_menu():
     _options_menu(
         name = "Main > Navigate > Prices",
         options = {
+            "A": (lambda: list_prices_by_name()),
+            "S": (lambda: list_prices_by_product()),
             "H": (lambda: print_help([
+                "A: From product name (broader)",
+                "S: From product",
                 "H: Show this help message",
                 "Q: Return to navigate menu"
             ]))
@@ -298,6 +304,20 @@ def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
         print("This ID is not present on data.")
         return None
     return product_by_id(id_num)
+
+
+def pick_name_by_id(message: str = "Pick a product name") -> pi.product_names|None:
+    """Gets an input fom the user and returns a product if valid, `None` otherwise."""
+    id_num = input(message + " (leave blank to cancel): ")
+    try:
+        id_num = int(id_num)
+    except ValueError:
+        print("Not a valid ID number.")
+        return None
+    if not id_name_exists(id_num):
+        print("This ID is not present on data.")
+        return None
+    return product_name_by_id(id_num)
 
 
 def print_product_names():
@@ -466,6 +486,37 @@ def collect_prices_from_products(rows: list[pi.products]):
         print(f" Collecting... {(i+1)/n*100:.2f}%", end="\r\r")
         pi.collect_prices(rows[i].Id)
         i = i + 1
+
+
+def list_prices_by_name():
+    name_id = select_name_id()
+    if not name_id:
+        print("Aborting operation...")
+        return
+    products_ids = [i.Id for i in scan_products(name_id=name_id)]
+    date_min = input_date("Insert a start date")
+    date_max = input_date("Insert an end date")
+    prices = scan_prices(
+        product_ids=products_ids,
+        date_max=date_max,
+        date_min=date_min
+    )
+    print_prices(prices)
+
+
+def list_prices_by_product():
+    product_id = select_product_id()
+    if not product_id:
+        print("Aborting operation...")
+        return
+    date_min = input_date("Insert a start date")
+    date_max = input_date("Insert an end date")
+    prices = scan_prices(
+        product_ids=[product_id],
+        date_max=date_max,
+        date_min=date_min
+    )
+    print_prices(prices)
 
 
 def update_prices():
