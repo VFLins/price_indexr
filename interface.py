@@ -1,5 +1,5 @@
 import price_indexr as pi
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Literal
 import re
 from sqlalchemy import select, delete
@@ -38,7 +38,7 @@ def scan_prices(
     Read *prices* table to get a list of rows.
 
     **Args**
-        `name_id`: ID number of the desired product. `None` if should get all products.
+        `product_ids`: list of ID numbers of the desired products. `None` if should get from all products.
         `date_max`: Maximum date to retrieve prices. `None` if should get up to the latest.
         `date_max`: Minimum date to retrieve prices. `None` if should get down to the first.
     """
@@ -147,10 +147,10 @@ def select_product_id() -> int|None:
         return None
 
 
-def input_date(msg: str) -> datetime|None:
+def input_date(msg: str, end_of_day: bool = False) -> datetime|None:
     """
     Prompts the user to insert a date.
-    
+
     **Args**
         `msg`: message to be prompted to the user
 
@@ -158,13 +158,16 @@ def input_date(msg: str) -> datetime|None:
         Date inserted as `datetime`, or `None` if invalid input.
         Will return today's date if left blank.
     """
-    response = input(msg + "(format YYYY-MM-DD): ")
+    response = input(msg + ", leave blank for today's date (format YYYY-MM-DD): ")
     if response.strip() == "":
-        return datetime.today().date()
+        date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
     try:
-        return datetime.strptime(response, "%Y-%m-%d").date()
+        date = datetime.strptime(response, "%Y-%m-%d")
     except ValueError:
         return
+    if end_of_day:
+        return date.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return date
 
 
 def input_confirm(msg: str) -> bool:
@@ -261,7 +264,7 @@ def navigate_menu():
     _options_menu(
         name = "Main > Navigate",
         options = {
-            "A": (lambda: print_products(rows=scan_names())),
+            "A": (lambda: print_products(rows=scan_products())),
             "S": (lambda: list_products_by_name()),
             "P": (lambda: navigate_prices_menu()),
             "H": (lambda: print_help([
@@ -495,7 +498,7 @@ def list_prices_by_name():
         return
     products_ids = [i.Id for i in scan_products(name_id=name_id)]
     date_min = input_date("Insert a start date")
-    date_max = input_date("Insert an end date")
+    date_max = input_date("Insert an end date", end_of_day=True)
     prices = scan_prices(
         product_ids=products_ids,
         date_max=date_max,
