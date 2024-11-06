@@ -153,18 +153,19 @@ def input_date(msg: str, end_of_day: bool = False) -> datetime|None:
 
     **Args**
         `msg`: message to be prompted to the user
+        `end_of_day`: Should the time portion of the returned `datetime` refer to the last moment of the day?
 
     **Returns**
         Date inserted as `datetime`, or `None` if invalid input.
         Will return today's date if left blank.
     """
     response = input(msg + ", leave blank for today's date (format YYYY-MM-DD): ")
-    if response.strip() == "":
-        date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
-    try:
-        date = datetime.strptime(response, "%Y-%m-%d")
-    except ValueError:
-        return
+    if response.strip() != "":
+        try:
+            date = datetime.strptime(response, "%Y-%m-%d")
+        except ValueError:
+            return
+    date = datetime.today().replace(hour=0, minute=0, second=0, microsecond=0)
     if end_of_day:
         return date.replace(hour=23, minute=59, second=59, microsecond=999999)
     return date
