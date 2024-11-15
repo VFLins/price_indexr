@@ -32,7 +32,9 @@ def scan_products(name_id: int|None = None) -> list[pi.products]:
 def scan_prices(
         product_ids: list[int]|None = None,
         date_max: datetime|None = None,
-        date_min: datetime|None = None
+        date_min: datetime|None = None,
+        price_max: float|None = None,
+        price_min: float|None = None,
     ) -> list[pi.prices]:
     """
     Read *prices* table to get a list of rows.
@@ -49,6 +51,10 @@ def scan_prices(
         stmt = stmt.where(pi.prices.Date <= date_max)
     if date_min:
         stmt = stmt.where(pi.prices.Date >= date_min)
+    if price_max:
+        stmt = stmt.where(pi.prices.Price <= price_max)
+    if price_min:
+        stmt = stmt.where(pi.prices.Price >= price_min)
     with Session(pi.DB_ENGINE) as ses:
         result = ses.execute(stmt).scalars()
         return [row for row in result]
@@ -100,6 +106,14 @@ def id_product_exists(product_id: int) -> bool:
     return bool(len(result))
 
 
+def id_price_exists(price_id: int) -> bool:
+    """Returns a boolean value indicating wether `price_id` exist or not."""
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.prices).where(pi.prices.Id == price_id)
+        result = tuple( ses.execute(stmt).scalars() )
+    return bool(len(result))
+
+
 def select_name_id() -> int|None:
     """
     Displays available names and then prompts the user to select a name id.
@@ -147,6 +161,40 @@ def select_product_id() -> int|None:
         return None
 
 
+def input_integer(msg: str) -> int:
+    """
+    Prompts the user to insert an integer number.
+    
+    **Args**
+        `msg`: message to be prompted to the user
+    
+    **Returns**
+        Number inserted as `int`, or `None` if not valid.
+    """
+    response = input(msg + ", must be an integer number: ")
+    try:
+        return int(response)
+    except ValueError:
+        return None
+
+
+def input_floating_point(msg: str) -> float:
+    """
+    Prompts the user to insert a number with decimal places.
+
+    **Args**
+        `msg`: message to be prompted to the user
+    
+    **Returns**
+        Number inserted as `float`, or `None` if not valid.
+    """
+    response = input(msg + ", must be a number (format 0.00): ")
+    try:
+        return float(response)
+    except ValueError:
+        return None
+
+
 def input_date(msg: str, end_of_day: bool = False) -> datetime|None:
     """
     Prompts the user to insert a date.
@@ -156,7 +204,7 @@ def input_date(msg: str, end_of_day: bool = False) -> datetime|None:
         `end_of_day`: Should the time portion of the returned `datetime` refer to the last moment of the day?
 
     **Returns**
-        Date inserted as `datetime`, or `None` if invalid input.
+        Date inserted as `datetime`, or `None` if not valid.
         Will return today's date if left blank.
     """
     response = input(msg + ", leave blank for today's date (format YYYY-MM-DD): ")
@@ -181,8 +229,8 @@ def input_confirm(msg: str) -> bool:
     **Returns**
         User's response as boolean value, `False` if "N", `True` otherwise.
     """
-    response = input(msg + " [Y/n]: ").upper()
-    if response == "N":
+    response = input(msg + " [Y/n]: ")
+    if response.upper() == "N":
         return False
     else:
         return True
@@ -228,13 +276,13 @@ def main_menu():
             "C": (lambda: create_product()),
             "L": (lambda: navigate_menu()),
             "U": (lambda: update_product()),
-            "D": (lambda: delete_product()),
+            "D": (lambda: delete_menu()),
             "K": (lambda: collect_menu()),
             "H": (lambda: print_help([
                 "C: Create a new product to price index", 
                 "L: Navigate the database", 
                 "U: Update a recorded product",
-                "D: Delete a product by ID number", 
+                "D: Delete elements from the database", 
                 "K: Collect prices",
                 "H: Show this help message",
                 "Q: Quit"
@@ -286,15 +334,32 @@ def navigate_prices_menu():
         options = {
             "A": (lambda: list_prices_by_name()),
             "S": (lambda: list_prices_by_product()),
+            "D": (lambda: list_low_price_outliers()),
             "H": (lambda: print_help([
                 "A: From product name (broader)",
                 "S: From product",
+                "D: Lowest prices from product name",
                 "H: Show this help message",
                 "Q: Return to navigate menu"
             ]))
         }
     )
 
+
+def delete_menu():
+    _options_menu(
+        name = "Main > Delete",
+        options={
+            "A": (lambda: delete_product()),
+            "S": (lambda: delete_price()),
+            "H": (lambda: print_help([
+                "A: Delete a product",
+                "S: Delete a price registry",
+                "H: Show this help message",
+                "Q: Return to main menu"
+            ])),
+        }
+    )
 
 def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
@@ -310,12 +375,10 @@ def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
     return product_by_id(id_num)
 
 
-def pick_name_by_id(message: str = "Pick a product name") -> pi.product_names|None:
+def pick_name_by_id(message: str = "Pick a product ID") -> pi.product_names|None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
-    id_num = input(message + " (leave blank to cancel): ")
-    try:
-        id_num = int(id_num)
-    except ValueError:
+    id_num = input_integer(message + " (leave blank to cancel)")
+    if not id_num:
         print("Not a valid ID number.")
         return None
     if not id_name_exists(id_num):
@@ -323,6 +386,16 @@ def pick_name_by_id(message: str = "Pick a product name") -> pi.product_names|No
         return None
     return product_name_by_id(id_num)
 
+
+def pick_price_by_id(message: str = "Pick a price ID") -> pi.prices|None:
+    id_num = input_integer(message + " (leave blank to cancel)")
+    if not id_num:
+        print("Not a valid ID number.")
+        return None
+    if not id_price_exists(id_num):
+        print("This ID is not present on data.")
+        return None
+    return price_by_id(id_num)
 
 def print_product_names():
     """Displays all rows from *product_names* table to the user."""
@@ -349,7 +422,8 @@ def print_prices(rows: list[pi.prices]):
             f"Id: {row.Id}",
             f"{row.Date.strftime('%Y-%m-%d')}",
             f"{row.Currency} {row.Price:.2f}",
-            f"{row.Name}", sep=" | "
+            f"{row.Name}",
+            f"Store: {row.Store}", sep=" | "
         )
 
 
@@ -366,7 +440,7 @@ def list_products_by_name():
 
 
 def delete_product():
-    row = pick_product_by_id("Select a product to delete")
+    row = pick_product_by_id("Select a product ID to delete")
     if not row:
         print("This row Id doesn't exist!")
         return
@@ -384,6 +458,28 @@ def delete_product():
             ses.commit()
     except Exception as err:
         print("Not able to delete", str(err), sep="\n")    
+
+
+def delete_price():
+    """Prompts the user to remove a price from the database."""
+    row = pick_price_by_id("Select a price ID to delete")
+    if not row:
+        print("This row Id doesn't exist!")
+        return
+
+    print_prices([row])
+    confirm = input_confirm("Delete this price?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+
+    try:
+        stmt = delete(pi.prices).where(pi.prices.Id == row.Id)
+        with Session(pi.DB_ENGINE) as ses:
+            ses.execute(stmt)
+            ses.commit()
+    except Exception as err:
+        print("Not able to delete", str(err), sep="\n")  
 
 
 def create_product():
@@ -544,6 +640,23 @@ def update_prices():
         print("ID not in the list, aborting operation...")
         return
     collect_prices_from_products(rows=[selected_prod])
+
+
+def list_low_price_outliers():
+    name_id = select_name_id()
+    if not name_id:
+        print("Invalid Id provided.\n")
+        return
+    max_price_val = input_floating_point("Insert the maximum price to filter")
+    if not max_price_val:
+        print("Invalid price value.\n")
+        return
+    products_ids = [i.Id for i in scan_products(name_id=name_id)]
+    prices = scan_prices(
+        product_ids=products_ids,
+        price_max=max_price_val
+    )
+    print_prices(prices)
 
 
 if __name__ == "__main__":
