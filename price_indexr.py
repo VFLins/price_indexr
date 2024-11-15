@@ -443,7 +443,8 @@ def generate_filters(product: products) -> Tuple[str, Dict[str, list]]:
         product_fullname = f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
         posf = re.split(" ", product_fullname)
         hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador",
-                    "Fan", "Cooler", "Notebook", "Bloco De Água", "Water Block"]
+                    "Fan", "Cooler", "Notebook", "Bloco De Água", "Water Block", "Fã da placa",
+                    "Dissipador", "Original", "Escudo Placa Traseira"]
         negf = set(re.split(",", product.ProductFilters.replace(" ", "")) + hard_negf)
 
         keywords = {}
