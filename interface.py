@@ -60,6 +60,19 @@ def scan_prices(
         return [row for row in result]
 
 
+def delete_price_rows(rows: list[pi.prices]):
+    """
+    Delete a list of rows from *prices* table.
+
+    **Args**
+        `rows`: list of rows to be deleted.
+    """
+    rows_id = [r.Id for r in rows]
+    stmt = delete(pi.prices).where(pi.prices.Id.in_(rows_id))
+    with Session(pi.DB_ENGINE) as ses:
+        ses.execute(stmt)
+        ses.commit()
+
 def product_name_by_id(id: int) -> pi.product_names|None:
     """Return an entry from product names table with the specified `id`. `None` if it doesn't exist."""
     with Session(pi.DB_ENGINE) as ses:
@@ -472,15 +485,12 @@ def delete_price():
     if not confirm:
         print("Aborting operation...")
         return
+    delete_price_rows([row])
 
-    try:
-        stmt = delete(pi.prices).where(pi.prices.Id == row.Id)
-        with Session(pi.DB_ENGINE) as ses:
-            ses.execute(stmt)
-            ses.commit()
-    except Exception as err:
-        print("Not able to delete", str(err), sep="\n")  
 
+def delete_by_low_price():
+    """Prompts the user to remove all prices below a cutoff from a product."""
+    pass
 
 def create_product():
     names_list = scan_names()
