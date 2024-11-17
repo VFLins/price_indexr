@@ -28,11 +28,20 @@ DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\\data\\database.db", echo=
 class dec_base(DeclarativeBase):
     pass
 
+class product_categories(dec_base):
+    __tablename__ = "product_categories"
+    Category: Mapped["product_names"] = relationship(back_populates="Category")
+
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    CategoryName: Mapped[str] = mapped_column()
+
 class product_names(dec_base):
     __tablename__ = "product_names"
+    Category: Mapped[List["product_categories"]] = relationship(back_populates="Category")
     Name: Mapped["products"] = relationship(back_populates="Name")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
+    CategoryId: Mapped[int] = mapped_column(ForeignKey("product_categories.Id"), nullable=True)
     ProductName: Mapped[str] = mapped_column()
 
 class prices(dec_base):
@@ -95,7 +104,7 @@ class LocalLogger():
 
     def warn(self, context, message):
         """Log a `warning` level message"""
-        self.logger.warn(msg=f"{context}: {message}")
+        self.logger.warning(msg=f"{context}: {message}")
 
     def error(self, context, message):
         """Log a `error` level message"""
