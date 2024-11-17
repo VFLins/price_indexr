@@ -365,9 +365,11 @@ def delete_menu():
         options={
             "A": (lambda: delete_product()),
             "S": (lambda: delete_price()),
+            "D": (lambda: delete_by_low_price()),
             "H": (lambda: print_help([
                 "A: Delete a product",
                 "S: Delete a price registry",
+                "D: [Caution] Remove all prices from a product below a cutoff",
                 "H: Show this help message",
                 "Q: Return to main menu"
             ])),
@@ -440,6 +442,10 @@ def print_prices(rows: list[pi.prices]):
         )
 
 
+def print_help(help_mgs: list[str]):
+    print("\nChoose an operation to perform:", *help_mgs, sep="\n")
+
+
 def list_products_by_name():
     """
     Displays available names and prompts the user to select one, if the user selects correctly, displays products with the name selected.
@@ -490,7 +496,14 @@ def delete_price():
 
 def delete_by_low_price():
     """Prompts the user to remove all prices below a cutoff from a product."""
-    pass
+    prices = list_low_price_outliers(returns=True)
+    confirm = input_confirm("Confirm deletion of ALL these prices? (CANNOT BE UNDONE)")
+    if confirm:
+        delete_price_rows(prices)
+        print(f"{len(prices)} prices removed.")
+        return
+    print("Aborting operation...")
+
 
 def create_product():
     names_list = scan_names()
@@ -566,30 +579,6 @@ def create_product():
         print("Transaction cancelled")
 
 
-def update_product():
-    print("You can only update the filters's field in this version...")
-    row = pick_product_by_id("Select the product with the filter to update")
-    if not row:
-        print("This row Id doesn't exist!")
-        return
-
-    print_products(rows=[row])
-    confirm = input_confirm("Retype the filters for this record?")
-    if not confirm:
-        print("Aborting operation...")
-        return
-
-    new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
-    with Session(pi.DB_ENGINE) as ses:
-        selected_row = ses.execute(select(pi.products).where(pi.products.Id == row.Id)).scalar_one()
-        selected_row.ProductFilters = new_filters
-        ses.commit()
-
-
-def print_help(help_mgs: list[str]):
-    print("\nChoose an operation to perform:", *help_mgs, sep="\n")
-
-
 def collect_prices_from_products(rows: list[pi.products]):
     n, i = len(rows), 0
     while i < n:
@@ -629,6 +618,25 @@ def list_prices_by_product():
     print_prices(prices)
 
 
+def list_low_price_outliers(returns: bool = False):
+    name_id = select_name_id() 
+    if not name_id:
+        print("Invalid Id provided.\n")
+        return
+    max_price_val = input_floating_point("Insert the maximum price to filter")
+    if not max_price_val:
+        print("Invalid price value.\n")
+        return
+    products_ids = [i.Id for i in scan_products(name_id=name_id)]
+    prices = scan_prices(
+        product_ids=products_ids,
+        price_max=max_price_val
+    )
+    print_prices(prices)
+    if returns:
+        return prices
+
+
 def update_prices():
     name_id = select_name_id()
     if not name_id:
@@ -652,21 +660,24 @@ def update_prices():
     collect_prices_from_products(rows=[selected_prod])
 
 
-def list_low_price_outliers():
-    name_id = select_name_id()
-    if not name_id:
-        print("Invalid Id provided.\n")
+def update_product():
+    print("You can only update the filters's field in this version...")
+    row = pick_product_by_id("Select the product with the filter to update")
+    if not row:
+        print("This row Id doesn't exist!")
         return
-    max_price_val = input_floating_point("Insert the maximum price to filter")
-    if not max_price_val:
-        print("Invalid price value.\n")
+
+    print_products(rows=[row])
+    confirm = input_confirm("Retype the filters for this record?")
+    if not confirm:
+        print("Aborting operation...")
         return
-    products_ids = [i.Id for i in scan_products(name_id=name_id)]
-    prices = scan_prices(
-        product_ids=products_ids,
-        price_max=max_price_val
-    )
-    print_prices(prices)
+
+    new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
+    with Session(pi.DB_ENGINE) as ses:
+        selected_row = ses.execute(select(pi.products).where(pi.products.Id == row.Id)).scalar_one()
+        selected_row.ProductFilters = new_filters
+        ses.commit()
 
 
 if __name__ == "__main__":
