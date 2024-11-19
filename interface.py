@@ -2,13 +2,29 @@ import price_indexr as pi
 from datetime import datetime, timedelta
 from typing import Literal
 import re
-from sqlalchemy import select, delete, update
+from sqlalchemy import select, delete, update, func, table, literal_column
 from sqlalchemy.orm import Session
+
+
+BOLD, ITALIC, ENDSTYLE = "\033[1m", "\033[3m", "\033[0m"
 
 
 def format_name(name:str) -> str:
     """Returns `name` in the format it should be retrieved from/inserted to the database."""
     return re.sub(" +", " ", name.title())
+
+
+def table_has_data(tablename: Literal["prices", "product_names", "product_categories"]):
+    stmt = (
+        select(func.count()).select_from(
+            select(literal_column("1"))
+            .select_from(table(tablename))
+            .limit(1)
+            .subquery()
+        )
+    )
+    with Session(pi.DB_ENGINE) as ses:
+        return bool(ses.execute(stmt).scalar())
 
 
 def scan_categories() -> list[pi.product_categories]:
@@ -115,6 +131,15 @@ def price_by_id(id: int) -> pi.prices|None:
         return ses.execute(stmt).scalar_one_or_none()
 
 
+def title_category_exists(name: str) -> bool:
+    """Returns a boolean value indicating wether `name` exist in *product_categories* table or not."""
+    name = format_name(name)
+    with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.product_categories).where(pi.product_categories.CategoryName == name)
+        result = tuple( ses.execute(stmt).scalars() )
+    return bool(len(result))
+
+
 def title_name_exists(name: str) -> bool:
     """Returns a boolean value indicating wether `name` exist in *product_names* table or not."""
     name = re.sub(" +", " ", name.title())
@@ -124,6 +149,17 @@ def title_name_exists(name: str) -> bool:
     return bool(len(result))
 
 
+def product_exists(product_obj: pi.products) -> bool:
+    stmt = (
+        select(pi.products)
+        .where(pi.products.ProductBrand == product_obj.ProductBrand)
+        .where(pi.products.ProductName == product_obj.ProductName)
+        .where(pi.products.ProductModel == product_obj.ProductModel)
+    )
+    with Session(pi.DB_ENGINE) as ses:
+        result = tuple( ses.execute(stmt).scalars() )
+    return bool(len(result))
+
 def id_by_category_name(name: str) -> int|None:
     """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
     name = format_name(name)
@@ -132,13 +168,18 @@ def id_by_category_name(name: str) -> int|None:
         return ses.execute(stmt).scalar_one_or_none()
 
 
-def title_category_exists(name: str) -> bool:
-    """Returns a boolean value indicating wether `name` exist in *product_categories* table or not."""
+def id_by_product_name(name: str) -> int|None:
+    """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
     name = format_name(name)
+    stmt = select(pi.product_names.Id).where(pi.product_names.CategoryName == name)
     with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_categories).where(pi.product_categories.ProductName == name)
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
+        return ses.execute(stmt).scalar_one_or_none()
+
+
+def id_product_by_created_time(dt: datetime) -> int:
+     with Session(pi.DB_ENGINE) as ses:
+        stmt = select(pi.products.Id).where(pi.products.Created == dt)
+        return ses.execute(stmt).scalar_one_or_none()
 
 
 def id_category_exists(category_id: int) -> bool:
@@ -184,15 +225,34 @@ def product_name_has_category(name_id: int) -> bool:
     return bool(result)
 
 
-def create_product_category(category_name: str) -> int|None:
+def add_product_category_to_db(product_category_obj: pi.product_categories) -> int|None:
     """Creates an entry in *product_categories* table, returns the ID of the entry created or `None` if `category_name` already exists."""
-    if title_category_exists(name=category_name):
+    if title_category_exists(name=product_category_obj.CategoryName):
         return None
-    category_name = format_name(category_name)
     with Session(pi.DB_ENGINE) as ses:
-        ses.add(pi.product_categories(CategoryName=category_name))
+        ses.add(product_category_obj)
         ses.commit()
-    return id_by_category_name(category_name)
+    return id_by_category_name(product_category_obj.CategoryName)
+
+
+def add_product_name_to_db(product_name_obj: pi.product_names):
+    """Creates an entry in *product_names* table, returns the ID of the entry created or `None` if `category_name` already exists."""
+    if title_category_exists(name=product_name_obj.ProductName):
+        return None
+    with Session(pi.DB_ENGINE) as ses:
+        ses.add(product_name_obj)
+        ses.commit()
+    return id_by_product_name(product_name_obj.ProductName)
+
+
+def add_product_to_db(product_obj: pi.products):
+    """Creates an entry in *products* table, returns the ID of the entry created or `None` if `product_obj` already exists."""
+    if product_exists(product_obj):
+        return None
+    with Session(pi.DB_ENGINE) as ses:
+        ses.add(product_obj)
+        ses.commit()
+    return id_product_by_created_time(product_obj.Created)
 
 
 def set_category_to_name(name_id: int, category_id: int):
@@ -383,16 +443,16 @@ def main_menu():
     _options_menu(
         name = "Main",
         options={
-            "C": (lambda: create_product()),
+            "C": (lambda: create_menu()),
             "L": (lambda: navigate_menu()),
             "U": (lambda: update_menu()),
             "D": (lambda: delete_menu()),
             "K": (lambda: collect_menu()),
             "H": (lambda: print_help([
-                "C: Create a new product to price index", 
-                "L: Navigate the database", 
+                "C: Create a new product to price index",
+                "L: Navigate the database",
                 "U: Update a recorded product",
-                "D: Delete elements from the database", 
+                "D: Delete elements from the database",
                 "K: Collect prices",
                 "H: Show this help message",
                 "Q: Quit"
@@ -473,21 +533,39 @@ def delete_menu():
         }
     )
 
+
 def update_menu():
     _options_menu(
         name = "Main > Update",
         options = {
             "A": (lambda: assign_category()),
-            "S": (lambda: update_product()),
+            "F": (lambda: update_product()),
             "H": (lambda: print_help([
                 "A: Assign category to product name",
                 "F: Update product filters",
                 "H: Show this help message",
-                "Q: Return to main menu"
+                "Q: Return to main menu",
             ]))
         }
     )
 
+
+def create_menu():
+    _options_menu(
+        name = "Main > Collect",
+        options = {
+            "A": (lambda: create_product()),
+            "S": (lambda: create_product_name()),
+            "D": (lambda: create_product_category()),
+            "H": (lambda: print_help([
+                f"A: Create a {ITALIC}product{ENDSTYLE} assigned to an existing {ITALIC}product name{ENDSTYLE}",
+                f"S: Create a {ITALIC}product name{ENDSTYLE} assigned to an existing {ITALIC}product category{ENDSTYLE}",
+                f"D: Create a {ITALIC}product category{ENDSTYLE}",
+                "H: Show this help message",
+                "Q: Return to main menu",
+            ]))
+        }
+    )
 
 def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
@@ -526,16 +604,18 @@ def pick_price_by_id(message: str = "Pick a price ID") -> pi.prices|None:
     return price_by_id(id_num)
 
 
-def print_category_names():
+def print_category_names(rows: list[pi.product_categories]|None = None):
     """Displays all rows from *product_categories* table to the user."""
-    rows = scan_categories()
+    if not rows:
+        rows = scan_categories()
     for row in rows:
-        print(f"Id: {row.Id}", f"{row.ProductName}", sep=" | ")
+        print(f"Id: {row.Id}", f"{row.CategoryName}", sep=" | ")
 
 
-def print_product_names():
+def print_product_names(rows: list[pi.product_names]|None = None):
     """Displays all rows from *product_names* table to the user."""
-    rows = scan_names()
+    if not rows:
+        rows = scan_names()
     for row in rows:
         category_name = product_category_by_id(row.CategoryId)
         if category_name:
@@ -629,78 +709,80 @@ def delete_by_low_price():
     print("Aborting operation...")
 
 
+def create_product_category():
+    """Prompts the user to create an entry to *product_categories* table."""
+    category_name = format_name(input("Insert the new category name: "))
+    product_category_obj = pi.product_categories(
+        CategoryName=category_name
+    )
+    print_category_names([product_category_obj])
+    confirm = input_confirm("Add this entry to the database?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+    new_id = add_product_category_to_db(product_category_obj)
+    if new_id:
+        print(f"Id for the new category is {new_id}.")
+    else:
+        print(f"Identical {ITALIC}category name{ENDSTYLE} in database, Aborting operation...")
+    
+
+def create_product_name():
+    """Prompts the user to create an entry to *product_names* table."""
+    if not table_has_data("product_categories"):
+        print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a product name to the database.")
+        return
+    category_id = select_category_id()
+    if not category_id:
+        print("Aborting operation...")
+        return
+    product_name = format_name(input("Insert the new product name: "))
+    product_name_obj = pi.product_names(
+        ProductName=product_name,
+        CategoryId=category_id,
+    )
+    print_product_names([product_name_obj])
+    confirm = input_confirm("Add this entry to the database?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+    new_id = add_product_name_to_db(product_name_obj)
+    if new_id:
+        print(f"Id for the new {ITALIC}product name{ENDSTYLE} is {new_id}.")
+    else:
+        print(f"Identical {ITALIC}product name{ENDSTYLE} in database, Aborting operation...")
+
+
 def create_product():
-    names_list = scan_names()
-    is_first_name = len(names_list) == 0
-
-    is_new_name = False
-    if not is_first_name:
-        use_existing_name = input_confirm("Use an existing name?")
-        if use_existing_name:
-            name_id = select_name_id()
-            if not name_id:
-                print("Aborting operation...")
-                return
-            product_name = product_name_by_id(name_id).ProductName
-        else:
-            is_new_name = True
-            product_name = input("Product name: ").title()
-            if title_name_exists(product_name):
-                print("This name already exists")
-                return
+    if not table_has_data("product_names"):
+        print(f"Create a {ITALIC}product name{ENDSTYLE} before you add a product name to the database.")
+        return
+    product_id = select_product_id()
+    if not product_id:
+        print("Aborting operation...")
+        return
+    brand_name = format_name(input("Brand name: "))
+    model_name = format_name(input("Product model: "))
+    filters = format_name(input("Filters (e.g: foo, bar, multi_word_filter): "))
+    name_obj = product_name_by_id(product_id)
+    product_obj = pi.products(
+        NameId=name_obj.Id,
+        ProductName=name_obj.ProductName,
+        ProductModel=model_name,
+        ProductBrand=brand_name,
+        ProductFilters=filters,
+        Created=datetime.now()
+    )
+    print_products([product_obj])
+    confirm = input_confirm("Add this entry to the database?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+    new_id = add_product_to_db(product_obj)
+    if new_id:
+        print(f"Id for the new {ITALIC}product{ENDSTYLE} is {new_id}.")
     else:
-        is_new_name = True
-        product_name = input("Product name: ").title()
-
-    created = datetime.now()
-    brand = input("Brand name: ").title()
-    model = input("Product model: ").title()
-    filters = input("Filters (e.g: foo, bar, multi_word_filter): ").title()
-
-    print(
-        "\nYou will create this entry:\n"
-        f"Search: {brand} {product_name} {model}",
-        f"Filters: {filters}",
-        f"Created: {created}", sep=" | ")
-
-    # Add new name and get NameId
-    checkout = input_confirm("Save this data?")
-    if checkout:
-        if is_new_name:
-            with Session(pi.DB_ENGINE) as ses:
-                stmt = pi.product_names(ProductName=product_name)
-                ses.add(stmt)
-                ses.commit()
-
-        with Session(pi.DB_ENGINE) as ses:
-            # Get id for the used name
-            stmt = select(pi.product_names)\
-                .where(pi.product_names.ProductName == product_name)
-            result = ses.execute(stmt).scalar_one()
-            new_name_id = result.Id
-
-        with Session(pi.DB_ENGINE) as ses:
-            stmt = pi.products(
-                NameId=new_name_id,
-                ProductName=product_name,
-                ProductModel=model,
-                ProductBrand=brand,
-                ProductFilters=filters,
-                Created=created)
-            ses.add(stmt)
-            ses.commit()
-            # Get created product id
-            stmt = select(pi.products).where(pi.products.Created == created)
-            result = ses.execute(stmt).scalars()
-            for i in result:
-                new_product_id = i.Id
-
-        print("\nCollecting current prices...")
-        pi.collect_prices(new_product_id)
-        print(f"\nThe ID for this product is: {new_product_id}")
-        print("Transaction completed")
-    else:
-        print("Transaction cancelled")
+        print(f"Identical {ITALIC}product{ENDSTYLE} in database, Aborting operation...")
 
 
 def collect_prices_from_products(rows: list[pi.products]):
@@ -802,7 +884,7 @@ def update_product():
 
 
 def assign_category():
-    if not id_category_exists(1):
+    if not table_has_data("product_categories"):
         print("You need to create a category before assigning, go to [Main > Create].")
         return
     name_id = select_name_id()
