@@ -128,7 +128,8 @@ def price_by_id(id: int) -> pi.prices|None:
     """Return an entry from prices table with the specified `id`. `None` if it doesn't exist."""
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.prices).where(pi.prices.Id == id)
-        return ses.execute(stmt).scalar_one_or_none()
+        result = ses.execute(stmt).scalar_one_or_none()
+    return result
 
 
 def title_category_exists(name: str) -> bool:
@@ -160,26 +161,30 @@ def product_exists(product_obj: pi.products) -> bool:
         result = tuple( ses.execute(stmt).scalars() )
     return bool(len(result))
 
+
 def id_by_category_name(name: str) -> int|None:
     """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
     name = format_name(name)
     stmt = select(pi.product_categories.Id).where(pi.product_categories.CategoryName == name)
     with Session(pi.DB_ENGINE) as ses:
-        return ses.execute(stmt).scalar_one_or_none()
+        result = ses.execute(stmt).scalar_one_or_none()
+    return int(result)
 
 
 def id_by_product_name(name: str) -> int|None:
     """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
     name = format_name(name)
-    stmt = select(pi.product_names.Id).where(pi.product_names.CategoryName == name)
+    stmt = select(pi.product_names.Id).where(pi.product_names.ProductName == name)
     with Session(pi.DB_ENGINE) as ses:
-        return ses.execute(stmt).scalar_one_or_none()
+        result = ses.execute(stmt).scalar_one_or_none()
+    return result
 
 
 def id_product_by_created_time(dt: datetime) -> int:
-     with Session(pi.DB_ENGINE) as ses:
+    with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.products.Id).where(pi.products.Created == dt)
-        return ses.execute(stmt).scalar_one_or_none()
+        result = ses.execute(stmt).scalar_one_or_none()
+    return result
 
 
 def id_category_exists(category_id: int) -> bool:
@@ -227,22 +232,26 @@ def product_name_has_category(name_id: int) -> bool:
 
 def add_product_category_to_db(product_category_obj: pi.product_categories) -> int|None:
     """Creates an entry in *product_categories* table, returns the ID of the entry created or `None` if `category_name` already exists."""
-    if title_category_exists(name=product_category_obj.CategoryName):
+    category_name = product_category_obj.CategoryName
+    if title_category_exists(name=category_name):
         return None
     with Session(pi.DB_ENGINE) as ses:
         ses.add(product_category_obj)
         ses.commit()
-    return id_by_category_name(product_category_obj.CategoryName)
+        new_id = id_by_category_name(category_name)
+    return new_id
 
 
 def add_product_name_to_db(product_name_obj: pi.product_names):
     """Creates an entry in *product_names* table, returns the ID of the entry created or `None` if `category_name` already exists."""
-    if title_category_exists(name=product_name_obj.ProductName):
+    product_name = product_name_obj.ProductName
+    if title_name_exists(name=product_name):
         return None
     with Session(pi.DB_ENGINE) as ses:
         ses.add(product_name_obj)
         ses.commit()
-    return id_by_product_name(product_name_obj.ProductName)
+        new_id = id_by_product_name(product_name)
+    return new_id
 
 
 def add_product_to_db(product_obj: pi.products):
@@ -252,7 +261,8 @@ def add_product_to_db(product_obj: pi.products):
     with Session(pi.DB_ENGINE) as ses:
         ses.add(product_obj)
         ses.commit()
-    return id_product_by_created_time(product_obj.Created)
+    new_id = id_product_by_created_time(product_obj.Created)
+    return new_id
 
 
 def set_category_to_name(name_id: int, category_id: int):
