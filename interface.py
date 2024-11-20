@@ -417,7 +417,7 @@ def input_confirm(msg: str) -> bool:
 
 def input_option(menu_name: str) -> str:
     """
-    Recieves inputs for navigating between menus.
+    Recieves inputs for navigating between menus. Will always be uppercased.
 
     **Args**
         `menu_name`: Indicates to the user, what menu they are interacting with
@@ -426,7 +426,7 @@ def input_option(menu_name: str) -> str:
         Uppercased value inserted by the user.
     """
     BOLD, ENDSTYLE = "\033[1m", "\033[0m"
-    inp = input(f"{BOLD}[{menu_name}]{ENDSTYLE} Choose a letter and press enter: ")
+    inp = input(f"{BOLD}[{menu_name}]{ENDSTYLE} Choose an option and press enter: ")
     return inp.upper()
 
 
@@ -462,7 +462,7 @@ def main_menu():
                 "L: Navigate the database",
                 "U: Update a recorded product",
                 "D: Delete elements from the database",
-                "K: Collect prices",
+                f"K: Collect {ITALIC}:prices:{ENDSTYLE}",
                 "H: Show this help message",
                 "Q: Quit"
                 ])
@@ -478,8 +478,8 @@ def collect_menu():
             "A": (lambda: collect_prices_from_products(rows=scan_products())),
             "S": (lambda: update_prices()),
             "H": (lambda: print_help([
-                "A: Collect prices from all products",
-                "S: Collect prices for a specific collection of products",
+                f"A: Collect {ITALIC}:prices:{ENDSTYLE} from all products",
+                f"S: Collect {ITALIC}:prices:{ENDSTYLE} for a specific collection of products",
                 "H: Show this help message",
                 "Q: Return to main menu",
                 ])
@@ -496,8 +496,8 @@ def navigate_menu():
             "S": (lambda: list_products_by_name()),
             "P": (lambda: navigate_prices_menu()),
             "H": (lambda: print_help([
-                "A: List all products",
-                "S: List a specific collection of products",
+                f"A: List all {ITALIC}:products:{ENDSTYLE}",
+                f"S: List for a specific collection of {ITALIC}:products:{ENDSTYLE}",
                 "P: Prices menu",
                 "H: Show this help message",
                 "Q: Return to main menu",
@@ -515,9 +515,9 @@ def navigate_prices_menu():
             "S": (lambda: list_prices_by_product()),
             "D": (lambda: list_low_price_outliers()),
             "H": (lambda: print_help([
-                "A: From product name (broader)",
-                "S: From product",
-                "D: Lowest prices from product name",
+                f"A: From {ITALIC}:product name:{ENDSTYLE} (broader)",
+                f"S: From {ITALIC}:product:{ENDSTYLE}",
+                f"D: Lowest prices from {ITALIC}:product name:{ENDSTYLE}",
                 "H: Show this help message",
                 "Q: Return to navigate menu"
             ]))
@@ -533,9 +533,9 @@ def delete_menu():
             "S": (lambda: delete_price()),
             "D": (lambda: delete_by_low_price()),
             "H": (lambda: print_help([
-                "A: Delete a product",
-                "S: Delete a price registry",
-                "D: [Caution] Remove all prices from a product below a cutoff",
+                f"A: Delete a {ITALIC}:product:{ENDSTYLE}",
+                f"S: Delete a {ITALIC}:prices:{ENDSTYLE} registry",
+                f"D: [Caution] Remove all {ITALIC}:prices:{ENDSTYLE} from a product below a cutoff",
                 "H: Show this help message",
                 "Q: Return to main menu"
             ])),
@@ -550,7 +550,7 @@ def update_menu():
             "A": (lambda: assign_category()),
             "F": (lambda: update_product()),
             "H": (lambda: print_help([
-                "A: Assign category to product name",
+                "A: Assign category to {ITALIC}:product name:{ENDSTYLE}",
                 "F: Update product filters",
                 "H: Show this help message",
                 "Q: Return to main menu",
@@ -567,9 +567,9 @@ def create_menu():
             "S": (lambda: create_product_name()),
             "D": (lambda: create_product_category()),
             "H": (lambda: print_help([
-                f"A: Create a {ITALIC}product{ENDSTYLE} assigned to an existing {ITALIC}product name{ENDSTYLE}",
-                f"S: Create a {ITALIC}product name{ENDSTYLE} assigned to an existing {ITALIC}product category{ENDSTYLE}",
-                f"D: Create a {ITALIC}product category{ENDSTYLE}",
+                f"A: Create a {ITALIC}:product:{ENDSTYLE} assigned to an existing {ITALIC}:product name:{ENDSTYLE}",
+                f"S: Create a {ITALIC}:product name:{ENDSTYLE} assigned to an existing {ITALIC}:product category:{ENDSTYLE}",
+                f"D: Create a {ITALIC}:product category:{ENDSTYLE}",
                 "H: Show this help message",
                 "Q: Return to main menu",
             ]))
@@ -694,13 +694,13 @@ def delete_product():
 
 def delete_price():
     """Prompts the user to remove a price from the database."""
-    row = pick_price_by_id("Select a price ID to delete")
+    row = pick_price_by_id(f"Select a {ITALIC}:price:{ENDSTYLE} ID to delete")
     if not row:
         print("This row Id doesn't exist!")
         return
 
     print_prices([row])
-    confirm = input_confirm("Delete this price?")
+    confirm = input_confirm(f"Delete this {ITALIC}:price:{ENDSTYLE}?")
     if not confirm:
         print("Aborting operation...")
         return
@@ -710,10 +710,10 @@ def delete_price():
 def delete_by_low_price():
     """Prompts the user to remove all prices below a cutoff from a product."""
     prices = list_low_price_outliers(returns=True)
-    confirm = input_confirm("Confirm deletion of ALL these prices? (CANNOT BE UNDONE)")
+    confirm = input_confirm(f"Confirm deletion of ALL these {ITALIC}:price:{ENDSTYLE}s? (CANNOT BE UNDONE)")
     if confirm:
         delete_price_rows(prices)
-        print(f"{len(prices)} prices removed.")
+        print(f"{len(prices)} {ITALIC}:prices:{ENDSTYLE} removed.")
         return
     print("Aborting operation...")
 
@@ -739,13 +739,13 @@ def create_product_category():
 def create_product_name():
     """Prompts the user to create an entry to *product_names* table."""
     if not table_has_data("product_categories"):
-        print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a product name to the database.")
+        print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a {ITALIC}:product name:{ENDSTYLE} to the database.")
         return
     category_id = select_category_id()
     if not category_id:
         print("Aborting operation...")
         return
-    product_name = format_name(input("Insert the new product name: "))
+    product_name = format_name(input("Insert the new {ITALIC}:product name:{ENDSTYLE}: "))
     product_name_obj = pi.product_names(
         ProductName=product_name,
         CategoryId=category_id,
@@ -764,7 +764,7 @@ def create_product_name():
 
 def create_product():
     if not table_has_data("product_names"):
-        print(f"Create a {ITALIC}product name{ENDSTYLE} before you add a product name to the database.")
+        print(f"Create a {ITALIC}product name{ENDSTYLE} before you add a {ITALIC}:product name:{ENDSTYLE} to the database.")
         return
     name_id = select_name_id()
     if not name_id:
@@ -802,7 +802,10 @@ def collect_prices_from_products(rows: list[pi.products]):
         print(f" Collecting... {(i+1)/n*100:.2f}%", end="\r\r")
         pi.collect_prices(rows[i].Id)
         i = i + 1
-    print(f"Collected prices for {n} products")
+    msg = f"Collected {ITALIC}:prices:{ENDSTYLE} for {n} product"
+    if n > 1:
+        msg = msg + "s"
+    print(msg)
 
 
 def list_prices_by_name():
@@ -866,7 +869,7 @@ def update_prices():
         collect_prices_from_products(rows=update_products)
         return
     print_products(update_products)
-    selected_prod = pick_product_by_id("Pick a product to collect prices")
+    selected_prod = pick_product_by_id(f"Pick a product to collect {ITALIC}:prices:{ENDSTYLE}")
     if not selected_prod:
         print("Aborting operation...")
         return
