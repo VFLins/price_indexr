@@ -183,8 +183,7 @@ def id_by_product_name(name: str) -> int|None:
 def id_product_by_created_time(dt: datetime) -> int:
     with Session(pi.DB_ENGINE) as ses:
         stmt = select(pi.products.Id).where(pi.products.Created == dt)
-        result = ses.execute(stmt).scalar_one_or_none()
-    return result
+        return ses.execute(stmt).scalar_one_or_none()
 
 
 def id_category_exists(category_id: int) -> bool:
@@ -261,7 +260,7 @@ def add_product_to_db(product_obj: pi.products):
     with Session(pi.DB_ENGINE) as ses:
         ses.add(product_obj)
         ses.commit()
-    new_id = id_product_by_created_time(product_obj.Created)
+        new_id = id_product_by_created_time(product_obj.Created)
     return new_id
 
 
