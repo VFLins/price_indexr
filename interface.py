@@ -766,14 +766,14 @@ def create_product():
     if not table_has_data("product_names"):
         print(f"Create a {ITALIC}product name{ENDSTYLE} before you add a product name to the database.")
         return
-    product_id = select_product_id()
-    if not product_id:
+    name_id = select_name_id()
+    if not name_id:
         print("Aborting operation...")
         return
     brand_name = format_name(input("Brand name: "))
     model_name = format_name(input("Product model: "))
     filters = format_name(input("Filters (e.g: foo, bar, multi_word_filter): "))
-    name_obj = product_name_by_id(product_id)
+    name_obj = product_name_by_id(name_id)
     product_obj = pi.products(
         NameId=name_obj.Id,
         ProductName=name_obj.ProductName,
@@ -788,10 +788,12 @@ def create_product():
         print("Aborting operation...")
         return
     new_id = add_product_to_db(product_obj)
-    if new_id:
-        print(f"Id for the new {ITALIC}product{ENDSTYLE} is {new_id}.")
-    else:
-        print(f"Identical {ITALIC}product{ENDSTYLE} in database, Aborting operation...")
+    if not new_id:
+        print(f"Identical {ITALIC}:product:{ENDSTYLE} in database, Aborting operation...")
+        return
+    print(f"Id for the new {ITALIC}:product:{ENDSTYLE} is {new_id}.")
+    product_obj.Id = new_id
+    collect_prices_from_products([product_obj])        
 
 
 def collect_prices_from_products(rows: list[pi.products]):
