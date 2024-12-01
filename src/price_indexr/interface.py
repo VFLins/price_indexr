@@ -1,4 +1,4 @@
-import price_indexr as pi
+import price_indexr.collect as pi
 from datetime import datetime, timedelta
 from typing import Literal
 import re

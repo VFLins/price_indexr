@@ -1,5 +1,5 @@
 import price_indexr as pi
-from interface import scan_products
+from price_indexr.interface import scan_products
 from datetime import date, datetime, timedelta
 from time import sleep
 
