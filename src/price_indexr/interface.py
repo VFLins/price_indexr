@@ -1,8 +1,6 @@
 from price_indexr import db, collect
 from datetime import datetime
-from typing import Literal
-import re
-from sqlalchemy import select, delete, update, func, table, literal_column
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 
