@@ -1,5 +1,5 @@
 from price_indexr import db
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Literal
 import re
 from sqlalchemy import select, delete, update, func, table, literal_column
