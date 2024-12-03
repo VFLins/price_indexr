@@ -26,7 +26,7 @@ dev=[
 ]
 
 [project.scripts]
-price_indexr = "price_indexr:interface"
+price_indexr = "price_indexr:run_tui"
 
 [build-system]
 requires = ["setuptools", "setuptools-scm", "wheel"]
