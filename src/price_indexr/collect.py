@@ -11,9 +11,13 @@ from bs4 import BeautifulSoup
 from price_indexr import db
 
 
-SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
-DATA_FOLDER = os.path.join(SCRIPT_FOLDER, "data")
-os.makedirs(DATA_FOLDER, exist_ok=True)
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+DATA_PATH = os.path.join(SCRIPT_PATH, "data")
+LOG_PATH = os.path.join(SCRIPT_PATH, "log")
+
+for dirpath in [DATA_PATH, LOG_PATH]:
+    os.makedirs(dirpath, exist_ok=True)
+
 SEARCH_HEADERS = {
             "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
@@ -28,7 +32,7 @@ class LocalLogger():
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
 
-        self.handler = logging.FileHandler(filename=os.path.join(SCRIPT_FOLDER, "exec_log.txt"))
+        self.handler = logging.FileHandler(filename=os.path.join(LOG_PATH, f"{name}.log"))
         self.formatter = logging.Formatter(
             fmt="%(levelname)s [%(asctime)s] - %(name)s :: %(message)s"
         )
