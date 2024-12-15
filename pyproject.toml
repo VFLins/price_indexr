@@ -5,7 +5,7 @@ maintainers = [{name = "Vitor F. Lins", email = "vflins@live.com"}]
 
 description = "Collect price data of any product from all over the internet! Powered by search engines Google and Bing."
 requires-python = ">=3.10"
-keywords = ["datasets", "data-mining", "fiscal", "data-engineering"]
+keywords = ["datasets", "data-mining", "data-engineering"]
 license = {file = "LICENSE"}
 readme = "README.md"
 classifiers = [
