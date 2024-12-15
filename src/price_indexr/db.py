@@ -6,13 +6,17 @@ import os
 import re
 
 
-SCRIPT_FOLDER = os.path.dirname(os.path.realpath(__file__))
+SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
+DATA_DIR = os.path.join(SCRIPT_DIR, "data")
+DATABASE_FILE = os.path.join(DATA_DIR, "price_indexr.db")
+
+os.makedirs(DATA_DIR, exist_ok=True)
 
 # ===================== #
 # DATABASE ARCHITECTURE #
 # ===================== #
 
-DB_ENGINE = create_engine(f"sqlite:///{SCRIPT_FOLDER}\\data\\database.db", echo=False)
+DB_ENGINE = create_engine(f"sqlite:///{DATABASE_FILE}", echo=False)
 class dec_base(DeclarativeBase):
     pass
 
