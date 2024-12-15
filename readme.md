@@ -17,20 +17,16 @@ This can be used to satisfy business and personal necessities, for monitoring yo
 
 # Requirements
 
-1. Python [version 3.12 or superior](https://www.python.org/downloads/) (Recommended to tick the option "Add python to PATH" if you are on Windows)
-2. Packages listed in [requirements.txt](https://github.com/VFLins/Price_indexr/blob/central/requirements.txt)
+This project depends in Python [version 3.12 or superior](https://www.python.org/downloads/) to be installed in your computer (Recommended to tick the option "Add python to PATH" if you are on Windows).
 
-To install the requirements, follow these steps:
+# Installation
 
-1. Open this project folder and right-click an empty space
-2. Click "Open on Terminal" or "Open PowerShell Window here"
-3. Type the following lines of code, press enter at the end of each one, and wait the installation to complete in every step:
+You can install the latest development version by using Git:
 
-```
-python.exe -m pip install --upgrade pip
-pip install --upgrade wheel
-pip install --upgrade setuptools
-pip install -r requirements.txt
+```bash
+git clone https://github.com/VFLins/price_indexr.git
+git checkout central
+pip install ./price_indexr
 ```
 
 # How to use?
