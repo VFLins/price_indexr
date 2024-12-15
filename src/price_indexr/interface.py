@@ -281,7 +281,7 @@ def update_menu():
             "A": (lambda: assign_category()),
             "F": (lambda: update_product()),
             "H": (lambda: print_help([
-                "A: Assign category to {ITALIC}:product name:{ENDSTYLE}",
+                f"A: Assign category to {ITALIC}:product name:{ENDSTYLE}",
                 "F: Update product filters",
                 "H: Show this help message",
                 "Q: Return to main menu",
@@ -478,7 +478,7 @@ def create_product_name():
     if not category_id:
         print("Aborting operation...")
         return
-    product_name = db.format_name(input("Insert the new {ITALIC}:product name:{ENDSTYLE}: "))
+    product_name = db.format_name(input(f"Insert the new {ITALIC}:product name:{ENDSTYLE}: "))
     product_name_obj = db.product_names(
         ProductName=product_name,
         CategoryId=category_id,
