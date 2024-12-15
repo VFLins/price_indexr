@@ -1,0 +1,42 @@
+[project]
+name = "price_indexr"
+authors = [{name = "Vitor F. Lins", email = "vflins@live.com"}]
+maintainers = [{name = "Vitor F. Lins", email = "vflins@live.com"}]
+
+description = "Collect price data of any product from all over the internet! Powered by search engines Google and Bing."
+requires-python = ">=3.10"
+keywords = ["datasets", "data-mining", "fiscal", "data-engineering"]
+license = {file = "LICENSE"}
+readme = "README.md"
+classifiers = [
+    "Natural Language :: Portuguese (Brazilian)",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 4 - Beta",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "License :: OSI Approved :: MIT License"
+]
+version = "0.1.0"
+dependencies = ["beautifulsoup4==4.11.2", "httpx==0.27.0", "lxml==5.1.0", "SQLAlchemy==2.0.23"]
+
+[project.optional-dependencies]
+dev=[
+    "pytest-cov>=5.0.0",
+    "black>=24.4.2"
+]
+
+[project.scripts]
+price_indexr = "price_indexr:run_tui"
+
+[build-system]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = "tests"
+pythonpath = "src"
+addopts = "--cov=src --cov-report html"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false

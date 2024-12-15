@@ -1,279 +1,10 @@
-import price_indexr as pi
-from datetime import datetime, timedelta
-from typing import Literal
-import re
-from sqlalchemy import select, delete, update, func, table, literal_column
+from price_indexr import db, collect
+from datetime import datetime
+from sqlalchemy import select, delete
 from sqlalchemy.orm import Session
 
 
 BOLD, ITALIC, ENDSTYLE = "\033[1m", "\033[3m", "\033[0m"
-
-
-def format_name(name:str) -> str:
-    """Returns `name` in the format it should be retrieved from/inserted to the database."""
-    return re.sub(" +", " ", name.title())
-
-
-def table_has_data(tablename: Literal["prices", "product_names", "product_categories"]):
-    stmt = (
-        select(func.count()).select_from(
-            select(literal_column("1"))
-            .select_from(table(tablename))
-            .limit(1)
-            .subquery()
-        )
-    )
-    with Session(pi.DB_ENGINE) as ses:
-        return bool(ses.execute(stmt).scalar())
-
-
-def scan_categories() -> list[pi.product_categories]:
-    """Read *product_categories* table to get a list of rows."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_categories)
-        result = ses.execute(stmt).scalars()
-        return [row for row in result]
-
-
-def scan_names() -> list[pi.product_names]:
-    """Read *product_names* table to get a list of rows."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_names)
-        result = ses.execute(stmt).scalars()
-        return [row for row in result]
-
-
-def scan_products(name_id: int|None = None) -> list[pi.products]:
-    """
-    Read *products* table to get a list of rows.
-
-    **Args**
-        `name_id`: ID number of the desired name. `None`, if should get all products.
-    """
-    stmt = select(pi.products)
-    if name_id:
-        stmt = stmt.where(pi.products.NameId == name_id)
-    with Session(pi.DB_ENGINE) as ses:
-        result = ses.execute(stmt).scalars()
-        return [row for row in result]
-
-
-def scan_prices(
-        product_ids: list[int]|None = None,
-        date_max: datetime|None = None,
-        date_min: datetime|None = None,
-        price_max: float|None = None,
-        price_min: float|None = None,
-    ) -> list[pi.prices]:
-    """
-    Read *prices* table to get a list of rows.
-
-    **Args**
-        `product_ids`: list of ID numbers of the desired products. `None` if should get from all products.
-        `date_max`: Maximum date to retrieve prices. `None` if should get up to the latest.
-        `date_max`: Minimum date to retrieve prices. `None` if should get down to the first.
-    """
-    stmt = select(pi.prices)
-    if product_ids:
-        stmt = stmt.where(pi.prices.ProductId.in_(product_ids))
-    if date_max:
-        stmt = stmt.where(pi.prices.Date <= date_max)
-    if date_min:
-        stmt = stmt.where(pi.prices.Date >= date_min)
-    if price_max:
-        stmt = stmt.where(pi.prices.Price <= price_max)
-    if price_min:
-        stmt = stmt.where(pi.prices.Price >= price_min)
-    with Session(pi.DB_ENGINE) as ses:
-        result = ses.execute(stmt).scalars()
-        return [row for row in result]
-
-
-def delete_price_rows(rows: list[pi.prices]):
-    """
-    Delete a list of rows from *prices* table.
-
-    **Args**
-        `rows`: list of rows to be deleted.
-    """
-    rows_id = [r.Id for r in rows]
-    stmt = delete(pi.prices).where(pi.prices.Id.in_(rows_id))
-    with Session(pi.DB_ENGINE) as ses:
-        ses.execute(stmt)
-        ses.commit()
-
-
-def product_category_by_id(id: int) -> pi.product_categories|None:
-    """Return an entry from *product_categories* table with the specified `id`. `None` if it doesn't exist."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_categories).where(pi.product_categories.Id == id)
-        return ses.execute(stmt).scalar_one_or_none()
-
-
-def product_name_by_id(id: int) -> pi.product_names|None:
-    """Return an entry from *product_names* table with the specified `id`. `None` if it doesn't exist."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_names).where(pi.product_names.Id == id)
-        return ses.execute(stmt).scalar_one_or_none()
-
-
-def product_by_id(id: int) -> pi.products|None:
-    """Return an entry from products table with the specified `id`. `None` if it doesn't exist."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.products).where(pi.products.Id == id)
-        return ses.execute(stmt).scalar_one_or_none()
-
-
-def price_by_id(id: int) -> pi.prices|None:
-    """Return an entry from prices table with the specified `id`. `None` if it doesn't exist."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.prices).where(pi.prices.Id == id)
-        result = ses.execute(stmt).scalar_one_or_none()
-    return result
-
-
-def title_category_exists(name: str) -> bool:
-    """Returns a boolean value indicating wether `name` exist in *product_categories* table or not."""
-    name = format_name(name)
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_categories).where(pi.product_categories.CategoryName == name)
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def title_name_exists(name: str) -> bool:
-    """Returns a boolean value indicating wether `name` exist in *product_names* table or not."""
-    name = re.sub(" +", " ", name.title())
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.product_names).where(pi.product_names.ProductName == name)
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def product_exists(product_obj: pi.products) -> bool:
-    stmt = (
-        select(pi.products)
-        .where(pi.products.ProductBrand == product_obj.ProductBrand)
-        .where(pi.products.ProductName == product_obj.ProductName)
-        .where(pi.products.ProductModel == product_obj.ProductModel)
-    )
-    with Session(pi.DB_ENGINE) as ses:
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def id_by_category_name(name: str) -> int|None:
-    """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
-    name = format_name(name)
-    stmt = select(pi.product_categories.Id).where(pi.product_categories.CategoryName == name)
-    with Session(pi.DB_ENGINE) as ses:
-        result = ses.execute(stmt).scalar_one_or_none()
-    return int(result)
-
-
-def id_by_product_name(name: str) -> int|None:
-    """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
-    name = format_name(name)
-    stmt = select(pi.product_names.Id).where(pi.product_names.ProductName == name)
-    with Session(pi.DB_ENGINE) as ses:
-        result = ses.execute(stmt).scalar_one_or_none()
-    return result
-
-
-def id_product_by_created_time(dt: datetime) -> int:
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.products.Id).where(pi.products.Created == dt)
-        return ses.execute(stmt).scalar_one_or_none()
-
-
-def id_category_exists(category_id: int) -> bool:
-    """Returns a boolean value indicating wether `category_id` exist or not."""
-    stmt = select(pi.product_categories).where(pi.product_categories.Id == category_id)
-    with Session(pi.DB_ENGINE) as ses:
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def id_name_exists(name_id: int) -> bool:
-    """Returns a boolean value indicating wether `name_id` exist or not."""
-    stmt = select(pi.product_names).where(pi.product_names.Id == name_id)
-    with Session(pi.DB_ENGINE) as ses:
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def id_product_exists(product_id: int) -> bool:
-    """Returns a boolean value indicating wether `product_id` exist or not."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.products).where(pi.products.Id == product_id)
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def id_price_exists(price_id: int) -> bool:
-    """Returns a boolean value indicating wether `price_id` exist or not."""
-    with Session(pi.DB_ENGINE) as ses:
-        stmt = select(pi.prices).where(pi.prices.Id == price_id)
-        result = tuple( ses.execute(stmt).scalars() )
-    return bool(len(result))
-
-
-def product_name_has_category(name_id: int) -> bool:
-    """Returns a boolean value indicating wether `name_id` has a category ID associated to it or not."""
-    if not id_name_exists(name_id):
-        print("This name ID is not in database.")
-        return None
-    stmt = select(pi.product_names.CategoryId).where(pi.product_names.Id == name_id)
-    with Session(pi.DB_ENGINE) as ses:
-        result = ses.execute(stmt).scalar_one_or_none()
-    return bool(result)
-
-
-def add_product_category_to_db(product_category_obj: pi.product_categories) -> int|None:
-    """Creates an entry in *product_categories* table, returns the ID of the entry created or `None` if `category_name` already exists."""
-    category_name = product_category_obj.CategoryName
-    if title_category_exists(name=category_name):
-        return None
-    with Session(pi.DB_ENGINE) as ses:
-        ses.add(product_category_obj)
-        ses.commit()
-        new_id = id_by_category_name(category_name)
-    return new_id
-
-
-def add_product_name_to_db(product_name_obj: pi.product_names):
-    """Creates an entry in *product_names* table, returns the ID of the entry created or `None` if `category_name` already exists."""
-    product_name = product_name_obj.ProductName
-    if title_name_exists(name=product_name):
-        return None
-    with Session(pi.DB_ENGINE) as ses:
-        ses.add(product_name_obj)
-        ses.commit()
-        new_id = id_by_product_name(product_name)
-    return new_id
-
-
-def add_product_to_db(product_obj: pi.products):
-    """Creates an entry in *products* table, returns the ID of the entry created or `None` if `product_obj` already exists."""
-    if product_exists(product_obj):
-        return None
-    with Session(pi.DB_ENGINE) as ses:
-        ses.add(product_obj)
-        ses.commit()
-        new_id = id_product_by_created_time(product_obj.Created)
-    return new_id
-
-
-def set_category_to_name(name_id: int, category_id: int):
-    """Set `category_id` to *CategoryId* column in *product_names* table for the specified `name_id`."""
-    stmt = (
-        update(pi.product_names)
-        .where(pi.product_names.Id == name_id)
-        .values(CategoryId=category_id)
-    )
-    with Session(pi.DB_ENGINE) as ses:
-        ses.execute(stmt)
-        ses.commit()
 
 
 def select_category_id() -> int|None:
@@ -286,7 +17,7 @@ def select_category_id() -> int|None:
     print_category_names()
     try:
         category_id = int(input("Insert the category Id: "))
-        if not id_category_exists(category_id):
+        if not db.id_category_exists(category_id):
             raise ValueError()
         return category_id
     except ValueError:
@@ -304,7 +35,7 @@ def select_name_id() -> int|None:
     print_product_names()
     try:
         name_id = int(input("Insert the name Id: "))
-        if not id_name_exists(name_id):
+        if not db.id_name_exists(name_id):
             raise ValueError()
         return name_id
     except ValueError:
@@ -323,13 +54,13 @@ def select_product_id() -> int|None:
     if not name_id:
         return None
     
-    products_list = scan_products(name_id)
+    products_list = db.scan_products(name_id)
     for row in products_list:
         print(f"Id: {row.Id} | Model: {row.ProductBrand} {row.ProductModel}")
 
     try:
         product_id = int(input("Insert the prodcut Id: "))
-        if not id_product_exists(product_id):
+        if not db.id_product_exists(product_id):
             raise IndexError("Value not present in the data")
         return product_id
     except IndexError:
@@ -475,7 +206,7 @@ def collect_menu():
     _options_menu(
         name = "Main > Collect",
         options = {
-            "A": (lambda: collect_prices_from_products(rows=scan_products())),
+            "A": (lambda: collect_prices_from_products(rows=db.scan_products())),
             "S": (lambda: update_prices()),
             "H": (lambda: print_help([
                 f"A: Collect {ITALIC}:prices:{ENDSTYLE} from all products",
@@ -492,7 +223,7 @@ def navigate_menu():
     _options_menu(
         name = "Main > Navigate",
         options = {
-            "A": (lambda: print_products(rows=scan_products())),
+            "A": (lambda: print_products()),
             "S": (lambda: list_products_by_name()),
             "P": (lambda: navigate_prices_menu()),
             "H": (lambda: print_help([
@@ -550,7 +281,7 @@ def update_menu():
             "A": (lambda: assign_category()),
             "F": (lambda: update_product()),
             "H": (lambda: print_help([
-                "A: Assign category to {ITALIC}:product name:{ENDSTYLE}",
+                f"A: Assign category to {ITALIC}:product name:{ENDSTYLE}",
                 "F: Update product filters",
                 "H: Show this help message",
                 "Q: Return to main menu",
@@ -576,7 +307,7 @@ def create_menu():
         }
     )
 
-def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
+def pick_product_by_id(message: str = "Pick a product") -> db.products|None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
     id_num = input(message + " (leave blank to cancel): ")
     try:
@@ -584,56 +315,58 @@ def pick_product_by_id(message: str = "Pick a product") -> pi.products|None:
     except ValueError:
         print("Not a valid ID number.")
         return None
-    if not id_product_exists(id_num):
+    if not db.id_product_exists(id_num):
         print("This ID is not present on data.")
         return None
-    return product_by_id(id_num)
+    return db.product_by_id(id_num)
 
 
-def pick_name_by_id(message: str = "Pick a product ID") -> pi.product_names|None:
+def pick_name_by_id(message: str = "Pick a product ID") -> db.product_names|None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
     id_num = input_integer(message + " (leave blank to cancel)")
     if not id_num:
         print("Not a valid ID number.")
         return None
-    if not id_name_exists(id_num):
+    if not db.id_name_exists(id_num):
         print("This ID is not present on data.")
         return None
-    return product_name_by_id(id_num)
+    return db.product_name_by_id(id_num)
 
 
-def pick_price_by_id(message: str = "Pick a price ID") -> pi.prices|None:
+def pick_price_by_id(message: str = "Pick a price ID") -> db.prices|None:
     id_num = input_integer(message + " (leave blank to cancel)")
     if not id_num:
         print("Not a valid ID number.")
         return None
-    if not id_price_exists(id_num):
+    if not db.id_price_exists(id_num):
         print("This ID is not present on data.")
         return None
-    return price_by_id(id_num)
+    return db.price_by_id(id_num)
 
 
-def print_category_names(rows: list[pi.product_categories]|None = None):
+def print_category_names(rows: list[db.product_categories]|None = None):
     """Displays all rows from *product_categories* table to the user."""
     if not rows:
-        rows = scan_categories()
+        rows = db.scan_categories()
     for row in rows:
         print(f"Id: {row.Id}", f"{row.CategoryName}", sep=" | ")
 
 
-def print_product_names(rows: list[pi.product_names]|None = None):
+def print_product_names(rows: list[db.product_names]|None = None):
     """Displays all rows from *product_names* table to the user."""
     if not rows:
-        rows = scan_names()
+        rows = db.scan_names()
     for row in rows:
-        category_name = product_category_by_id(row.CategoryId)
+        category_name = db.product_category_by_id(row.CategoryId)
         if category_name:
             category_name = category_name.CategoryName
         print(f"Id: {row.Id}", f"{row.ProductName}", f"Category: {category_name}", sep=" | ")
 
 
-def print_products(rows: list[pi.products]):
+def print_products(rows: list[db.products] | None = None):
     """Displays a list of `rows` from *products* table to the user."""
+    if not rows:
+        rows = db.scan_products()
     for row in rows:
         print(
             f"Id: {row.Id}",
@@ -643,7 +376,7 @@ def print_products(rows: list[pi.products]):
         )
 
 
-def print_prices(rows: list[pi.prices]):
+def print_prices(rows: list[db.prices]):
     """Display a list of `rows` from *prices* table to the user."""
     for row in rows:
         print(
@@ -665,7 +398,7 @@ def list_products_by_name():
     """
     name_id = select_name_id()
     if name_id:
-        rows = scan_products(name_id)
+        rows = db.scan_products(name_id)
         print_products(rows)
         return
     print("Aborting operation...\n")   
@@ -684,8 +417,8 @@ def delete_product():
         return
 
     try:
-        stmt = delete(pi.products).where(pi.products.Id == row.Id)
-        with Session(pi.DB_ENGINE) as ses:
+        stmt = delete(db.products).where(db.products.Id == row.Id)
+        with Session(db.DB_ENGINE) as ses:
             ses.execute(stmt)
             ses.commit()
     except Exception as err:
@@ -704,7 +437,7 @@ def delete_price():
     if not confirm:
         print("Aborting operation...")
         return
-    delete_price_rows([row])
+    db.delete_price_rows([row])
 
 
 def delete_by_low_price():
@@ -712,7 +445,7 @@ def delete_by_low_price():
     prices = list_low_price_outliers(returns=True)
     confirm = input_confirm(f"Confirm deletion of ALL these {ITALIC}:price:{ENDSTYLE}s? (CANNOT BE UNDONE)")
     if confirm:
-        delete_price_rows(prices)
+        db.delete_price_rows(prices)
         print(f"{len(prices)} {ITALIC}:prices:{ENDSTYLE} removed.")
         return
     print("Aborting operation...")
@@ -720,8 +453,8 @@ def delete_by_low_price():
 
 def create_product_category():
     """Prompts the user to create an entry to *product_categories* table."""
-    category_name = format_name(input("Insert the new category name: "))
-    product_category_obj = pi.product_categories(
+    category_name = db.format_name(input("Insert the new category name: "))
+    product_category_obj = db.product_categories(
         CategoryName=category_name
     )
     print_category_names([product_category_obj])
@@ -729,7 +462,7 @@ def create_product_category():
     if not confirm:
         print("Aborting operation...")
         return
-    new_id = add_product_category_to_db(product_category_obj)
+    new_id = db.add_product_category_to_db(product_category_obj)
     if new_id:
         print(f"Id for the new category is {new_id}.")
     else:
@@ -738,15 +471,15 @@ def create_product_category():
 
 def create_product_name():
     """Prompts the user to create an entry to *product_names* table."""
-    if not table_has_data("product_categories"):
+    if not db.table_has_data("product_categories"):
         print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a {ITALIC}:product name:{ENDSTYLE} to the database.")
         return
     category_id = select_category_id()
     if not category_id:
         print("Aborting operation...")
         return
-    product_name = format_name(input("Insert the new {ITALIC}:product name:{ENDSTYLE}: "))
-    product_name_obj = pi.product_names(
+    product_name = db.format_name(input(f"Insert the new {ITALIC}:product name:{ENDSTYLE}: "))
+    product_name_obj = db.product_names(
         ProductName=product_name,
         CategoryId=category_id,
     )
@@ -755,7 +488,7 @@ def create_product_name():
     if not confirm:
         print("Aborting operation...")
         return
-    new_id = add_product_name_to_db(product_name_obj)
+    new_id = db.add_product_name_to_db(product_name_obj)
     if new_id:
         print(f"Id for the new {ITALIC}product name{ENDSTYLE} is {new_id}.")
     else:
@@ -763,18 +496,18 @@ def create_product_name():
 
 
 def create_product():
-    if not table_has_data("product_names"):
+    if not db.table_has_data("product_names"):
         print(f"Create a {ITALIC}product name{ENDSTYLE} before you add a {ITALIC}:product name:{ENDSTYLE} to the database.")
         return
     name_id = select_name_id()
     if not name_id:
         print("Aborting operation...")
         return
-    brand_name = format_name(input("Brand name: "))
-    model_name = format_name(input("Product model: "))
-    filters = format_name(input("Filters (e.g: foo, bar, multi_word_filter): "))
-    name_obj = product_name_by_id(name_id)
-    product_obj = pi.products(
+    brand_name = db.format_name(input("Brand name: "))
+    model_name = db.format_name(input("Product model: "))
+    filters = db.format_name(input("Filters (e.g: foo, bar, multi_word_filter): "))
+    name_obj = db.product_name_by_id(name_id)
+    product_obj = db.products(
         NameId=name_obj.Id,
         ProductName=name_obj.ProductName,
         ProductModel=model_name,
@@ -787,7 +520,7 @@ def create_product():
     if not confirm:
         print("Aborting operation...")
         return
-    new_id = add_product_to_db(product_obj)
+    new_id = db.add_product_to_db(product_obj)
     if not new_id:
         print(f"Identical {ITALIC}:product:{ENDSTYLE} in database, Aborting operation...")
         return
@@ -796,11 +529,11 @@ def create_product():
     collect_prices_from_products([product_obj])        
 
 
-def collect_prices_from_products(rows: list[pi.products]):
+def collect_prices_from_products(rows: list[db.products]):
     n, i = len(rows), 0
     while i < n:
         print(f" Collecting... {(i+1)/n*100:.2f}%", end="\r\r")
-        pi.collect_prices(rows[i].Id)
+        collect.collect_prices(rows[i].Id)
         i = i + 1
     msg = f"Collected {ITALIC}:prices:{ENDSTYLE} for {n} product"
     if n > 1:
@@ -813,10 +546,10 @@ def list_prices_by_name():
     if not name_id:
         print("Aborting operation...")
         return
-    products_ids = [i.Id for i in scan_products(name_id=name_id)]
+    products_ids = [i.Id for i in db.scan_products(name_id=name_id)]
     date_min = input_date("Insert a start date")
     date_max = input_date("Insert an end date", end_of_day=True)
-    prices = scan_prices(
+    prices = db.scan_prices(
         product_ids=products_ids,
         date_max=date_max,
         date_min=date_min
@@ -831,7 +564,7 @@ def list_prices_by_product():
         return
     date_min = input_date("Insert a start date")
     date_max = input_date("Insert an end date", end_of_day=True)
-    prices = scan_prices(
+    prices = db.scan_prices(
         product_ids=[product_id],
         date_max=date_max,
         date_min=date_min
@@ -848,8 +581,8 @@ def list_low_price_outliers(returns: bool = False):
     if not max_price_val:
         print("Invalid price value.\n")
         return
-    products_ids = [i.Id for i in scan_products(name_id=name_id)]
-    prices = scan_prices(
+    products_ids = [i.Id for i in db.scan_products(name_id=name_id)]
+    prices = db.scan_prices(
         product_ids=products_ids,
         price_max=max_price_val
     )
@@ -863,7 +596,7 @@ def update_prices():
     if not name_id:
         print("Invalid Id provided.\n")
         return
-    update_products = scan_products(name_id)
+    update_products = db.scan_products(name_id)
     use_specific = input_confirm("Collect prices for a single model?")
     if not use_specific:
         collect_prices_from_products(rows=update_products)
@@ -891,14 +624,14 @@ def update_product():
         print("Aborting operation...")
         return
     new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
-    with Session(pi.DB_ENGINE) as ses:
-        selected_row = ses.execute(select(pi.products).where(pi.products.Id == row.Id)).scalar_one()
+    with Session(db.DB_ENGINE) as ses:
+        selected_row = ses.execute(select(db.products).where(db.products.Id == row.Id)).scalar_one()
         selected_row.ProductFilters = new_filters
         ses.commit()
 
 
 def assign_category():
-    if not table_has_data("product_categories"):
+    if not db.table_has_data("product_categories"):
         print("You need to create a category before assigning, go to [Main > Create].")
         return
     name_id = select_name_id()
@@ -909,13 +642,13 @@ def assign_category():
     if not category_id:
         print("Aborting operation...")
         return
-    category = product_category_by_id(category_id)
-    name = product_name_by_id(name_id)
+    category = db.product_category_by_id(category_id)
+    name = db.product_name_by_id(name_id)
     confirm = input_confirm(f"Set category {category.CategoryName} to {name.ProductName}?")
     if not confirm:
         print("Aborting operation...")
         return
-    set_category_to_name(name_id, category_id)
+    db.set_category_to_name(name_id, category_id)
     print("Completed")
 
 
