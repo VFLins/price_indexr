@@ -5,6 +5,10 @@ from sqlalchemy.orm import Session
 
 
 BOLD, ITALIC, ENDSTYLE = "\033[1m", "\033[3m", "\033[0m"
+_price_ = f"{ITALIC}:price:{ENDSTYLE}"
+_product_ = f"{ITALIC}:product:{ENDSTYLE}"
+_product_name_ = f"{ITALIC}:product_name:{ENDSTYLE}"
+_product_category_ = f"{ITALIC}:product_category:{ENDSTYLE}"
 
 
 def select_category_id() -> int|None:
@@ -193,7 +197,7 @@ def main_menu():
                 "L: Navigate the database",
                 "U: Update a recorded product",
                 "D: Delete elements from the database",
-                f"K: Collect {ITALIC}:prices:{ENDSTYLE}",
+                f"K: Collect {_price_}",
                 "H: Show this help message",
                 "Q: Quit"
                 ])
@@ -209,8 +213,8 @@ def collect_menu():
             "A": (lambda: collect_prices_from_products(rows=db.scan_products())),
             "S": (lambda: update_prices()),
             "H": (lambda: print_help([
-                f"A: Collect {ITALIC}:prices:{ENDSTYLE} from all products",
-                f"S: Collect {ITALIC}:prices:{ENDSTYLE} for a specific collection of products",
+                f"A: Collect {_price_} from all products",
+                f"S: Collect {_price_} for a specific collection of products",
                 "H: Show this help message",
                 "Q: Return to main menu",
                 ])
@@ -227,8 +231,8 @@ def navigate_menu():
             "S": (lambda: list_products_by_name()),
             "P": (lambda: navigate_prices_menu()),
             "H": (lambda: print_help([
-                f"A: List all {ITALIC}:products:{ENDSTYLE}",
-                f"S: List for a specific collection of {ITALIC}:products:{ENDSTYLE}",
+                f"A: List all {_product_}",
+                f"S: List {_product_} by {_product_name_}",
                 "P: Prices menu",
                 "H: Show this help message",
                 "Q: Return to main menu",
@@ -246,9 +250,9 @@ def navigate_prices_menu():
             "S": (lambda: list_prices_by_product()),
             "D": (lambda: list_low_price_outliers()),
             "H": (lambda: print_help([
-                f"A: From {ITALIC}:product name:{ENDSTYLE} (broader)",
-                f"S: From {ITALIC}:product:{ENDSTYLE}",
-                f"D: Lowest prices from {ITALIC}:product name:{ENDSTYLE}",
+                f"A: From {_product_name_} (broader)",
+                f"S: From {_product_}",
+                f"D: Lowest prices from {_product_name_}",
                 "H: Show this help message",
                 "Q: Return to navigate menu"
             ]))
@@ -264,9 +268,9 @@ def delete_menu():
             "S": (lambda: delete_price()),
             "D": (lambda: delete_by_low_price()),
             "H": (lambda: print_help([
-                f"A: Delete a {ITALIC}:product:{ENDSTYLE}",
-                f"S: Delete a {ITALIC}:prices:{ENDSTYLE} registry",
-                f"D: [Caution] Remove all {ITALIC}:prices:{ENDSTYLE} from a product below a cutoff",
+                f"A: Delete a {_product_}",
+                f"S: Delete a {_price_} registry",
+                f"D: [Caution] Remove all {_price_} from a product below a cutoff",
                 "H: Show this help message",
                 "Q: Return to main menu"
             ])),
@@ -281,7 +285,7 @@ def update_menu():
             "A": (lambda: assign_category()),
             "F": (lambda: update_product()),
             "H": (lambda: print_help([
-                f"A: Assign category to {ITALIC}:product name:{ENDSTYLE}",
+                f"A: Assign {_product_category_} to {_product_name_}",
                 "F: Update product filters",
                 "H: Show this help message",
                 "Q: Return to main menu",
@@ -298,9 +302,9 @@ def create_menu():
             "S": (lambda: create_product_name()),
             "D": (lambda: create_product_category()),
             "H": (lambda: print_help([
-                f"A: Create a {ITALIC}:product:{ENDSTYLE} assigned to an existing {ITALIC}:product name:{ENDSTYLE}",
-                f"S: Create a {ITALIC}:product name:{ENDSTYLE} assigned to an existing {ITALIC}:product category:{ENDSTYLE}",
-                f"D: Create a {ITALIC}:product category:{ENDSTYLE}",
+                f"A: Create a {_product_} assigned to an existing {_product_name_}",
+                f"S: Create a {_product_name_} assigned to an existing {_product_category_}",
+                f"D: Create a {_product_category_}",
                 "H: Show this help message",
                 "Q: Return to main menu",
             ]))
@@ -443,10 +447,10 @@ def delete_price():
 def delete_by_low_price():
     """Prompts the user to remove all prices below a cutoff from a product."""
     prices = list_low_price_outliers(returns=True)
-    confirm = input_confirm(f"Confirm deletion of ALL these {ITALIC}:price:{ENDSTYLE}s? (CANNOT BE UNDONE)")
+    confirm = input_confirm(f"Confirm deletion of ALL these {_price_}s? (CANNOT BE UNDONE)")
     if confirm:
         db.delete_price_rows(prices)
-        print(f"{len(prices)} {ITALIC}:prices:{ENDSTYLE} removed.")
+        print(f"{len(prices)} {_price_} removed.")
         return
     print("Aborting operation...")
 
@@ -472,13 +476,13 @@ def create_product_category():
 def create_product_name():
     """Prompts the user to create an entry to *product_names* table."""
     if not db.table_has_data("product_categories"):
-        print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a {ITALIC}:product name:{ENDSTYLE} to the database.")
+        print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a {_product_name_} to the database.")
         return
     category_id = select_category_id()
     if not category_id:
         print("Aborting operation...")
         return
-    product_name = db.format_name(input(f"Insert the new {ITALIC}:product name:{ENDSTYLE}: "))
+    product_name = db.format_name(input(f"Insert the new {_product_name_}: "))
     product_name_obj = db.product_names(
         ProductName=product_name,
         CategoryId=category_id,
@@ -490,14 +494,14 @@ def create_product_name():
         return
     new_id = db.add_product_name_to_db(product_name_obj)
     if new_id:
-        print(f"Id for the new {ITALIC}product name{ENDSTYLE} is {new_id}.")
+        print(f"Id for the new {_product_name_} is {new_id}.")
     else:
-        print(f"Identical {ITALIC}product name{ENDSTYLE} in database, Aborting operation...")
+        print(f"Identical {_product_name_} in database, Aborting operation...")
 
 
 def create_product():
     if not db.table_has_data("product_names"):
-        print(f"Create a {ITALIC}product name{ENDSTYLE} before you add a {ITALIC}:product name:{ENDSTYLE} to the database.")
+        print(f"Create a {_product_name_} before you add a {_product_name_} to the database.")
         return
     name_id = select_name_id()
     if not name_id:
@@ -522,9 +526,9 @@ def create_product():
         return
     new_id = db.add_product_to_db(product_obj)
     if not new_id:
-        print(f"Identical {ITALIC}:product:{ENDSTYLE} in database, Aborting operation...")
+        print(f"Identical {_product_} in database, Aborting operation...")
         return
-    print(f"Id for the new {ITALIC}:product:{ENDSTYLE} is {new_id}.")
+    print(f"Id for the new {_product_} is {new_id}.")
     product_obj.Id = new_id
     collect_prices_from_products([product_obj])        
 
@@ -535,7 +539,7 @@ def collect_prices_from_products(rows: list[db.products]):
         print(f" Collecting... {(i+1)/n*100:.2f}%", end="\r\r")
         collect.collect_prices(rows[i].Id)
         i = i + 1
-    msg = f"Collected {ITALIC}:prices:{ENDSTYLE} for {n} product"
+    msg = f"Collected {_price_} for {n} product"
     if n > 1:
         msg = msg + "s"
     print(msg)
@@ -602,7 +606,7 @@ def update_prices():
         collect_prices_from_products(rows=update_products)
         return
     print_products(update_products)
-    selected_prod = pick_product_by_id(f"Pick a product to collect {ITALIC}:prices:{ENDSTYLE}")
+    selected_prod = pick_product_by_id(f"Pick a product to collect {_price_}")
     if not selected_prod:
         print("Aborting operation...")
         return
