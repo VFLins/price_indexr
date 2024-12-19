@@ -107,11 +107,54 @@ def _get_table_mapping_in_db(tablename: str) -> MappedColumn:
 
 def _create_column(colname: str, table_obj: TableMapping):
     # TODO: add create column logic
-    pass
+    # [ ] Create temp table with current table data
+    # [ ] Copy current table data to temp table
+    # [ ] Delete current table
+    # [ ] Create new table with current table name and updated schema.
+    #     New column must be nullable
+    # [ ] Insert data from temp table to new table and leave new column nulled
+    tablename = table_obj.__tablename__
+    table_metadata = DB_METADATA.tables[tablename]
+
+    with Session(DB_ENGINE) as ses:
+        stmt_create_temp_table = text(
+            f"""
+            PRAGMA foreign_keys = 0;
+            CREATE TABLE arbitrary_temp_table AS SELECT * FROM {tablename};
+            """
+        )
+        stmt_reset_table_schema = text(
+            f"""
+            DROP TABLE {tablename};
+            CREATE TABLE {tablename} (
+            Id INTEGER NOT NULL,
+            ProductName VARCHAR NOT NULL,
+            CategoryId INTEGER CONSTRAINT Category REFERENCES product_categories (Id), PRIMARY KEY ( Id )
+            );
+            """
+        )
+        stmt_dump_data = text(
+            f"""
+            INSERT INTO {tablename} (Id, ProductName)
+            SELECT Id, ProductName
+            FROM arbitrary_temp_table;
+            """
+        )
+        stmt_cleanup = text(
+            """
+            DROP TABLE arbitrary_temp_table;
+            PRAGMA foreign_keys = 1;
+            """
+        )
+        ses.execute(stmt_create_temp_table)
+        ses.execute(stmt_reset_table_schema)
+        ses.execute(stmt_dump_data)
+        ses.execute(stmt_cleanup)
+    return
 
 
-def _create_missing_columns(mapped_table: dec_base):
-    tablename = mapped_table.__tablename__
+def _create_missing_columns(table_obj: TableMapping):
+    tablename: str = table_obj.__tablename__
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
     table_metadata = DB_METADATA.tables[tablename]
     columns_expected: tuple = table_obj._get_mapped_colnames()
