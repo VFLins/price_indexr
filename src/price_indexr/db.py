@@ -2,7 +2,7 @@ from sqlalchemy import (
     MetaData, ForeignKey, create_engine,
     DateTime, update, delete,
     select, func, table,
-    literal_column
+    text, literal_column,
 )
 from sqlalchemy.orm import (
     Mapped, MappedColumn, mapped_column,
@@ -26,12 +26,15 @@ os.makedirs(DATA_DIR, exist_ok=True)
 
 DB_ENGINE = create_engine(f"sqlite:///{DATABASE_FILE}", echo=False)
 DB_METADATA = MetaData()
+"""Metadata from the database's state upon startup."""
 DB_METADATA.reflect(DB_ENGINE)
 
-class dec_base(DeclarativeBase):
+
+class TableMapping(DeclarativeBase):
+    """Base class for table objects using SQLAlchemy's ORM capabilities."""
     pass
 
-class product_categories(dec_base):
+class product_categories(TableMapping):
     __tablename__ = "product_categories"
     Category: Mapped["product_names"] = relationship(back_populates="Category")
 
@@ -43,7 +46,7 @@ class product_categories(dec_base):
             "Id", "CategoryName"
         )
 
-class product_names(dec_base):
+class product_names(TableMapping):
     __tablename__ = "product_names"
     Category: Mapped[List["product_categories"]] = relationship(back_populates="Category")
     Name: Mapped["products"] = relationship(back_populates="Name")
@@ -57,7 +60,7 @@ class product_names(dec_base):
             "Id", "CategoryId", "ProductName"
         )
 
-class prices(dec_base):
+class prices(TableMapping):
     __tablename__ = "prices"
     Product: Mapped[List["products"]] = relationship(back_populates="Product")
 
@@ -76,7 +79,7 @@ class prices(dec_base):
             "Name", "Store", "Url"
         )
 
-class products(dec_base):
+class products(TableMapping):
     __tablename__ = "products"
     Product: Mapped["prices"] = relationship(back_populates="Product")
     Name: Mapped[List["product_names"]] = relationship(back_populates="Name")
@@ -97,7 +100,12 @@ class products(dec_base):
         )
 
 
-def _create_column(column_obj: MappedColumn, tablename: str):
+def _get_table_mapping_in_db(tablename: str) -> MappedColumn:
+    
+    return
+
+
+def _create_column(colname: str, table_obj: TableMapping):
     # TODO: add create column logic
     pass
 
@@ -106,17 +114,17 @@ def _create_missing_columns(mapped_table: dec_base):
     tablename = mapped_table.__tablename__
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
     table_metadata = DB_METADATA.tables[tablename]
-    columns_expected = mapped_table._get_mapped_colnames()
+    columns_expected: tuple = table_obj._get_mapped_colnames()
     for col in columns_expected:
         if col not in [col.name for col in table_metadata.c]:
             _create_column(col, tablename)
 
 
+TableMapping.metadata.create_all(DB_ENGINE)
+
 for mapped_table in [prices, products, product_names, product_categories]:
-    _create_missing_columns(mapped_table)
-
-
-dec_base.metadata.create_all(DB_ENGINE)
+    # _create_missing_columns(mapped_table)
+    pass
 
 
 def format_name(name:str) -> str:
