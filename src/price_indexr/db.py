@@ -2,7 +2,7 @@ from sqlalchemy import (
     MetaData, ForeignKey, create_engine,
     DateTime, update, delete,
     select, func, table,
-    text, literal_column,
+    text, literal_column, Column
 )
 from sqlalchemy.orm import (
     Mapped, MappedColumn, mapped_column,
@@ -100,32 +100,37 @@ class products(TableMapping):
         )
 
 
-def _get_table_mapping_in_db(tablename: str) -> MappedColumn:
-    
-    return
+def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
+    """Return a list of SQLAlchemy `Column` that are missing in the database."""
+    tablename = table_obj.__tablename__
+    table_in_db = DB_METADATA.tables[tablename]
+    table_in_code = table_obj.__table__
+    return [col for col in table_in_code.c if col not in table_in_db.c]
 
 
 def _create_column(colname: str, table_obj: TableMapping):
     # TODO: add create column logic
-    # [ ] Create temp table with current table data
+    # [x] Raise error if one of the new columns are not nullable
+    # [x] Create temp table with current table data
     # [ ] Copy current table data to temp table
     # [ ] Delete current table
     # [ ] Create new table with current table name and updated schema.
     #     New column must be nullable
     # [ ] Insert data from temp table to new table and leave new column nulled
     tablename = table_obj.__tablename__
-    table_metadata = DB_METADATA.tables[tablename]
+    missing_cols = _table_missing_columns(table_obj=table_obj)
+    if len(missing_cols) == 0:
+        return
+    for col in missing_cols:
+        if not col.nullable:
+            raise NotImplementedError(f"Column {col} is not nullable, can only create new nullable columns.")
 
     with Session(DB_ENGINE) as ses:
-        stmt_create_temp_table = text(
-            f"""
-            PRAGMA foreign_keys = 0;
-            CREATE TABLE arbitrary_temp_table AS SELECT * FROM {tablename};
-            """
-        )
+        stmt_disable_foreign_key_constraint = text("PRAGMA foreign_keys = 0;")
+        stmt_create_temp_table = text(f"CREATE TABLE arbitrary_temp_table AS SELECT * FROM {tablename};")
+        stmt_drop_current_table = text(f"DROP TABLE {tablename};")
         stmt_reset_table_schema = text(
             f"""
-            DROP TABLE {tablename};
             CREATE TABLE {tablename} (
             Id INTEGER NOT NULL,
             ProductName VARCHAR NOT NULL,
