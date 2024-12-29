@@ -1,7 +1,7 @@
 from sqlalchemy import (
     MetaData, ForeignKey, create_engine,
     DateTime, update, delete,
-    select, func, table,
+    insert, select, func, table,
     text, literal_column, Column
 )
 from sqlalchemy.orm import (
@@ -119,7 +119,23 @@ def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
-def _create_column(colname: str, table_obj: TableMapping):
+def _create_backup_table(table_obj: Type[TableMapping]):
+    tablename = table_obj.__tablename__
+    table_model_obj = table_obj.__mro__[1]
+    class ephemeral_backup_table(table_model_obj, TableMapping):
+        __tablename__ = "ephemeral_backup_table"
+
+    if "ephemeral_backup_table" in DB_METADATA.tables.keys():
+        TableMapping.metadata.drop_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
+    TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
+
+    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[tablename].c)
+    with Session(DB_ENGINE) as ses:
+        ses.execute(
+            insert(ephemeral_backup_table)
+            .from_select(colnames_in_db, select(table_obj)))
+
+def _create_column(table_obj: Type[TableMapping]):
     # TODO: add create column logic
     # [x] Raise error if one of the new columns are not nullable
     # [x] Create temp table with current table data
