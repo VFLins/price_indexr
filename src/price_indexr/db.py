@@ -6,7 +6,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import (
     Mapped, MappedColumn, mapped_column,
-    DeclarativeBase, relationship, Session
+    DeclarativeBase, relationship, Session,
+    declared_attr
 )
 from typing import List, Literal, Type
 from datetime import datetime
@@ -37,43 +38,37 @@ class TableMapping(DeclarativeBase):
         return [col.name for col in cls.__table__.c]
 
 
-class product_categories(TableMapping):
-    __tablename__ = "product_categories"
-    Category: Mapped["product_names"] = relationship(back_populates="Category")
+class product_categories_model:
+    @declared_attr
+    def Category(cls) -> Mapped["product_names"] :
+        return relationship(back_populates="Category")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     CategoryName: Mapped[str] = mapped_column()
 
 
-class product_names(TableMapping):
-    __tablename__ = "product_names"
-    Category: Mapped[List["product_categories"]] = relationship(back_populates="Category")
-    Name: Mapped["products"] = relationship(back_populates="Name")
+class product_names_model:
+    @declared_attr
+    def Category(cls) -> Mapped[List["product_categories"]]:
+        return relationship(back_populates="Category")
+
+    @declared_attr
+    def Name(cls) -> Mapped["products"]:
+        return relationship(back_populates="Name")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     CategoryId: Mapped[int] = mapped_column(ForeignKey("product_categories.Id"), nullable=True)
     ProductName: Mapped[str] = mapped_column()
 
 
-class prices(TableMapping):
-    __tablename__ = "prices"
-    Product: Mapped[List["products"]] = relationship(back_populates="Product")
-
-    Id: Mapped[int] = mapped_column(primary_key=True)
-    ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
-    Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    Currency: Mapped[str] = mapped_column()
-    Price: Mapped[float] = mapped_column()
-    Name: Mapped[str] = mapped_column()
-    Store: Mapped[str] = mapped_column()
-    Url: Mapped[str] = mapped_column()
-    TestCol: Mapped[str] = mapped_column()
-
-
-class products(TableMapping):
-    __tablename__ = "products"
-    Product: Mapped["prices"] = relationship(back_populates="Product")
-    Name: Mapped[List["product_names"]] = relationship(back_populates="Name")
+class products_model:
+    @declared_attr
+    def Product(cls) -> Mapped["prices"]:
+        return relationship(back_populates="Product")
+    
+    @declared_attr
+    def Name(cls) -> Mapped[List["product_names"]]:
+        return relationship(back_populates="Name")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     NameId: Mapped[int] = mapped_column(ForeignKey("product_names.Id"))
@@ -83,6 +78,34 @@ class products(TableMapping):
     ProductFilters: Mapped[str] = mapped_column()
     Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class prices_model:
+    @declared_attr
+    def Product(cls) -> Mapped[List["products"]]:
+        return relationship(back_populates="Product")
+
+    Id: Mapped[int] = mapped_column(primary_key=True)
+    ProductId: Mapped[int] = mapped_column(ForeignKey("products.Id"))
+    Date: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    Currency: Mapped[str] = mapped_column()
+    Price: Mapped[float] = mapped_column()
+    Name: Mapped[str] = mapped_column()
+    Store: Mapped[str] = mapped_column()
+    Url: Mapped[str] = mapped_column()
+
+
+class product_categories(product_categories_model, TableMapping):
+    __tablename__ = "product_categories"
+
+class product_names(product_names_model, TableMapping):
+    __tablename__ = "product_names"
+
+class products(products_model, TableMapping):
+    __tablename__ = "products"
+
+class prices(prices_model, TableMapping):
+    __tablename__ = "prices"
 
 
 def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
@@ -150,7 +173,7 @@ def _create_missing_columns(table_obj: TableMapping):
     tablename: str = table_obj.__tablename__
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
     table_metadata = DB_METADATA.tables[tablename]
-    columns_expected: tuple = table_obj._get_mapped_colnames()
+    columns_expected: tuple = table_obj.mapped_colnames()
     for col in columns_expected:
         if col not in [col.name for col in table_metadata.c]:
             _create_column(col, tablename)
