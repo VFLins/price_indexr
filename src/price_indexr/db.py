@@ -8,7 +8,7 @@ from sqlalchemy.orm import (
     Mapped, MappedColumn, mapped_column,
     DeclarativeBase, relationship, Session
 )
-from typing import List, Literal
+from typing import List, Literal, Type
 from datetime import datetime
 import os
 import re
