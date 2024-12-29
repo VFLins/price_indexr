@@ -32,7 +32,10 @@ DB_METADATA.reflect(DB_ENGINE)
 
 class TableMapping(DeclarativeBase):
     """Base class for table objects using SQLAlchemy's ORM capabilities."""
-    pass
+    @classmethod
+    def mapped_colnames(cls) -> list[str]:
+        return [col.name for col in cls.__table__.c]
+
 
 class product_categories(TableMapping):
     __tablename__ = "product_categories"
@@ -41,10 +44,6 @@ class product_categories(TableMapping):
     Id: Mapped[int] = mapped_column(primary_key=True)
     CategoryName: Mapped[str] = mapped_column()
 
-    def _get_mapped_colnames():
-        return (
-            "Id", "CategoryName"
-        )
 
 class product_names(TableMapping):
     __tablename__ = "product_names"
@@ -55,10 +54,6 @@ class product_names(TableMapping):
     CategoryId: Mapped[int] = mapped_column(ForeignKey("product_categories.Id"), nullable=True)
     ProductName: Mapped[str] = mapped_column()
 
-    def _get_mapped_colnames():
-        return (
-            "Id", "CategoryId", "ProductName"
-        )
 
 class prices(TableMapping):
     __tablename__ = "prices"
@@ -72,12 +67,8 @@ class prices(TableMapping):
     Name: Mapped[str] = mapped_column()
     Store: Mapped[str] = mapped_column()
     Url: Mapped[str] = mapped_column()
+    TestCol: Mapped[str] = mapped_column()
 
-    def _get_mapped_colnames():
-        return (
-            "Id", "ProductId", "Date", "Currency", "Price",
-            "Name", "Store", "Url"
-        )
 
 class products(TableMapping):
     __tablename__ = "products"
@@ -92,20 +83,17 @@ class products(TableMapping):
     ProductFilters: Mapped[str] = mapped_column()
     Created: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     LastUpdate: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-    
-    def _get_mapped_colnames():
-        return (
-            "Id", "NameId", "ProductName", "ProductModel", "ProductBrand",
-            "ProductFilters", "Created", "LastUpdate"
-        )
 
 
 def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
     """Return a list of SQLAlchemy `Column` that are missing in the database."""
-    tablename = table_obj.__tablename__
-    table_in_db = DB_METADATA.tables[tablename]
-    table_in_code = table_obj.__table__
-    return [col for col in table_in_code.c if col not in table_in_db.c]
+    try:
+        tablename = table_obj.__tablename__
+        table_in_code = table_obj.__table__
+    except AttributeError:
+        raise ValueError(f"{table_obj=} does not inherit from `TableMapping`.")
+    colnames_in_db = [col.name for col in DB_METADATA.tables[tablename].c]
+    return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
 def _create_column(colname: str, table_obj: TableMapping):
