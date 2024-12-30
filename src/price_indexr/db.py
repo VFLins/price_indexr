@@ -129,11 +129,20 @@ def _create_backup_table(table_obj: Type[TableMapping]):
         TableMapping.metadata.drop_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
     TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
 
-    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[tablename].c)
+    colnames_in_db = (
+        str(tuple(col.name for col in DB_METADATA.tables[tablename].c))
+        .replace("'", "").replace("(", "").replace(")", "")
+    )
     with Session(DB_ENGINE) as ses:
         ses.execute(
-            insert(ephemeral_backup_table)
-            .from_select(colnames_in_db, select(table_obj)))
+            text(
+                f"""INSERT INTO ephemeral_backup_table ({colnames_in_db})
+                SELECT {colnames_in_db}
+                FROM {tablename};
+                """
+            )
+        )
+        ses.commit()
 
 def _create_column(table_obj: Type[TableMapping]):
     # TODO: add create column logic
