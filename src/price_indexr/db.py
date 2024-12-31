@@ -119,6 +119,10 @@ def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
+def _columns_are_identical(column_obj1: Column, column_obj2: Column):
+    pass
+
+
 def _create_backup_table(table_obj: Type[TableMapping]):
     tablename = table_obj.__tablename__
     table_model_obj = table_obj.__mro__[1]
@@ -129,19 +133,25 @@ def _create_backup_table(table_obj: Type[TableMapping]):
         TableMapping.metadata.drop_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
     TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
 
-    colnames_in_db = (
-        str(tuple(col.name for col in DB_METADATA.tables[tablename].c))
-        .replace("'", "").replace("(", "").replace(")", "")
-    )
+    #colnames_in_db = (
+    #    str(tuple(col.name for col in DB_METADATA.tables[tablename].c))
+    #    .replace("'", "").replace("(", "").replace(")", "")
+    #)
+    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[tablename].c)
     with Session(DB_ENGINE) as ses:
-        ses.execute(
-            text(
-                f"""INSERT INTO ephemeral_backup_table ({colnames_in_db})
-                SELECT {colnames_in_db}
-                FROM {tablename};
-                """
-            )
+        #ses.execute(
+        #    text(
+        #        f"""INSERT INTO ephemeral_backup_table ({colnames_in_db})
+        #        SELECT {colnames_in_db}
+        #        FROM {tablename};
+        #        """
+        #    )
+        #)
+        stmt = (
+            insert(ephemeral_backup_table)
+            .from_select(colnames_in_db, select(*table_obj.__table__.c))
         )
+        ses.execute(stmt)
         ses.commit()
 
 def _create_column(table_obj: Type[TableMapping]):
