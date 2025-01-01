@@ -1,6 +1,6 @@
 from sqlalchemy import (
     MetaData, ForeignKey, create_engine,
-    DateTime, update, delete,
+    DateTime, update, delete, case,
     insert, select, func, table,
     text, literal_column, Column
 )
@@ -119,8 +119,14 @@ def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
-def _columns_are_identical(column_obj1: Column, column_obj2: Column):
-    pass
+def _columns_are_identical(column_obj1: Column, column_obj2: Column) -> bool:
+    with Session(DB_ENGINE) as ses:
+        stmt = (
+            ses.query(case((column_obj1 == column_obj2, 1), else_=0))
+            .select_from(column_obj1.table)
+            .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
+        )
+        return bool(stmt.scalar())
 
 
 def _create_backup_table(table_obj: Type[TableMapping]):
