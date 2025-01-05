@@ -173,10 +173,15 @@ def _table_with_same_columns(*tablenames: str) -> bool:
     return all(col_name == tables_colnames[0] for col_name in tables_colnames)
 
 
-def _create_backup_table(table_mapping: Type[TableMapping]):
-    """Create a backup table from `table_mapping` if it's present in the database.
-    Raises a `RuntimeError` if the data cannot be loaded to the backup table."""
+def _create_backup_table(table_mapping: Type[TableMapping]) -> Type[TableMapping]:
+    """Create a backup table from `table_mapping`'s table if it's present in the database.
+    Returns the `TableMapping` object from the backup table generated.
+    Raises a `RuntimeError` if the data cannot be loaded to the backup table,
+    or if `table_mapping`'s table isn't present in the database.
+    """
     tablename = table_mapping.__tablename__
+    if tablename not in DB_METADATA.tables.keys():
+        raise RuntimeError("Could not find table to be backed-up in the database.")
     table_model_obj = table_mapping.__mro__[1]
     class ephemeral_backup_table(table_model_obj, TableMapping):
         __tablename__ = "ephemeral_backup_table"
