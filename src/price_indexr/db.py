@@ -1,8 +1,9 @@
 from sqlalchemy import (
-    MetaData, ForeignKey, create_engine,
-    DateTime, update, delete, case,
-    insert, select, func, table,
-    text, literal_column, Column
+    Table, Column, MetaData, 
+    ForeignKey, DateTime, create_engine,
+    update, delete, insert,
+    case, select, text,
+    table, func, literal_column
 )
 from sqlalchemy.orm import (
     Mapped, MappedColumn, mapped_column,
@@ -181,13 +182,13 @@ def _create_column(table_mapping: Type[TableMapping]):
     # TODO: add create column logic
     # [x] Raise error if one of the new columns are not nullable
     # [x] Create temp table with current table data
-    # [ ] Copy current table data to temp table
+    # [x] Copy current table data to temp table
     # [ ] Delete current table
-    # [ ] Create new table with current table name and updated schema.
-    #     New column must be nullable
+    # [x] Create new table with current table name and updated schema.
+    # [ ] New column must be nullable
     # [ ] Insert data from temp table to new table and leave new column nulled
-    tablename = table_obj.__tablename__
-    missing_cols = _table_missing_columns(table_obj=table_obj)
+    tablename = table_mapping.__tablename__
+    missing_cols = _table_missing_columns(table_obj=table_mapping)
     if len(missing_cols) == 0:
         return
     for col in missing_cols:
@@ -195,8 +196,6 @@ def _create_column(table_mapping: Type[TableMapping]):
             raise NotImplementedError(f"Column {col} is not nullable, can only create new nullable columns.")
 
     with Session(DB_ENGINE) as ses:
-        stmt_disable_foreign_key_constraint = text("PRAGMA foreign_keys = 0;")
-        stmt_create_temp_table = text(f"CREATE TABLE arbitrary_temp_table AS SELECT * FROM {tablename};")
         stmt_drop_current_table = text(f"DROP TABLE {tablename};")
         stmt_reset_table_schema = text(
             f"""
@@ -214,16 +213,12 @@ def _create_column(table_mapping: Type[TableMapping]):
             FROM arbitrary_temp_table;
             """
         )
-        stmt_cleanup = text(
-            """
-            DROP TABLE arbitrary_temp_table;
-            PRAGMA foreign_keys = 1;
-            """
-        )
-        ses.execute(stmt_create_temp_table)
-        ses.execute(stmt_reset_table_schema)
+        ses.execute(text("PRAGMA foreign_keys = 0;"))
+        _create_backup_table(table_mapping)
+        ses.execute(stmt_drop_current_table)
+        TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[table_mapping.__table__])
         ses.execute(stmt_dump_data)
-        ses.execute(stmt_cleanup)
+        ses.commit(text("""PRAGMA foreign_keys = 1;"""))
     return
 
 
