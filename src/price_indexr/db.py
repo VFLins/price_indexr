@@ -120,10 +120,16 @@ def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
-def _columns_are_identical(column_obj1: Column, column_obj2: Column) -> bool:
-    with Session(DB_ENGINE) as ses:
+def _columns_are_identical(
+        column_obj1: Column,
+        column_obj2: Column,
+        engine: Engine = DB_ENGINE
+    ) -> bool:
+    with Session(engine) as ses:
         stmt = (
-            ses.query(case((column_obj1 == column_obj2, 1), else_ = 0))
+            ses.query(case(
+                (func.coalesce(column_obj1, "") == func.coalesce(column_obj2, ""), 1),
+                else_ = 0))
             .select_from(column_obj1.table)
             .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
         )
