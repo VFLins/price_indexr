@@ -145,8 +145,24 @@ def _tables_are_identical(table_obj1: Table, table_obj2: Table) -> bool:
     return all(_columns_are_identical(table_obj1.c[col], table_obj2.c[col]) for col in column_set)
 
 
-def _tables_have_same_data(table_obj1: Table, table_obj2: Table) -> bool:
+def _tables_have_same_data(
+        table_obj1: Table,
+        table_obj2: Table,
+        engine: Engine = DB_ENGINE
+    ) -> bool:
     """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
+    expected_colnames = [col.name for col in table_obj1.columns]
+    table2_colnames = [col.name for col in table_obj2.columns]
+    if not all(colname in table2_colnames for colname in expected_colnames):
+        print("Not all columns are present.")
+        return False
+    for col2 in table_obj2.columns:
+        if col2.name in expected_colnames:
+            col1 = table_obj1.columns[col2.name]
+            if not _columns_are_identical(col1, col2, engine=engine):
+                print(f"Data is not the same for {col1.name=}")
+                return False
+    return True
 
 
 def _table_with_same_columns(*tablenames: str) -> bool:
