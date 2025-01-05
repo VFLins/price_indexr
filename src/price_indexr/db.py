@@ -122,16 +122,39 @@ def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
 def _columns_are_identical(column_obj1: Column, column_obj2: Column) -> bool:
     with Session(DB_ENGINE) as ses:
         stmt = (
-            ses.query(case((column_obj1 == column_obj2, 1), else_=0))
+            ses.query(case((column_obj1 == column_obj2, 1), else_ = 0))
             .select_from(column_obj1.table)
             .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
         )
         return bool(stmt.scalar())
 
 
-def _create_backup_table(table_obj: Type[TableMapping]):
-    tablename = table_obj.__tablename__
-    table_model_obj = table_obj.__mro__[1]
+def _tables_are_identical(table_obj1: Table, table_obj2: Table) -> bool:
+    """Check if two tables have the *exact* same columns and same data across those columns."""
+    tablename1, tablename2 = table_obj1.name, table_obj2.name
+    if not _table_with_same_columns(*(tablename1, tablename2)):
+        return False
+    column_set = set(col.name for col in table_obj1.columns)
+    return all(_columns_are_identical(table_obj1.c[col], table_obj2.c[col]) for col in column_set)
+
+
+def _tables_have_same_data(table_obj1: Table, table_obj2: Table) -> bool:
+    """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
+
+
+def _table_with_same_columns(*tablenames: str) -> bool:
+    """Boolean value indicating if tables with `tablenames` in the database have the same column set.
+    Raises `KeyError` if one of the `tablenames` are not present in the database."""
+    tables_in_db = [DB_METADATA.tables[tbl_name] for tbl_name in tablenames]
+    tables_colnames = [set(col.name for col in tbl.columns) for tbl in tables_in_db]
+    return all(col_name == tables_colnames[0] for col_name in tables_colnames)
+
+
+def _create_backup_table(table_mapping: Type[TableMapping]):
+    """Create a backup table from `table_mapping` if it's present in the database.
+    Raises a `RuntimeError` if the data cannot be loaded to the backup table."""
+    tablename = table_mapping.__tablename__
+    table_model_obj = table_mapping.__mro__[1]
     class ephemeral_backup_table(table_model_obj, TableMapping):
         __tablename__ = "ephemeral_backup_table"
 
@@ -139,28 +162,22 @@ def _create_backup_table(table_obj: Type[TableMapping]):
         TableMapping.metadata.drop_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
     TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
 
-    #colnames_in_db = (
-    #    str(tuple(col.name for col in DB_METADATA.tables[tablename].c))
-    #    .replace("'", "").replace("(", "").replace(")", "")
-    #)
     colnames_in_db = tuple(col.name for col in DB_METADATA.tables[tablename].c)
     with Session(DB_ENGINE) as ses:
-        #ses.execute(
-        #    text(
-        #        f"""INSERT INTO ephemeral_backup_table ({colnames_in_db})
-        #        SELECT {colnames_in_db}
-        #        FROM {tablename};
-        #        """
-        #    )
-        #)
         stmt = (
             insert(ephemeral_backup_table)
-            .from_select(colnames_in_db, select(*table_obj.__table__.c))
+            .from_select(colnames_in_db, select(*table_mapping.__table__.c))
         )
         ses.execute(stmt)
         ses.commit()
+    
+    if not _tables_are_identical(
+        table_mapping.__table__, DB_METADATA.tables["ephemeral_backup_table"]
+    ):
+        raise RuntimeError("Could not load data to a backup table before migration.")
 
-def _create_column(table_obj: Type[TableMapping]):
+
+def _create_column(table_mapping: Type[TableMapping]):
     # TODO: add create column logic
     # [x] Raise error if one of the new columns are not nullable
     # [x] Create temp table with current table data
