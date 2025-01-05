@@ -47,7 +47,7 @@ class product_categories_model:
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     CategoryName: Mapped[str] = mapped_column()
-    Filters: Mapped[str] = mapped_column(nullable=True)
+    CategoryFilters: Mapped[str] = mapped_column(nullable=True)
 
 
 class product_names_model:
@@ -226,8 +226,8 @@ def _reset_table_schema_in_db(table_mapping: Type[TableMapping]):
         ses.commit()
 
 
-def _create_column(table_mapping: Type[TableMapping]):
-    missing_cols = _table_missing_columns(table_obj=table_mapping)
+def _table_update_migration(table_mapping: Type[TableMapping]):
+    missing_cols = _table_missing_columns(table_mapping)
     if len(missing_cols) == 0:
         return
     for col in missing_cols:
@@ -243,20 +243,20 @@ def _create_column(table_mapping: Type[TableMapping]):
     return
 
 
-def _create_missing_columns(table_obj: TableMapping):
-    tablename: str = table_obj.__tablename__
+def _recreate_updated_tables(table_mapping: TableMapping):
+    tablename: str = table_mapping.__tablename__
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
     table_metadata = DB_METADATA.tables[tablename]
-    columns_expected: tuple = table_obj.mapped_colnames()
+    columns_expected: tuple = table_mapping.mapped_colnames()
     for col in columns_expected:
         if col not in [col.name for col in table_metadata.c]:
-            _create_column(col, tablename)
+            _table_update_migration(table_mapping)
 
 
 TableMapping.metadata.create_all(DB_ENGINE)
 
 for mapped_table in [prices, products, product_names, product_categories]:
-    # _create_missing_columns(mapped_table)
+    _recreate_updated_tables(mapped_table)
     pass
 
 
