@@ -109,13 +109,13 @@ class prices(prices_model, TableMapping):
     __tablename__ = "prices"
 
 
-def _table_missing_columns(table_obj: TableMapping) -> list[Column]:
+def _table_missing_columns(table_mapping: Type[TableMapping]) -> list[Column]:
     """Return a list of SQLAlchemy `Column` that are missing in the database."""
     try:
-        tablename = table_obj.__tablename__
-        table_in_code = table_obj.__table__
+        tablename = table_mapping.__tablename__
+        table_in_code = table_mapping.__table__
     except AttributeError:
-        raise ValueError(f"{table_obj=} does not inherit from `TableMapping`.")
+        raise ValueError(f"{table_mapping=} does not inherit from `TableMapping`.")
     colnames_in_db = [col.name for col in DB_METADATA.tables[tablename].c]
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
