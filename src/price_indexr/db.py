@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Table, Column, MetaData, 
-    ForeignKey, DateTime, create_engine,
+    Engine, ForeignKey, DateTime,
+    create_engine,
     update, delete, insert,
     case, select, text,
     table, func, literal_column
@@ -46,6 +47,7 @@ class product_categories_model:
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     CategoryName: Mapped[str] = mapped_column()
+    Filters: Mapped[str] = mapped_column(nullable=True)
 
 
 class product_names_model:
@@ -198,23 +200,33 @@ def _create_backup_table(table_mapping: Type[TableMapping]) -> Type[TableMapping
         )
         ses.execute(stmt)
         ses.commit()
-    
-    if not _tables_are_identical(
-        table_mapping.__table__, DB_METADATA.tables["ephemeral_backup_table"]
-    ):
-        raise RuntimeError("Could not load data to a backup table before migration.")
+
+        if not _tables_have_same_data(
+            DB_METADATA.tables[tablename], DB_METADATA.tables["ephemeral_backup_table"]
+        ):
+            raise RuntimeError("Could not load data to a backup table before migration.")
+        return ephemeral_backup_table
+
+
+def _reset_table_schema_in_db(table_mapping: Type[TableMapping]):
+    """Backs up data from `table_mapping`, then recreates it's table restoring
+    data from the backup. Expects new columns to be nullable."""
+    backup_table = _create_backup_table(table_mapping)
+    backup_tablename = backup_table.__tablename__
+    TableMapping.metadata.drop_all(DB_ENGINE, tables=[table_mapping.__table__])
+    TableMapping.metadata.create_all(DB_ENGINE, tables=[table_mapping.__table__])
+
+    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[backup_tablename].c)
+    with Session(DB_ENGINE) as ses:
+        stmt = (
+            insert(table_mapping)
+            .from_select(colnames_in_db, select(*backup_table.__table__.c))
+        )
+        ses.execute(stmt)
+        ses.commit()
 
 
 def _create_column(table_mapping: Type[TableMapping]):
-    # TODO: add create column logic
-    # [x] Raise error if one of the new columns are not nullable
-    # [x] Create temp table with current table data
-    # [x] Copy current table data to temp table
-    # [ ] Delete current table
-    # [x] Create new table with current table name and updated schema.
-    # [ ] New column must be nullable
-    # [ ] Insert data from temp table to new table and leave new column nulled
-    tablename = table_mapping.__tablename__
     missing_cols = _table_missing_columns(table_obj=table_mapping)
     if len(missing_cols) == 0:
         return
@@ -223,29 +235,11 @@ def _create_column(table_mapping: Type[TableMapping]):
             raise NotImplementedError(f"Column {col} is not nullable, can only create new nullable columns.")
 
     with Session(DB_ENGINE) as ses:
-        stmt_drop_current_table = text(f"DROP TABLE {tablename};")
-        stmt_reset_table_schema = text(
-            f"""
-            CREATE TABLE {tablename} (
-            Id INTEGER NOT NULL,
-            ProductName VARCHAR NOT NULL,
-            CategoryId INTEGER CONSTRAINT Category REFERENCES product_categories (Id), PRIMARY KEY ( Id )
-            );
-            """
-        )
-        stmt_dump_data = text(
-            f"""
-            INSERT INTO {tablename} (Id, ProductName)
-            SELECT Id, ProductName
-            FROM arbitrary_temp_table;
-            """
-        )
+        # turn foreign key restraint off before recreating tables
         ses.execute(text("PRAGMA foreign_keys = 0;"))
-        _create_backup_table(table_mapping)
-        ses.execute(stmt_drop_current_table)
-        TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[table_mapping.__table__])
-        ses.execute(stmt_dump_data)
-        ses.commit(text("""PRAGMA foreign_keys = 1;"""))
+        _reset_table_schema_in_db(table_mapping)     
+        ses.execute(text("PRAGMA foreign_keys = 1;"))
+        ses.commit()
     return
 
 
