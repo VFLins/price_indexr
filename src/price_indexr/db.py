@@ -194,7 +194,7 @@ def _create_backup_table(table_mapping: Type[TableMapping]) -> Type[TableMapping
     with Session(DB_ENGINE) as ses:
         stmt = (
             insert(ephemeral_backup_table)
-            .from_select(colnames_in_db, select(*table_mapping.__table__.c))
+            .from_select(colnames_in_db, select(*DB_METADATA.tables[tablename].c))
         )
         ses.execute(stmt)
         ses.commit()
