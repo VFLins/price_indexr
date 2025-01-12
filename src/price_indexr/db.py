@@ -1,15 +1,29 @@
 from sqlalchemy import (
-    Table, Column, MetaData, 
-    Engine, ForeignKey, DateTime,
+    Table,
+    Column,
+    MetaData,
+    Engine,
+    ForeignKey,
+    DateTime,
     create_engine,
-    update, delete, insert,
-    case, select, text,
-    table, func, literal_column
+    update,
+    delete,
+    insert,
+    case,
+    select,
+    text,
+    table,
+    func,
+    literal_column,
 )
 from sqlalchemy.orm import (
-    Mapped, MappedColumn, mapped_column,
-    DeclarativeBase, relationship, Session,
-    declared_attr
+    Mapped,
+    MappedColumn,
+    mapped_column,
+    DeclarativeBase,
+    relationship,
+    Session,
+    declared_attr,
 )
 from typing import List, Literal, Type
 from datetime import datetime
@@ -36,8 +50,8 @@ DB_METADATA.reflect(DB_ENGINE)
 class TableMapping(DeclarativeBase):
     """Base class for table objects using SQLAlchemy's ORM capabilities."""
     @classmethod
-    def mapped_colnames(cls) -> list[str]:
-        return [col.name for col in cls.__table__.c]
+    def mapped_colnames(cls) -> tuple[str]:
+        return tuple(col.name for col in cls.__table__.c)
 
 
 class product_categories_model:
@@ -322,7 +336,7 @@ def scan_prices(
     **Args**
         `product_ids`: list of ID numbers of the desired products. `None` if should get from all products.
         `date_max`: Maximum date to retrieve prices. `None` if should get up to the latest.
-        `date_max`: Minimum date to retrieve prices. `None` if should get down to the first.
+        `date_min`: Minimum date to retrieve prices. `None` if should get down to the first.
     """
     stmt = select(prices)
     if product_ids:
