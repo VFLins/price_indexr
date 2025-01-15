@@ -81,18 +81,13 @@ def test_table_creation(new_empty_db_engine):
     engine = new_empty_db_engine
     metadata = MetaData()
     metadata.reflect(engine)
-    expected_tables = (
-        "product_categories",
-        "product_names",
-        "products",
-        "prices"
-    )
+    expected_tables = ("product_categories", "product_names", "products", "prices")
     for tablename in expected_tables:
         assert tablename in metadata.tables.keys()
 
 
 def test_data_insertion(new_populated_db_engine):
-    """Test if data is inserted during creation of populated database, 
+    """Test if data is inserted during creation of populated database,
     this is testing if future tests will behave normally.
     """
     assert POPULATED_DB_FILE.exists()
@@ -107,3 +102,18 @@ def test_data_insertion(new_populated_db_engine):
         result4 = ses.execute(select(prices)).all()
         assert len(result4) == len(prices_data)
         ses.close()
+
+
+def test_create_backup(new_populated_db_engine):
+    """Test if backup table in being created."""
+    engine = new_populated_db_engine
+    meta = MetaData()
+    meta.reflect(engine)
+    mapped_tables = [prices, products, product_names, product_categories]
+    for tbl in mapped_tables:
+        tblname = tbl.__tablename__
+        orm_backup_tbl = _create_backup_table(
+            table_mapping=tbl, engine=engine, metadata=meta
+        )
+        db_backup_tbl = meta.tables[tblname]
+        assert orm_backup_tbl.__table__ == db_backup_tbl

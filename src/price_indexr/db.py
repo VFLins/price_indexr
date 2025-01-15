@@ -189,34 +189,37 @@ def _table_with_same_columns(*tablenames: str) -> bool:
     return all(col_name == tables_colnames[0] for col_name in tables_colnames)
 
 
-def _create_backup_table(table_mapping: Type[TableMapping]) -> Type[TableMapping]:
+def _create_backup_table(
+        table_mapping: Type[TableMapping],
+        engine: Engine = DB_ENGINE,
+        metadata: MetaData = DB_METADATA) -> Type[TableMapping]:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns the `TableMapping` object from the backup table generated.
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
     or if `table_mapping`'s table isn't present in the database.
     """
     tablename = table_mapping.__tablename__
-    if tablename not in DB_METADATA.tables.keys():
+    if tablename not in metadata.tables.keys():
         raise RuntimeError("Could not find table to be backed-up in the database.")
     table_model_obj = table_mapping.__mro__[1]
     class ephemeral_backup_table(table_model_obj, TableMapping):
         __tablename__ = "ephemeral_backup_table"
 
-    if "ephemeral_backup_table" in DB_METADATA.tables.keys():
-        TableMapping.metadata.drop_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
-    TableMapping.metadata.create_all(bind=DB_ENGINE, tables=[ephemeral_backup_table.__table__])
+    if "ephemeral_backup_table" in metadata.tables.keys():
+        TableMapping.metadata.drop_all(bind=engine, tables=[ephemeral_backup_table.__table__])
+    TableMapping.metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
 
-    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[tablename].c)
-    with Session(DB_ENGINE) as ses:
+    colnames_in_db = tuple(col.name for col in metadata.tables[tablename].c)
+    with Session(engine) as ses:
         stmt = (
             insert(ephemeral_backup_table)
-            .from_select(colnames_in_db, select(*DB_METADATA.tables[tablename].c))
+            .from_select(colnames_in_db, select(*metadata.tables[tablename].c))
         )
         ses.execute(stmt)
         ses.commit()
 
         if not _tables_have_same_data(
-            DB_METADATA.tables[tablename], DB_METADATA.tables["ephemeral_backup_table"]
+            metadata.tables[tablename], metadata.tables["ephemeral_backup_table"]
         ):
             raise RuntimeError("Could not load data to a backup table before migration.")
         return ephemeral_backup_table
