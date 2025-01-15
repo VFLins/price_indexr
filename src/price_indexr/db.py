@@ -259,8 +259,6 @@ def _table_update_migration(table_mapping: Type[TableMapping]):
 
 def _recreate_updated_tables(table_mapping: TableMapping):
     tablename: str = table_mapping.__tablename__
-    # refresh metadata
-    DB_METADATA.reflect(DB_ENGINE)
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
     table_metadata = DB_METADATA.tables[tablename]
     columns_expected: tuple = table_mapping.mapped_colnames()
@@ -270,6 +268,8 @@ def _recreate_updated_tables(table_mapping: TableMapping):
 
 
 TableMapping.metadata.create_all(DB_ENGINE)
+# refresh metadata
+DB_METADATA.reflect(DB_ENGINE)
 for mapped_table in [prices, products, product_names, product_categories]:
     _recreate_updated_tables(mapped_table)
 
