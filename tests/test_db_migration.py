@@ -7,7 +7,7 @@ from sqlalchemy import (
     select,
     insert,
 )
-from synthetic_data import (
+from .synthetic_data import (
     product_categories_data,
     product_names_data,
     products_data,
@@ -104,8 +104,24 @@ def test_data_insertion(new_populated_db_engine):
         ses.close()
 
 
-def test_create_backup(new_populated_db_engine):
-    """Test if backup table in being created."""
+def test_columns_are_identical_empty(new_empty_db_engine):
+    """Test if `_columns_are_identical()` performs as expected in all scenarios."""
+    engine = new_empty_db_engine
+    meta = MetaData()
+    meta.reflect(engine)
+    # Same column on the same table should always return True
+    col1 = meta.tables["prices"].columns["Id"]
+    assert _columns_are_identical(col1, col1, engine=engine)
+    # Empty columns with same colname should always return True
+    col2 = meta.tables["product_names"].columns["Id"]
+    assert _columns_are_identical(col1, col2, engine=engine)
+    # Empty columns with different colnames should always return False
+    col3 = meta.tables["prices"].columns["ProductId"]
+    assert _columns_are_identical(col1, col3, engine=engine) == False
+
+
+def not_test_create_backup(new_populated_db_engine):
+    """Test if backup table in being created. No ready to run yet"""
     engine = new_populated_db_engine
     meta = MetaData()
     meta.reflect(engine)

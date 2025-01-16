@@ -146,6 +146,16 @@ def _columns_are_identical(
         column_obj2: Column,
         engine: Engine = DB_ENGINE
     ) -> bool:
+    colname1, tablename1 = column_obj1.name, column_obj1.table.name
+    colname2, tablename2 = column_obj2.name, column_obj2.table.name
+    if colname1 != colname2:
+        return False
+    if tablename1 == tablename2:
+        return True
+    col1_empty = _column_length(column_obj1, engine=engine) == 0
+    col2_empty = _column_length(column_obj2, engine=engine) == 0
+    if col1_empty and col2_empty:
+        return True
     with Session(engine) as ses:
         stmt = (
             ses.query(case(
