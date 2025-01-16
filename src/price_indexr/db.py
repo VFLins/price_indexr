@@ -136,6 +136,11 @@ def _table_missing_columns(table_mapping: Type[TableMapping]) -> list[Column]:
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
+def _column_length(column_obj: Column, engine: Engine = DB_ENGINE) -> int:
+    """Return number of rows in a column, compatible with databases with COUNT function."""
+    with Session(engine) as ses:
+        return ses.scalar(select(func.count(column_obj)))
+
 def _columns_are_identical(
         column_obj1: Column,
         column_obj2: Column,
