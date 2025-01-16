@@ -1,5 +1,6 @@
 import pytest
 from pathlib import Path
+from typing import Type
 from sqlalchemy import (
     Engine,
     MetaData,
@@ -21,6 +22,7 @@ from price_indexr.db import (
     product_names,
     products,
     prices,
+    prices_model,
     _columns_are_identical,
     _create_backup_table,
     _recreate_updated_tables,
@@ -73,6 +75,19 @@ def new_blank_db_engine(scope="session"):
     BLANK_DB_FILE.unlink(missing_ok=True)
 
 
+@pytest.fixture
+def copy_table_prices(new_populated_db_engine, scope="function"):
+    engine = new_populated_db_engine
+    class prices_copy(prices_model, TableMapping):
+        __tablename__ = "prices_copy"
+    TableMapping.metadata.create_all(engine, tables=[prices_copy.__table__])
+    with Session(engine) as ses:
+        ses.execute(insert(prices_copy).values(prices_data))
+        ses.commit()
+    yield prices_copy
+    TableMapping.metadata.drop_all(engine, tables=[prices_copy.__table__])
+
+
 def test_table_creation(new_empty_db_engine):
     """Test if the new database file exists,
     this is testing if future tests will behave normally.
@@ -105,7 +120,7 @@ def test_data_insertion(new_populated_db_engine):
 
 
 def test_columns_are_identical_empty(new_empty_db_engine):
-    """Test if `_columns_are_identical()` performs as expected in all scenarios."""
+    """Test if `_columns_are_identical()` performs as expected in empty tables."""
     engine = new_empty_db_engine
     meta = MetaData()
     meta.reflect(engine)
@@ -118,6 +133,20 @@ def test_columns_are_identical_empty(new_empty_db_engine):
     # Empty columns with different colnames should always return False
     col3 = meta.tables["prices"].columns["ProductId"]
     assert _columns_are_identical(col1, col3, engine=engine) == False
+
+
+def test_success_columns_are_identical_populated(
+        new_populated_db_engine,
+        copy_table_prices):
+    """Test success cases of `_columns_are_identical()` in populated tables."""
+    engine: Engine = new_populated_db_engine
+    meta = MetaData()
+    meta.reflect(engine)
+    prices_copy: Type[TableMapping] = copy_table_prices
+    for colname in prices_copy.mapped_colnames():
+        col1 = prices.__table__.c[colname]
+        col2 = prices_copy.__table__.c[colname]
+        assert _columns_are_identical(col1, col2, engine=engine)
 
 
 def not_test_create_backup(new_populated_db_engine):
