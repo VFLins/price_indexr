@@ -4,6 +4,7 @@ from typing import Type
 from sqlalchemy import (
     Engine,
     MetaData,
+    Table,
     create_engine,
     select,
     insert,
@@ -23,6 +24,7 @@ from price_indexr.db import (
     products,
     prices,
     prices_model,
+    products_model,
     _columns_are_identical,
     _create_backup_table,
     _recreate_updated_tables,
@@ -78,14 +80,37 @@ def new_blank_db_engine(scope="session"):
 @pytest.fixture
 def copy_table_prices(new_populated_db_engine, scope="function"):
     engine = new_populated_db_engine
+
+    meta = MetaData()
+    meta.reflect(engine)
+
     class prices_copy(prices_model, TableMapping):
         __tablename__ = "prices_copy"
+
     TableMapping.metadata.create_all(engine, tables=[prices_copy.__table__])
     with Session(engine) as ses:
         ses.execute(insert(prices_copy).values(prices_data))
         ses.commit()
     yield prices_copy
     TableMapping.metadata.drop_all(engine, tables=[prices_copy.__table__])
+
+
+@pytest.fixture
+def copy_table_products(new_populated_db_engine, scope="function"):
+    engine = new_populated_db_engine
+
+    meta = MetaData()
+    meta.reflect(engine)
+
+    class products_copy(products_model, TableMapping):
+        __tablename__ = "products_copy"
+
+    TableMapping.metadata.create_all(engine, tables=[products_copy.__table__])
+    with Session(engine) as ses:
+        ses.execute(insert(products_copy).values(products_data))
+        ses.commit()
+    yield products_copy
+    TableMapping.metadata.drop_all(engine, tables=[products_copy.__table__])
 
 
 def test_table_creation(new_empty_db_engine):
@@ -136,17 +161,28 @@ def test_columns_are_identical_empty(new_empty_db_engine):
 
 
 def test_success_columns_are_identical_populated(
-        new_populated_db_engine,
-        copy_table_prices):
+    new_populated_db_engine, copy_table_prices, copy_table_products
+):
     """Test success cases of `_columns_are_identical()` in populated tables."""
     engine: Engine = new_populated_db_engine
     meta = MetaData()
     meta.reflect(engine)
-    prices_copy: Type[TableMapping] = copy_table_prices
+    prices_copy: Table = copy_table_prices
     for colname in prices_copy.mapped_colnames():
         col1 = prices.__table__.c[colname]
         col2 = prices_copy.__table__.c[colname]
         assert _columns_are_identical(col1, col2, engine=engine)
+    products_copy: Table = copy_table_products
+    for colname in products_copy.mapped_colnames():
+        col1 = products.__table__.c[colname]
+        col2 = products_copy.__table__.c[colname]
+        assert _columns_are_identical(col1, col2, engine=engine)
+
+
+def not_test_fail_columns_are_identical_populated(
+    new_populated_db_engine, copy_table_prices
+):
+    """Test fail cases of `_columns_are_identical()` in populated tables."""
 
 
 def not_test_create_backup(new_populated_db_engine):
