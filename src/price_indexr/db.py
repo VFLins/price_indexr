@@ -158,13 +158,14 @@ def _columns_are_identical(
         return True
     with Session(engine) as ses:
         stmt = (
-            ses.query(case(
+            select(case(
                 (func.coalesce(column_obj1, "") == func.coalesce(column_obj2, ""), 1),
                 else_ = 0))
             .select_from(column_obj1.table)
             .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
         )
-        return bool(stmt.scalar())
+        result = ses.execute(stmt)
+        return bool(result.scalar())
 
 
 def _tables_are_identical(table_obj1: Table, table_obj2: Table) -> bool:
@@ -191,7 +192,7 @@ def _tables_have_same_data(
         if col2.name in expected_colnames:
             col1 = table_obj1.columns[col2.name]
             if not _columns_are_identical(col1, col2, engine=engine):
-                print(f"Data is not the same for {col1.name=}")
+                print(f"Data in '{col1.name}' not the same across tables '{table_obj1.name}' and '{table_obj2.name}'")
                 return False
     return True
 
