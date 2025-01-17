@@ -96,6 +96,70 @@ products_data = [
 ]
 
 
+products_data2 = [
+    {
+        "Id": 1,
+        "NameId": 1,
+        "ProductName": "Geforce Rtx 3050",
+        "ProductModel": "Dual",
+        "ProductBrand": "Asus",
+        "ProductFilters": "",
+        "Created": as_dt("2025-01-10 12:10:29.289034"),
+        "LastUpdate": as_dt("2025-01-10 12:11:29.289034"),
+    },
+    {
+        "Id": 2,
+        "NameId": 1,
+        "ProductName": "Geforce Rtx 3050",
+        "ProductModel": "Stormx",
+        "ProductBrand": "Palit",
+        "ProductFilters": "",
+        "Created": as_dt("2025-01-10 12:13:29.289034"),
+        "LastUpdate": as_dt("2025-01-10 14:10:29.289034"),
+    },
+    {
+        "Id": 3,
+        "NameId": 3,
+        "ProductName": "Geforce Rtx 4060 Ti",
+        "ProductModel": "Dual",
+        "ProductBrand": "Asus",
+        "ProductFilters": "",
+        "Created": as_dt("2025-01-10 12:12:39.289034"),
+        "LastUpdate": as_dt("2025-01-10 13:14:29.289034"),
+    },
+    {
+        "Id": 4,
+        "NameId": 4,
+        "ProductName": "SSD 1Tb",
+        "ProductModel": "Red WDS100T1R0A",
+        "ProductBrand": "WD",
+        "ProductFilters": "",
+        "Created": as_dt("2025-01-12 12:12:39.289034"),
+        "LastUpdate": as_dt("2025-01-12 13:14:29.289034"),
+    },
+    {
+        "Id": 5,
+        "NameId": 5,
+        "ProductName": "SSD 500Gb",
+        "ProductModel": "Blue WDS500G3B0A",
+        "ProductBrand": "WD",
+        "ProductFilters": "",
+        "Created": as_dt("2025-01-12 12:12:39.289034"),
+        "LastUpdate": None,
+    },
+    {
+        "Id": 6,
+        "NameId": 8,
+        "ProductName": "SSD 240Gb",
+        "ProductModel": "Green WDS250G2G0C ",
+        "ProductBrand": "WD",
+        "ProductFilters": "",
+        "Created": as_dt("2025-01-12 12:13:31.289034"),
+        "LastUpdate": as_dt("2025-01-12 13:14:29.289034"),
+    },
+]
+
+
 prices_data = [
     {
         "Id": 1,

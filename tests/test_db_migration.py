@@ -13,6 +13,7 @@ from .synthetic_data import (
     product_categories_data,
     product_names_data,
     products_data,
+    products_data2,
     prices_data,
 )
 from price_indexr.db import (
@@ -113,6 +114,24 @@ def copy_table_products(new_populated_db_engine, scope="function"):
     TableMapping.metadata.drop_all(engine, tables=[products_copy.__table__])
 
 
+@pytest.fixture
+def copy_table_products2(new_populated_db_engine, scope="function"):
+    engine = new_populated_db_engine
+
+    meta = MetaData()
+    meta.reflect(engine)
+
+    class products_copy(products_model, TableMapping):
+        __tablename__ = "products_copy2"
+
+    TableMapping.metadata.create_all(engine, tables=[products_copy.__table__])
+    with Session(engine) as ses:
+        ses.execute(insert(products_copy).values(products_data2))
+        ses.commit()
+    yield products_copy
+    TableMapping.metadata.drop_all(engine, tables=[products_copy.__table__])
+
+
 def test_table_creation(new_empty_db_engine):
     """Test if the new database file exists,
     this is testing if future tests will behave normally.
@@ -178,6 +197,22 @@ def test_success_columns_are_identical_populated(
         col2 = products_copy.__table__.c[colname]
         assert _columns_are_identical(col1, col2, engine=engine)
 
+
+def test_edge_case_columns_are_identical(new_populated_db_engine, copy_table_products2):
+    """Test if _columns_are_identical will evaluate correctly when columns with
+    NULL values are identical when NULL values are omitted and not otherwise.
+    """
+    engine: Engine = new_populated_db_engine
+    meta = MetaData()
+    meta.reflect(engine)
+    products_copy: Table = copy_table_products2
+    for colname in products_copy.mapped_colnames():
+        col1 = products.__table__.c[colname]
+        col2 = products_copy.__table__.c[colname]
+        if colname == "LastUpdate":
+            assert _columns_are_identical(col1, col2, engine=engine) == False
+        else:
+            assert _columns_are_identical(col1, col2, engine=engine)
 
 def not_test_fail_columns_are_identical_populated(
     new_populated_db_engine, copy_table_prices

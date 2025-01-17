@@ -164,6 +164,12 @@ def _columns_are_identical(
             .select_from(column_obj1.table)
             .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
         )
+        """ stmt = (
+            ses.query(case((column_obj1 == column_obj2, 1), else_=0))
+            .select_from(column_obj1.table)
+            .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
+            .having(text(f"COUNT(CASE WHEN ({column_obj1.name} IS NULL AND {column_obj2.name} IS NOT NULL) OR ({column_obj1.name} IS NOT NULL AND {column_obj2.name} IS NULL) THEN 1 END)") == 0)
+        ) """
         result = ses.execute(stmt)
         return bool(result.scalar())
 
