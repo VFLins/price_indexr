@@ -81,13 +81,10 @@ def new_blank_db_engine(scope="session"):
 @pytest.fixture
 def copy_table_prices(new_populated_db_engine, scope="function"):
     engine = new_populated_db_engine
-
     meta = MetaData()
     meta.reflect(engine)
-
     class prices_copy(prices_model, TableMapping):
         __tablename__ = "prices_copy"
-
     TableMapping.metadata.create_all(engine, tables=[prices_copy.__table__])
     with Session(engine) as ses:
         ses.execute(insert(prices_copy).values(prices_data))
@@ -99,13 +96,10 @@ def copy_table_prices(new_populated_db_engine, scope="function"):
 @pytest.fixture
 def copy_table_products(new_populated_db_engine, scope="function"):
     engine = new_populated_db_engine
-
     meta = MetaData()
     meta.reflect(engine)
-
     class products_copy(products_model, TableMapping):
         __tablename__ = "products_copy"
-
     TableMapping.metadata.create_all(engine, tables=[products_copy.__table__])
     with Session(engine) as ses:
         ses.execute(insert(products_copy).values(products_data))
@@ -121,15 +115,15 @@ def copy_table_products2(new_populated_db_engine, scope="function"):
     meta = MetaData()
     meta.reflect(engine)
 
-    class products_copy(products_model, TableMapping):
+    class products_copy2(products_model, TableMapping):
         __tablename__ = "products_copy2"
 
-    TableMapping.metadata.create_all(engine, tables=[products_copy.__table__])
+    TableMapping.metadata.create_all(engine, tables=[products_copy2.__table__])
     with Session(engine) as ses:
-        ses.execute(insert(products_copy).values(products_data2))
+        ses.execute(insert(products_copy2).values(products_data2))
         ses.commit()
-    yield products_copy
-    TableMapping.metadata.drop_all(engine, tables=[products_copy.__table__])
+    yield products_copy2
+    TableMapping.metadata.drop_all(engine, tables=[products_copy2.__table__])
 
 
 def test_table_creation(new_empty_db_engine):
