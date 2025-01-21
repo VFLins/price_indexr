@@ -14,6 +14,8 @@ from sqlalchemy import (
     text,
     table,
     func,
+    and_,
+    or_,
     literal_column,
 )
 from sqlalchemy.orm import (
@@ -24,6 +26,10 @@ from sqlalchemy.orm import (
     relationship,
     Session,
     declared_attr,
+)
+from sqlalchemy.exc import (
+    AmbiguousForeignKeysError,
+    InvalidRequestError
 )
 from typing import List, Literal, Type
 from datetime import datetime
@@ -125,6 +131,30 @@ class prices(prices_model, TableMapping):
     __tablename__ = "prices"
 
 
+def _different_null_vals_positions(
+        column_obj1: Column,
+        column_obj2: Column,
+        engine: Engine = DB_ENGINE
+    ) -> bool:
+    """Compares position of every NULL value between `column_obj1` and `column_obj2`,
+    will return `False` only if they both have the same same amount of NULL values
+    and all in the same positions.
+    """
+    if column_obj1 == column_obj2:
+        return False
+    cond1 = and_(column_obj1.is_(None), column_obj2.is_not(None))
+    cond2 = and_(column_obj1.is_not(None), column_obj2.is_(None))
+    with Session(engine) as ses:
+        stmt = (
+            select(func.count())
+            .select_from(column_obj1.table)
+            .join(column_obj2.table, column_obj1.table.c['Id'] == column_obj2.table.c['Id'])
+            .where(or_(cond1, cond2))
+        )
+        result = ses.execute(stmt)
+        return bool(result.scalar())
+
+
 def _table_missing_columns(table_mapping: Type[TableMapping]) -> list[Column]:
     """Return a list of SQLAlchemy `Column` that are missing in the database."""
     try:
@@ -156,6 +186,8 @@ def _columns_are_identical(
     col2_empty = _column_length(column_obj2, engine=engine) == 0
     if col1_empty and col2_empty:
         return True
+    if _different_null_vals_positions(column_obj1, column_obj2, engine):
+        return False
     with Session(engine) as ses:
         stmt = (
             select(case(
@@ -164,12 +196,6 @@ def _columns_are_identical(
             .select_from(column_obj1.table)
             .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
         )
-        """ stmt = (
-            ses.query(case((column_obj1 == column_obj2, 1), else_=0))
-            .select_from(column_obj1.table)
-            .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
-            .having(text(f"COUNT(CASE WHEN ({column_obj1.name} IS NULL AND {column_obj2.name} IS NOT NULL) OR ({column_obj1.name} IS NOT NULL AND {column_obj2.name} IS NULL) THEN 1 END)") == 0)
-        ) """
         result = ses.execute(stmt)
         return bool(result.scalar())
 
