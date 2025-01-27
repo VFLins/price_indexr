@@ -27,14 +27,14 @@ from price_indexr.db import (
     prices_model,
     products_model,
     _columns_are_identical,
-    _create_backup_table,
-    _recreate_updated_tables,
-    _reset_table_schema_in_db,
     _table_missing_columns,
-    _table_update_migration,
     _table_with_same_columns,
     _tables_are_identical,
     _tables_have_same_data,
+    _recreate_updated_tables,
+    _create_backup_table,
+    _reset_table_schema_in_db,
+    _table_update_migration,
 )
 
 
@@ -83,8 +83,10 @@ def copy_table_prices(new_populated_db_engine, scope="function"):
     engine = new_populated_db_engine
     meta = MetaData()
     meta.reflect(engine)
+
     class prices_copy(prices_model, TableMapping):
         __tablename__ = "prices_copy"
+
     TableMapping.metadata.create_all(engine, tables=[prices_copy.__table__])
     with Session(engine) as ses:
         ses.execute(insert(prices_copy).values(prices_data))
@@ -98,8 +100,10 @@ def copy_table_products(new_populated_db_engine, scope="function"):
     engine = new_populated_db_engine
     meta = MetaData()
     meta.reflect(engine)
+
     class products_copy(products_model, TableMapping):
         __tablename__ = "products_copy"
+
     TableMapping.metadata.create_all(engine, tables=[products_copy.__table__])
     with Session(engine) as ses:
         ses.execute(insert(products_copy).values(products_data))
@@ -208,6 +212,7 @@ def test_edge_case_columns_are_identical(new_populated_db_engine, copy_table_pro
         else:
             assert _columns_are_identical(col1, col2, engine=engine)
 
+
 def not_test_fail_columns_are_identical_populated(
     new_populated_db_engine, copy_table_prices
 ):
@@ -227,3 +232,32 @@ def not_test_create_backup(new_populated_db_engine):
         )
         db_backup_tbl = meta.tables[tblname]
         assert orm_backup_tbl.__table__ == db_backup_tbl
+
+
+@pytest.mark.parametrize(
+    "expected_missing_colnames",
+    [(["Price", "Date"]), (["Name"]), (["Url", "Store", "Currency"])],
+)
+def test__table_missing_columns(
+    expected_missing_colnames: list[str], new_blank_db_engine
+):
+    """Test whether _table_missing_columns returns the correct list of columns."""
+    engine = new_blank_db_engine
+    meta = MetaData()
+    meta.reflect(engine)
+
+    prices_columns = tuple(
+        col
+        for col in prices.__table__.columns
+        if col.name not in expected_missing_colnames
+    )
+    new_table = Table("test_missing_cols", metadata=meta, *prices_columns)
+    meta.create_all(engine, tables=new_table)
+    missing_cols = _table_missing_columns(table_name="test_missing_cols", table_declared=prices)
+    missing_colnames = [col.name for col in missing_cols]
+    # Check all expected are present
+    for name in expected_missing_colnames:
+        assert name in missing_colnames
+    # Check ONLY expected are present
+    assert len(missing_colnames) == len(expected_missing_colnames)
+    meta.drop_all(engine, tables=[new_table])
