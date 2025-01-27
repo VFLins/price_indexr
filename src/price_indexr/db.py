@@ -27,10 +27,7 @@ from sqlalchemy.orm import (
     Session,
     declared_attr,
 )
-from sqlalchemy.exc import (
-    AmbiguousForeignKeysError,
-    InvalidRequestError
-)
+from sqlalchemy.exc import AmbiguousForeignKeysError, InvalidRequestError
 from typing import List, Literal, Type
 from datetime import datetime
 import os
@@ -55,6 +52,7 @@ DB_METADATA.reflect(DB_ENGINE)
 
 class TableMapping(DeclarativeBase):
     """Base class for table objects using SQLAlchemy's ORM capabilities."""
+
     @classmethod
     def mapped_colnames(cls) -> tuple[str]:
         return tuple(col.name for col in cls.__table__.c)
@@ -62,7 +60,7 @@ class TableMapping(DeclarativeBase):
 
 class product_categories_model:
     @declared_attr
-    def Category(cls) -> Mapped["product_names"] :
+    def Category(cls) -> Mapped["product_names"]:
         return relationship(back_populates="Category")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
@@ -80,7 +78,9 @@ class product_names_model:
         return relationship(back_populates="Name")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
-    CategoryId: Mapped[int] = mapped_column(ForeignKey("product_categories.Id"), nullable=True)
+    CategoryId: Mapped[int] = mapped_column(
+        ForeignKey("product_categories.Id"), nullable=True
+    )
     ProductName: Mapped[str] = mapped_column()
 
 
@@ -88,7 +88,7 @@ class products_model:
     @declared_attr
     def Product(cls) -> Mapped["prices"]:
         return relationship(back_populates="Product")
-    
+
     @declared_attr
     def Name(cls) -> Mapped[List["product_names"]]:
         return relationship(back_populates="Name")
@@ -121,21 +121,22 @@ class prices_model:
 class product_categories(product_categories_model, TableMapping):
     __tablename__ = "product_categories"
 
+
 class product_names(product_names_model, TableMapping):
     __tablename__ = "product_names"
 
+
 class products(products_model, TableMapping):
     __tablename__ = "products"
+
 
 class prices(prices_model, TableMapping):
     __tablename__ = "prices"
 
 
 def _different_null_vals_positions(
-        column_obj1: Column,
-        column_obj2: Column,
-        engine: Engine = DB_ENGINE
-    ) -> bool:
+    column_obj1: Column, column_obj2: Column, engine: Engine = DB_ENGINE
+) -> bool:
     """Compares position of every NULL value between `column_obj1` and `column_obj2`,
     will return `False` only if they both have the same same amount of NULL values
     and all in the same positions.
@@ -148,21 +149,34 @@ def _different_null_vals_positions(
         stmt = (
             select(func.count())
             .select_from(column_obj1.table)
-            .join(column_obj2.table, column_obj1.table.c['Id'] == column_obj2.table.c['Id'])
+            .join(
+                column_obj2.table,
+                column_obj1.table.c["Id"] == column_obj2.table.c["Id"],
+            )
             .where(or_(cond1, cond2))
         )
         result = ses.execute(stmt)
         return bool(result.scalar())
 
 
-def _table_missing_columns(table_mapping: Type[TableMapping]) -> list[Column]:
-    """Return a list of SQLAlchemy `Column` that are missing in the database."""
+def _table_missing_columns(
+    table_name: str,
+    table_declared: Type[TableMapping],
+    meta_data: MetaData = DB_METADATA,
+) -> list[Column]:
+    """Return a list of SQLAlchemy `Column` that are missing in the database.
+
+    **Args**
+        `table_name`: the table to look for in the database
+        `table_declared`: must be a table declared in sqlalchemy ORM
+        `meta_data`: metadata reflecting the desired database
+    """
     try:
-        tablename = table_mapping.__tablename__
-        table_in_code = table_mapping.__table__
+        _ = table_declared.__tablename__
+        table_in_code = table_declared.__table__
     except AttributeError:
-        raise ValueError(f"{table_mapping=} does not inherit from `TableMapping`.")
-    colnames_in_db = [col.name for col in DB_METADATA.tables[tablename].c]
+        raise ValueError(f"{table_declared=} does not inherit from `TableMapping`.")
+    colnames_in_db = [col.name for col in meta_data.tables[table_name].c]
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
@@ -171,11 +185,10 @@ def _column_length(column_obj: Column, engine: Engine = DB_ENGINE) -> int:
     with Session(engine) as ses:
         return ses.scalar(select(func.count(column_obj)))
 
+
 def _columns_are_identical(
-        column_obj1: Column,
-        column_obj2: Column,
-        engine: Engine = DB_ENGINE
-    ) -> bool:
+    column_obj1: Column, column_obj2: Column, engine: Engine = DB_ENGINE
+) -> bool:
     colname1, tablename1 = column_obj1.name, column_obj1.table.name
     colname2, tablename2 = column_obj2.name, column_obj2.table.name
     if colname1 != colname2:
@@ -190,11 +203,21 @@ def _columns_are_identical(
         return False
     with Session(engine) as ses:
         stmt = (
-            select(case(
-                (func.coalesce(column_obj1, "") == func.coalesce(column_obj2, ""), 1),
-                else_ = 0))
+            select(
+                case(
+                    (
+                        func.coalesce(column_obj1, "")
+                        == func.coalesce(column_obj2, ""),
+                        1,
+                    ),
+                    else_=0,
+                )
+            )
             .select_from(column_obj1.table)
-            .join(column_obj2.table, column_obj1.table.c["Id"] == column_obj2.table.c["Id"])
+            .join(
+                column_obj2.table,
+                column_obj1.table.c["Id"] == column_obj2.table.c["Id"],
+            )
         )
         result = ses.execute(stmt)
         return bool(result.scalar())
@@ -206,14 +229,15 @@ def _tables_are_identical(table_obj1: Table, table_obj2: Table) -> bool:
     if not _table_with_same_columns(*(tablename1, tablename2)):
         return False
     column_set = set(col.name for col in table_obj1.columns)
-    return all(_columns_are_identical(table_obj1.c[col], table_obj2.c[col]) for col in column_set)
+    return all(
+        _columns_are_identical(table_obj1.c[col], table_obj2.c[col])
+        for col in column_set
+    )
 
 
 def _tables_have_same_data(
-        table_obj1: Table,
-        table_obj2: Table,
-        engine: Engine = DB_ENGINE
-    ) -> bool:
+    table_obj1: Table, table_obj2: Table, engine: Engine = DB_ENGINE
+) -> bool:
     """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
     expected_colnames = [col.name for col in table_obj1.columns]
     table2_colnames = [col.name for col in table_obj2.columns]
@@ -224,7 +248,9 @@ def _tables_have_same_data(
         if col2.name in expected_colnames:
             col1 = table_obj1.columns[col2.name]
             if not _columns_are_identical(col1, col2, engine=engine):
-                print(f"Data in '{col1.name}' not the same across tables '{table_obj1.name}' and '{table_obj2.name}'")
+                print(
+                    f"Data in '{col1.name}' not the same across tables '{table_obj1.name}' and '{table_obj2.name}'"
+                )
                 return False
     return True
 
@@ -238,9 +264,10 @@ def _table_with_same_columns(*tablenames: str) -> bool:
 
 
 def _create_backup_table(
-        table_mapping: Type[TableMapping],
-        engine: Engine = DB_ENGINE,
-        metadata: MetaData = DB_METADATA) -> Type[TableMapping]:
+    table_mapping: Type[TableMapping],
+    engine: Engine = DB_ENGINE,
+    metadata: MetaData = DB_METADATA,
+) -> Type[TableMapping]:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns the `TableMapping` object from the backup table generated.
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
@@ -250,18 +277,22 @@ def _create_backup_table(
     if tablename not in metadata.tables.keys():
         raise RuntimeError("Could not find table to be backed-up in the database.")
     table_model_obj = table_mapping.__mro__[1]
+
     class ephemeral_backup_table(table_model_obj, TableMapping):
         __tablename__ = "ephemeral_backup_table"
 
     if "ephemeral_backup_table" in metadata.tables.keys():
-        TableMapping.metadata.drop_all(bind=engine, tables=[ephemeral_backup_table.__table__])
-    TableMapping.metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
+        TableMapping.metadata.drop_all(
+            bind=engine, tables=[ephemeral_backup_table.__table__]
+        )
+    TableMapping.metadata.create_all(
+        bind=engine, tables=[ephemeral_backup_table.__table__]
+    )
 
     colnames_in_db = tuple(col.name for col in metadata.tables[tablename].c)
     with Session(engine) as ses:
-        stmt = (
-            insert(ephemeral_backup_table)
-            .from_select(colnames_in_db, select(*metadata.tables[tablename].c))
+        stmt = insert(ephemeral_backup_table).from_select(
+            colnames_in_db, select(*metadata.tables[tablename].c)
         )
         ses.execute(stmt)
         ses.commit()
@@ -269,7 +300,9 @@ def _create_backup_table(
         if not _tables_have_same_data(
             metadata.tables[tablename], metadata.tables["ephemeral_backup_table"]
         ):
-            raise RuntimeError("Could not load data to a backup table before migration.")
+            raise RuntimeError(
+                "Could not load data to a backup table before migration."
+            )
         return ephemeral_backup_table
 
 
@@ -283,26 +316,31 @@ def _reset_table_schema_in_db(table_mapping: Type[TableMapping]):
 
     colnames_in_db = tuple(col.name for col in DB_METADATA.tables[backup_tablename].c)
     with Session(DB_ENGINE) as ses:
-        stmt = (
-            insert(table_mapping)
-            .from_select(colnames_in_db, select(*backup_table.__table__.c))
+        stmt = insert(table_mapping).from_select(
+            colnames_in_db, select(*backup_table.__table__.c)
         )
         ses.execute(stmt)
         ses.commit()
 
 
 def _table_update_migration(table_mapping: Type[TableMapping]):
-    missing_cols = _table_missing_columns(table_mapping)
+    tablename = table_mapping.__tablename__
+    missing_cols = _table_missing_columns(
+        table_name=tablename,
+        table_declared=table_mapping
+    )
     if len(missing_cols) == 0:
         return
     for col in missing_cols:
         if not col.nullable:
-            raise NotImplementedError(f"Column {col} is not nullable, can only create new nullable columns.")
+            raise NotImplementedError(
+                f"Column {col} is not nullable, can only create new nullable columns."
+            )
 
     with Session(DB_ENGINE) as ses:
         # turn foreign key restraint off before recreating tables
         ses.execute(text("PRAGMA foreign_keys = 0;"))
-        _reset_table_schema_in_db(table_mapping)     
+        _reset_table_schema_in_db(table_mapping)
         ses.execute(text("PRAGMA foreign_keys = 1;"))
         ses.commit()
     return
@@ -325,19 +363,14 @@ for mapped_table in [prices, products, product_names, product_categories]:
     _recreate_updated_tables(mapped_table)
 
 
-def format_name(name:str) -> str:
+def format_name(name: str) -> str:
     """Returns `name` in the format it should be retrieved from/inserted to the database."""
     return re.sub(" +", " ", name.title())
 
 
 def table_has_data(tablename: Literal["prices", "product_names", "product_categories"]):
-    stmt = (
-        select(func.count()).select_from(
-            select(literal_column("1"))
-            .select_from(table(tablename))
-            .limit(1)
-            .subquery()
-        )
+    stmt = select(func.count()).select_from(
+        select(literal_column("1")).select_from(table(tablename)).limit(1).subquery()
     )
     with Session(DB_ENGINE) as ses:
         return bool(ses.execute(stmt).scalar())
@@ -359,7 +392,7 @@ def scan_names() -> list[product_names]:
         return [row for row in result]
 
 
-def scan_products(name_id: int|None = None) -> list[products]:
+def scan_products(name_id: int | None = None) -> list[products]:
     """
     Read *products* table to get a list of rows.
 
@@ -375,14 +408,13 @@ def scan_products(name_id: int|None = None) -> list[products]:
 
 
 def scan_prices(
-        product_ids: list[int]|None = None,
-        date_max: datetime|None = None,
-        date_min: datetime|None = None,
-        price_max: float|None = None,
-        price_min: float|None = None,
-    ) -> list[prices]:
-    """
-    Read *prices* table to get a list of rows.
+    product_ids: list[int] | None = None,
+    date_max: datetime | None = None,
+    date_min: datetime | None = None,
+    price_max: float | None = None,
+    price_min: float | None = None,
+) -> list[prices]:
+    """Read *prices* table to get a list of rows.
 
     **Args**
         `product_ids`: list of ID numbers of the desired products. `None` if should get from all products.
@@ -419,28 +451,28 @@ def delete_price_rows(rows: list[prices]):
         ses.commit()
 
 
-def product_category_by_id(id: int) -> product_categories|None:
+def product_category_by_id(id: int) -> product_categories | None:
     """Return an entry from *product_categories* table with the specified `id`. `None` if it doesn't exist."""
     with Session(DB_ENGINE) as ses:
         stmt = select(product_categories).where(product_categories.Id == id)
         return ses.execute(stmt).scalar_one_or_none()
 
 
-def product_name_by_id(id: int) -> product_names|None:
+def product_name_by_id(id: int) -> product_names | None:
     """Return an entry from *product_names* table with the specified `id`. `None` if it doesn't exist."""
     with Session(DB_ENGINE) as ses:
         stmt = select(product_names).where(product_names.Id == id)
         return ses.execute(stmt).scalar_one_or_none()
 
 
-def product_by_id(id: int) -> products|None:
+def product_by_id(id: int) -> products | None:
     """Return an entry from products table with the specified `id`. `None` if it doesn't exist."""
     with Session(DB_ENGINE) as ses:
         stmt = select(products).where(products.Id == id)
         return ses.execute(stmt).scalar_one_or_none()
 
 
-def price_by_id(id: int) -> prices|None:
+def price_by_id(id: int) -> prices | None:
     """Return an entry from prices table with the specified `id`. `None` if it doesn't exist."""
     with Session(DB_ENGINE) as ses:
         stmt = select(prices).where(prices.Id == id)
@@ -453,7 +485,7 @@ def title_category_exists(name: str) -> bool:
     name = format_name(name)
     with Session(DB_ENGINE) as ses:
         stmt = select(product_categories).where(product_categories.CategoryName == name)
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
@@ -462,7 +494,7 @@ def title_name_exists(name: str) -> bool:
     name = re.sub(" +", " ", name.title())
     with Session(DB_ENGINE) as ses:
         stmt = select(product_names).where(product_names.ProductName == name)
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
@@ -474,12 +506,14 @@ def product_exists(product_obj: products) -> bool:
         .where(products.ProductModel == product_obj.ProductModel)
     )
     with Session(DB_ENGINE) as ses:
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
-def id_by_category_name(name: str) -> int|None:
-    """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
+def id_by_category_name(name: str) -> int | None:
+    """Returns the ID number of the corresponding `name` in *product_categories*
+    table, or `None` if not present.
+    """
     name = format_name(name)
     stmt = select(product_categories.Id).where(product_categories.CategoryName == name)
     with Session(DB_ENGINE) as ses:
@@ -487,8 +521,10 @@ def id_by_category_name(name: str) -> int|None:
     return int(result)
 
 
-def id_by_product_name(name: str) -> int|None:
-    """Returns the ID number of the corresponding `name` in *product_categories* table, or `None` if not present."""
+def id_by_product_name(name: str) -> int | None:
+    """Returns the ID number of the corresponding `name` in *product_categories*
+    table, or `None` if not present.
+    """
     name = format_name(name)
     stmt = select(product_names.Id).where(product_names.ProductName == name)
     with Session(DB_ENGINE) as ses:
@@ -506,7 +542,7 @@ def id_category_exists(category_id: int) -> bool:
     """Returns a boolean value indicating wether `category_id` exist or not."""
     stmt = select(product_categories).where(product_categories.Id == category_id)
     with Session(DB_ENGINE) as ses:
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
@@ -514,7 +550,7 @@ def id_name_exists(name_id: int) -> bool:
     """Returns a boolean value indicating wether `name_id` exist or not."""
     stmt = select(product_names).where(product_names.Id == name_id)
     with Session(DB_ENGINE) as ses:
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
@@ -522,7 +558,7 @@ def id_product_exists(product_id: int) -> bool:
     """Returns a boolean value indicating wether `product_id` exist or not."""
     with Session(DB_ENGINE) as ses:
         stmt = select(products).where(products.Id == product_id)
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
@@ -530,12 +566,14 @@ def id_price_exists(price_id: int) -> bool:
     """Returns a boolean value indicating wether `price_id` exist or not."""
     with Session(DB_ENGINE) as ses:
         stmt = select(prices).where(prices.Id == price_id)
-        result = tuple( ses.execute(stmt).scalars() )
+        result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
 def product_name_has_category(name_id: int) -> bool:
-    """Returns a boolean value indicating wether `name_id` has a category ID associated to it or not."""
+    """Returns a boolean value indicating wether `name_id` has a category ID
+    associated to it or not.
+    """
     if not id_name_exists(name_id):
         print("This name ID is not in database.")
         return None
@@ -545,8 +583,10 @@ def product_name_has_category(name_id: int) -> bool:
     return bool(result)
 
 
-def add_product_category_to_db(product_category_obj: product_categories) -> int|None:
-    """Creates an entry in *product_categories* table, returns the ID of the entry created or `None` if `category_name` already exists."""
+def add_product_category_to_db(product_category_obj: product_categories) -> int | None:
+    """Creates an entry in *product_categories* table, returns the ID of the
+    entry created or `None` if `category_name` already exists.
+    """
     category_name = product_category_obj.CategoryName
     if title_category_exists(name=category_name):
         return None
@@ -558,7 +598,9 @@ def add_product_category_to_db(product_category_obj: product_categories) -> int|
 
 
 def add_product_name_to_db(product_name_obj: product_names):
-    """Creates an entry in *product_names* table, returns the ID of the entry created or `None` if `category_name` already exists."""
+    """Creates an entry in *product_names* table, returns the ID of the entry
+    created or `None` if `category_name` already exists.
+    """
     product_name = product_name_obj.ProductName
     if title_name_exists(name=product_name):
         return None
@@ -570,7 +612,9 @@ def add_product_name_to_db(product_name_obj: product_names):
 
 
 def add_product_to_db(product_obj: products):
-    """Creates an entry in *products* table, returns the ID of the entry created or `None` if `product_obj` already exists."""
+    """Creates an entry in *products* table, returns the ID of the entry
+    created or `None` if `product_obj` already exists.
+    """
     if product_exists(product_obj):
         return None
     with Session(DB_ENGINE) as ses:
@@ -581,7 +625,9 @@ def add_product_to_db(product_obj: products):
 
 
 def set_category_to_name(name_id: int, category_id: int):
-    """Set `category_id` to *CategoryId* column in *product_names* table for the specified `name_id`."""
+    """Set `category_id` to *CategoryId* column in *product_names* table for
+    the specified `name_id`.
+    """
     stmt = (
         update(product_names)
         .where(product_names.Id == name_id)
@@ -590,4 +636,3 @@ def set_category_to_name(name_id: int, category_id: int):
     with Session(DB_ENGINE) as ses:
         ses.execute(stmt)
         ses.commit()
-
