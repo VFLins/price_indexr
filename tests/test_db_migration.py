@@ -10,6 +10,7 @@ from sqlalchemy import (
     insert,
 )
 from .synthetic_data import (
+    GENERIC_PRICES_COLS,
     product_categories_data,
     product_names_data,
     products_data,
@@ -245,15 +246,17 @@ def test__table_missing_columns(
     engine = new_blank_db_engine
     meta = MetaData()
     meta.reflect(engine)
-
-    prices_columns = tuple(
-        col
-        for col in prices.__table__.columns
-        if col.name not in expected_missing_colnames
+    sel_colnames = [
+        name
+        for name in GENERIC_PRICES_COLS.keys()
+        if name not in expected_missing_colnames
+    ]
+    sel_prices_cols = [GENERIC_PRICES_COLS[colname] for colname in sel_colnames]
+    new_table = Table("test_missing_cols", meta, *sel_prices_cols)
+    meta.create_all(engine, tables=[new_table])
+    missing_cols = _table_missing_columns(
+        table_name="test_missing_cols", table_declared=prices, meta_data=meta
     )
-    new_table = Table("test_missing_cols", metadata=meta, *prices_columns)
-    meta.create_all(engine, tables=new_table)
-    missing_cols = _table_missing_columns(table_name="test_missing_cols", table_declared=prices)
     missing_colnames = [col.name for col in missing_cols]
     # Check all expected are present
     for name in expected_missing_colnames:

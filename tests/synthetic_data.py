@@ -1,4 +1,17 @@
 from datetime import datetime
+from sqlalchemy import Column, Integer, String, Numeric
+
+
+GENERIC_PRICES_COLS = {
+    "Id": Column("Id", Integer, primary_key=True),
+    "ProductId": Column("ProductId", Integer),
+    "Date": Column("Date", String),
+    "Currency": Column("Currency", String),
+    "Price": Column("Price", Numeric),
+    "Name": Column("Name", String),
+    "Store": Column("Store", String),
+    "Url": Column("Url", String),
+}
 
 
 def as_dt(date_str):
