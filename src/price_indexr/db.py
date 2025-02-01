@@ -226,7 +226,7 @@ def _columns_are_identical(
 def _tables_are_identical(table_obj1: Table, table_obj2: Table) -> bool:
     """Check if two tables have the *exact* same columns and same data across those columns."""
     tablename1, tablename2 = table_obj1.name, table_obj2.name
-    if not _table_with_same_columns(*(tablename1, tablename2)):
+    if not _tables_with_same_columns(*(tablename1, tablename2)):
         return False
     column_set = set(col.name for col in table_obj1.columns)
     return all(
@@ -255,10 +255,12 @@ def _tables_have_same_data(
     return True
 
 
-def _table_with_same_columns(*tablenames: str) -> bool:
+def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE) -> bool:
     """Boolean value indicating if tables with `tablenames` in the database have the same column set.
     Raises `KeyError` if one of the `tablenames` are not present in the database."""
-    tables_in_db = [DB_METADATA.tables[tbl_name] for tbl_name in tablenames]
+    meta = MetaData()
+    meta.reflect(engine)
+    tables_in_db = [meta.tables[tbl_name] for tbl_name in tablenames]
     tables_colnames = [set(col.name for col in tbl.columns) for tbl in tables_in_db]
     return all(col_name == tables_colnames[0] for col_name in tables_colnames)
 
@@ -326,8 +328,7 @@ def _reset_table_schema_in_db(table_mapping: Type[TableMapping]):
 def _table_update_migration(table_mapping: Type[TableMapping]):
     tablename = table_mapping.__tablename__
     missing_cols = _table_missing_columns(
-        table_name=tablename,
-        table_declared=table_mapping
+        table_name=tablename, table_declared=table_mapping
     )
     if len(missing_cols) == 0:
         return

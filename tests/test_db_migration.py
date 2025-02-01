@@ -29,7 +29,7 @@ from price_indexr.db import (
     products_model,
     _columns_are_identical,
     _table_missing_columns,
-    _table_with_same_columns,
+    _tables_with_same_columns,
     _tables_are_identical,
     _tables_have_same_data,
     _recreate_updated_tables,
@@ -164,8 +164,7 @@ def test_data_insertion(new_populated_db_engine):
 
 def test_columns_are_identical_empty(new_empty_db_engine):
     """Test if `_columns_are_identical()` performs as expected in empty tables."""
-    engine = new_empty_db_engine
-    meta = MetaData()
+    engine, meta = new_empty_db_engine, MetaData()
     meta.reflect(engine)
     # Same column on the same table should always return True
     col1 = meta.tables["prices"].columns["Id"]
@@ -182,8 +181,7 @@ def test_success_columns_are_identical_populated(
     new_populated_db_engine, copy_table_prices, copy_table_products
 ):
     """Test success cases of `_columns_are_identical()` in populated tables."""
-    engine: Engine = new_populated_db_engine
-    meta = MetaData()
+    engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
     prices_copy: Table = copy_table_prices
     for colname in prices_copy.mapped_colnames():
@@ -201,8 +199,7 @@ def test_edge_case_columns_are_identical(new_populated_db_engine, copy_table_pro
     """Test if _columns_are_identical will evaluate correctly when columns with
     NULL values are identical when NULL values are omitted and not otherwise.
     """
-    engine: Engine = new_populated_db_engine
-    meta = MetaData()
+    engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
     products_copy: Table = copy_table_products2
     for colname in products_copy.mapped_colnames():
@@ -222,8 +219,7 @@ def not_test_fail_columns_are_identical_populated(
 
 def not_test_create_backup(new_populated_db_engine):
     """Test if backup table in being created. No ready to run yet"""
-    engine = new_populated_db_engine
-    meta = MetaData()
+    engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
     mapped_tables = [prices, products, product_names, product_categories]
     for tbl in mapped_tables:
@@ -243,8 +239,7 @@ def test__table_missing_columns(
     expected_missing_colnames: list[str], new_blank_db_engine
 ):
     """Test whether _table_missing_columns returns the correct list of columns."""
-    engine = new_blank_db_engine
-    meta = MetaData()
+    engine, meta = new_blank_db_engine, MetaData()
     meta.reflect(engine)
     sel_colnames = [
         name
@@ -264,3 +259,9 @@ def test__table_missing_columns(
     # Check ONLY expected are present
     assert len(missing_colnames) == len(expected_missing_colnames)
     meta.drop_all(engine, tables=[new_table])
+
+
+def test__table_with_same_columns(new_populated_db_engine):
+    engine = new_populated_db_engine
+    assert _tables_with_same_columns("prices", "prices_copy", engine=engine)
+    assert not _tables_with_same_columns("prices", "products", engine=engine)
