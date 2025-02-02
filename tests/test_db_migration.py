@@ -1,4 +1,5 @@
 import pytest
+from copy import copy
 from pathlib import Path
 from typing import Type
 from sqlalchemy import (
@@ -246,7 +247,7 @@ def test__table_missing_columns(
         for name in GENERIC_PRICES_COLS.keys()
         if name not in expected_missing_colnames
     ]
-    sel_prices_cols = [GENERIC_PRICES_COLS[colname] for colname in sel_colnames]
+    sel_prices_cols = [copy(GENERIC_PRICES_COLS[colname]) for colname in sel_colnames]
     new_table = Table("test_missing_cols", meta, *sel_prices_cols)
     meta.create_all(engine, tables=[new_table])
     missing_cols = _table_missing_columns(
