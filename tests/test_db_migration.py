@@ -163,7 +163,7 @@ def test_data_insertion(new_populated_db_engine):
         ses.close()
 
 
-def test_columns_are_identical_empty(new_empty_db_engine):
+def test__columns_are_identical_empty(new_empty_db_engine):
     """Test if `_columns_are_identical()` performs as expected in empty tables."""
     engine, meta = new_empty_db_engine, MetaData()
     meta.reflect(engine)
@@ -178,7 +178,7 @@ def test_columns_are_identical_empty(new_empty_db_engine):
     assert _columns_are_identical(col1, col3, engine=engine) == False
 
 
-def test_success_columns_are_identical_populated(
+def test_success__columns_are_identical_populated(
     new_populated_db_engine, copy_table_prices, copy_table_products
 ):
     """Test success cases of `_columns_are_identical()` in populated tables."""
@@ -196,7 +196,9 @@ def test_success_columns_are_identical_populated(
         assert _columns_are_identical(col1, col2, engine=engine)
 
 
-def test_edge_case_columns_are_identical(new_populated_db_engine, copy_table_products2):
+def test_edge_case__columns_are_identical(
+    new_populated_db_engine, copy_table_products2
+):
     """Test if _columns_are_identical will evaluate correctly when columns with
     NULL values are identical when NULL values are omitted and not otherwise.
     """
@@ -262,7 +264,8 @@ def test__table_missing_columns(
     meta.drop_all(engine, tables=[new_table])
 
 
-def test__table_with_same_columns(new_populated_db_engine):
+def test__table_with_same_columns(new_populated_db_engine, copy_table_prices):
     engine = new_populated_db_engine
+    _ = copy_table_prices
     assert _tables_with_same_columns("prices", "prices_copy", engine=engine)
     assert not _tables_with_same_columns("prices", "products", engine=engine)
