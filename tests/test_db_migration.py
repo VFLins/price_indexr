@@ -82,19 +82,21 @@ def new_blank_db_engine(scope="session"):
 
 @pytest.fixture
 def copy_table_prices(new_populated_db_engine, scope="function"):
-    engine = new_populated_db_engine
-    meta = MetaData()
+    engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
 
-    class prices_copy(prices_model, TableMapping):
-        __tablename__ = "prices_copy"
+    if "prices_copy" not in TableMapping.mapped_tables().keys():
 
-    TableMapping.metadata.create_all(engine, tables=[prices_copy.__table__])
+        class prices_copy(prices_model, TableMapping):
+            __tablename__ = "prices_copy"
+
+    prices_copy_cls = TableMapping.mapped_tables()["prices_copy"]
+    TableMapping.metadata.create_all(engine, tables=[prices_copy_cls.__table__])
     with Session(engine) as ses:
-        ses.execute(insert(prices_copy).values(prices_data))
+        ses.execute(insert(prices_copy_cls).values(prices_data))
         ses.commit()
-    yield prices_copy
-    TableMapping.metadata.drop_all(engine, tables=[prices_copy.__table__])
+    yield prices_copy_cls
+    TableMapping.metadata.drop_all(engine, tables=[prices_copy_cls.__table__])
 
 
 @pytest.fixture
@@ -269,3 +271,25 @@ def test__table_with_same_columns(new_populated_db_engine, copy_table_prices):
     _ = copy_table_prices
     assert _tables_with_same_columns("prices", "prices_copy", engine=engine)
     assert not _tables_with_same_columns("prices", "products", engine=engine)
+
+
+def test__tables_are_identical(new_populated_db_engine, copy_table_prices):
+    engine, meta = new_populated_db_engine, MetaData()
+    meta.reflect(engine)
+    # return True comparing a table with itself
+    for tablename in meta.tables.keys():
+        table_obj = meta.tables[tablename]
+        assert _tables_are_identical(table_obj, table_obj, engine=engine)
+    # return True comparing different tables with the exact same data
+    _ = copy_table_prices
+    prices_table = meta.tables["prices"]
+    prices_copy_table = meta.tables["prices_copy"]
+    assert _tables_are_identical(
+        prices_table, prices_copy_table, warn_=True, engine=engine
+    )
+    # return False comparing tables with different data
+    products_table = meta.tables["products"]
+    for tablename in meta.tables.keys():
+        if tablename != "products":
+            table_obj = meta.tables[tablename]
+            assert not _tables_are_identical(products_table, table_obj, engine=engine)

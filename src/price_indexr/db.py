@@ -27,8 +27,9 @@ from sqlalchemy.orm import (
     Session,
     declared_attr,
 )
+from warnings import warn
 from sqlalchemy.exc import AmbiguousForeignKeysError, InvalidRequestError
-from typing import List, Literal, Type
+from typing import List, Literal, Type, final
 from datetime import datetime
 import os
 import re
@@ -54,8 +55,15 @@ class TableMapping(DeclarativeBase):
     """Base class for table objects using SQLAlchemy's ORM capabilities."""
 
     @classmethod
+    @final
     def mapped_colnames(cls) -> tuple[str]:
         return tuple(col.name for col in cls.__table__.c)
+
+    @classmethod
+    @final
+    def mapped_tables(cls) -> dict[str, Type[DeclarativeBase]]:
+        subclasses = cls.__subclasses__()
+        return {cls.__tablename__: cls for cls in subclasses}
 
 
 class product_categories_model:
@@ -223,16 +231,27 @@ def _columns_are_identical(
         return bool(result.scalar())
 
 
-def _tables_are_identical(table_obj1: Table, table_obj2: Table) -> bool:
+def _tables_are_identical(
+    table_obj1: Table,
+    table_obj2: Table,
+    warn_: bool = False,
+    engine: Engine = DB_ENGINE,
+) -> bool:
     """Check if two tables have the *exact* same columns and same data across those columns."""
     tablename1, tablename2 = table_obj1.name, table_obj2.name
-    if not _tables_with_same_columns(*(tablename1, tablename2)):
+    if not _tables_with_same_columns(tablename1, tablename2, engine=engine):
         return False
-    column_set = set(col.name for col in table_obj1.columns)
-    return all(
-        _columns_are_identical(table_obj1.c[col], table_obj2.c[col])
-        for col in column_set
-    )
+    column_set = [col.name for col in table_obj1.columns]
+    for colname in column_set:
+        if not _columns_are_identical(
+            table_obj1.c[colname], table_obj2.c[colname], engine=engine
+        ):
+            if warn_:
+                warn(
+                    f"Data not identical in column {colname}, evaluation order={column_set}"
+                )
+            return False
+    return True
 
 
 def _tables_have_same_data(
