@@ -10,6 +10,10 @@ from sqlalchemy import (
     select,
     insert,
 )
+from sqlalchemy.orm import(
+    Mapped,
+    mapped_column
+)
 from .synthetic_data import (
     GENERIC_PRICES_COLS,
     product_categories_data,
@@ -118,20 +122,38 @@ def copy_table_products(new_populated_db_engine, scope="function"):
 
 @pytest.fixture
 def copy_table_products2(new_populated_db_engine, scope="function"):
-    engine = new_populated_db_engine
-
-    meta = MetaData()
+    engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
 
     class products_copy2(products_model, TableMapping):
         __tablename__ = "products_copy2"
 
-    TableMapping.metadata.create_all(engine, tables=[products_copy2.__table__])
+    meta.create_all(engine, tables=[products_copy2.__table__])
     with Session(engine) as ses:
         ses.execute(insert(products_copy2).values(products_data2))
         ses.commit()
     yield products_copy2
-    TableMapping.metadata.drop_all(engine, tables=[products_copy2.__table__])
+    meta.drop_all(engine, tables=[products_copy2.__table__])
+
+
+@pytest.fixture
+def products_table_extra_col(new_populated_db_engine, scope="function"):
+    engine, meta = new_populated_db_engine, MetaData()
+    meta.reflect(engine)
+
+    if "products_extra_col" not in TableMapping.mapped_tables().keys():
+
+        class products_extra_col(products_model, TableMapping):
+            __tablename__ = "products_extra_col",
+            extra_col: Mapped[str] = mapped_column(nullable=True)
+    
+    products_extra_col_cls = TableMapping.mapped_tables()["products_extra_col"]
+    TableMapping.metadata.create_all(engine, tables=[products_extra_col_cls.__table__])
+    with Session(engine) as ses:
+        ses.execute(insert(products_extra_col_cls).values(products_data))
+        ses.commit()
+    yield products_extra_col_cls
+    TableMapping.metadata.drop_all(engine, tables=[products_extra_col_cls.__table__])
 
 
 def test_table_creation(new_empty_db_engine):
@@ -293,3 +315,29 @@ def test__tables_are_identical(new_populated_db_engine, copy_table_prices):
         if tablename != "products":
             table_obj = meta.tables[tablename]
             assert not _tables_are_identical(products_table, table_obj, engine=engine)
+
+
+def test__tables_have_same_data(new_populated_db_engine, copy_table_prices, products_table_extra_col):
+    engine, meta = new_populated_db_engine, MetaData()
+    meta.reflect(engine)
+    # return True comparing a table with itself
+    for tablename in meta.tables.keys():
+        table_obj = meta.tables[tablename]
+        assert _tables_have_same_data(table_obj, table_obj, engine=engine)
+    # return True comparing different tables with the exact same data
+    _ = copy_table_prices
+    prices_table = meta.tables["prices"]
+    prices_copy_table = meta.tables["prices_copy"]
+    assert _tables_have_same_data(prices_table, prices_copy_table, engine=engine)
+    # return False comparing tables with different data
+    products_table = meta.tables["products"]
+    for tablename in meta.tables.keys():
+        if tablename != "products":
+            table_obj = meta.tables[tablename]
+            assert not _tables_are_identical(products_table, table_obj, engine=engine)
+    # create a copy of 'products' with an extra column
+    # should return True when comparing with the original 'products' table
+    _ = products_table_extra_col
+    products_tbl = meta.tables["products"]
+    products_tbl_extra_col = meta.tables["products_extra_col"]
+    assert _tables_have_same_data(products_tbl, products_tbl_extra_col, engine=engine)
