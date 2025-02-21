@@ -6,6 +6,11 @@ from sqlalchemy import (
     Engine,
     MetaData,
     Table,
+    Column,
+    ForeignKey,
+    Integer,
+    String,
+    DateTime,
     create_engine,
     select,
     insert,
@@ -141,19 +146,31 @@ def products_table_extra_col(new_populated_db_engine, scope="function"):
     engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
 
+    tbl_products_extra_col = Table(
+        "products_extra_col",
+        meta,
+        Column("Id", Integer, primary_key=True),
+        Column("NameId", Integer, ForeignKey("product_names.Id"), nullable=False),
+        Column("ProductName", String),
+        Column("ProductModel", String),
+        Column("ProductBrand", String),
+        Column("ProductFilters", String),
+        Column("Created", DateTime),
+        Column("LastUpdate", DateTime),
+        Column("NewEmptyColumn", String, nullable=True)
+    )
+
     if "products_extra_col" not in TableMapping.mapped_tables().keys():
 
-        class products_extra_col(products_model, TableMapping):
-            __tablename__ = "products_extra_col",
-            extra_col: Mapped[str] = mapped_column(nullable=True)
-    
-    products_extra_col_cls = TableMapping.mapped_tables()["products_extra_col"]
-    TableMapping.metadata.create_all(engine, tables=[products_extra_col_cls.__table__])
+        #class products_extra_col(products_model, TableMapping):
+        #    __tablename__ = "products_extra_col",
+        #    extra_col: Mapped[str] = mapped_column(nullable=True)
+        TableMapping.metadata.create_all(engine, tables=[tbl_products_extra_col])
     with Session(engine) as ses:
-        ses.execute(insert(products_extra_col_cls).values(products_data))
+        ses.execute(insert(tbl_products_extra_col).values(products_data))
         ses.commit()
-    yield products_extra_col_cls
-    TableMapping.metadata.drop_all(engine, tables=[products_extra_col_cls.__table__])
+    yield tbl_products_extra_col
+    TableMapping.metadata.drop_all(engine, tables=[tbl_products_extra_col])
 
 
 def test_table_creation(new_empty_db_engine):
@@ -317,7 +334,7 @@ def test__tables_are_identical(new_populated_db_engine, copy_table_prices):
             assert not _tables_are_identical(products_table, table_obj, engine=engine)
 
 
-def test__tables_have_same_data(new_populated_db_engine, copy_table_prices, products_table_extra_col):
+def test__tables_have_same_data(new_populated_db_engine, copy_table_prices):
     engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
     # return True comparing a table with itself
@@ -335,9 +352,16 @@ def test__tables_have_same_data(new_populated_db_engine, copy_table_prices, prod
         if tablename != "products":
             table_obj = meta.tables[tablename]
             assert not _tables_are_identical(products_table, table_obj, engine=engine)
+
+
+def test_tables_coparison_edge_case(new_populated_db_engine, products_table_extra_col):
+    engine, meta = new_populated_db_engine, MetaData()
+    meta.reflect(engine)
     # create a copy of 'products' with an extra column
-    # should return True when comparing with the original 'products' table
     _ = products_table_extra_col
     products_tbl = meta.tables["products"]
     products_tbl_extra_col = meta.tables["products_extra_col"]
+    # should return True when testing if they have the same data
     assert _tables_have_same_data(products_tbl, products_tbl_extra_col, engine=engine)
+    # should return False when testing if they are identical
+    assert not _tables_are_identical(products_tbl, products_tbl_extra_col, engine=engine)
