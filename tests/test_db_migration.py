@@ -15,10 +15,7 @@ from sqlalchemy import (
     select,
     insert,
 )
-from sqlalchemy.orm import(
-    Mapped,
-    mapped_column
-)
+from sqlalchemy.orm import Mapped, mapped_column
 from .synthetic_data import (
     GENERIC_PRICES_COLS,
     product_categories_data,
@@ -157,12 +154,12 @@ def products_table_extra_col(new_populated_db_engine, scope="function"):
         Column("ProductFilters", String),
         Column("Created", DateTime),
         Column("LastUpdate", DateTime),
-        Column("NewEmptyColumn", String, nullable=True)
+        Column("NewEmptyColumn", String, nullable=True),
     )
 
     if "products_extra_col" not in TableMapping.mapped_tables().keys():
 
-        #class products_extra_col(products_model, TableMapping):
+        # class products_extra_col(products_model, TableMapping):
         #    __tablename__ = "products_extra_col",
         #    extra_col: Mapped[str] = mapped_column(nullable=True)
         TableMapping.metadata.create_all(engine, tables=[tbl_products_extra_col])
@@ -261,20 +258,6 @@ def not_test_fail_columns_are_identical_populated(
     """Test fail cases of `_columns_are_identical()` in populated tables."""
 
 
-def not_test_create_backup(new_populated_db_engine):
-    """Test if backup table in being created. No ready to run yet"""
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
-    mapped_tables = [prices, products, product_names, product_categories]
-    for tbl in mapped_tables:
-        tblname = tbl.__tablename__
-        orm_backup_tbl = _create_backup_table(
-            table_mapping=tbl, engine=engine, metadata=meta
-        )
-        db_backup_tbl = meta.tables[tblname]
-        assert orm_backup_tbl.__table__ == db_backup_tbl
-
-
 @pytest.mark.parametrize(
     "expected_missing_colnames",
     [(["Price", "Date"]), (["Name"]), (["Url", "Store", "Currency"])],
@@ -364,4 +347,17 @@ def test_tables_coparison_edge_case(new_populated_db_engine, products_table_extr
     # should return True when testing if they have the same data
     assert _tables_have_same_data(products_tbl, products_tbl_extra_col, engine=engine)
     # should return False when testing if they are identical
-    assert not _tables_are_identical(products_tbl, products_tbl_extra_col, engine=engine)
+    assert not _tables_are_identical(
+        products_tbl, products_tbl_extra_col, engine=engine
+    )
+
+
+def test__create_backup_table(new_populated_db_engine):
+    """Test if backup table in being created correctly and returns the correct table object."""
+    engine, meta = new_populated_db_engine, MetaData()
+    meta.reflect(engine)
+    mapped_tables = [prices, products, product_names, product_categories]
+    for tbl in mapped_tables:
+        orm_backup_tbl = _create_backup_table(table_mapping=tbl, engine=engine)
+        db_backup_tbl = meta.tables[orm_backup_tbl.__tablename__]
+        assert orm_backup_tbl.__table__ == db_backup_tbl

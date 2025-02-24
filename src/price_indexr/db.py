@@ -287,14 +287,15 @@ def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE) -> b
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
-    metadata: MetaData = DB_METADATA,
 ) -> Type[TableMapping]:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns the `TableMapping` object from the backup table generated.
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
     or if `table_mapping`'s table isn't present in the database.
     """
-    tablename = table_mapping.__tablename__
+    metadata, tablename = MetaData(), table_mapping.__tablename__
+    metadata.reflect(engine)
+
     if tablename not in metadata.tables.keys():
         raise RuntimeError("Could not find table to be backed-up in the database.")
     table_model_obj = table_mapping.__mro__[1]
@@ -303,12 +304,8 @@ def _create_backup_table(
         __tablename__ = "ephemeral_backup_table"
 
     if "ephemeral_backup_table" in metadata.tables.keys():
-        TableMapping.metadata.drop_all(
-            bind=engine, tables=[ephemeral_backup_table.__table__]
-        )
-    TableMapping.metadata.create_all(
-        bind=engine, tables=[ephemeral_backup_table.__table__]
-    )
+        metadata.drop_all(bind=engine, tables=[ephemeral_backup_table.__table__])
+    metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
 
     colnames_in_db = tuple(col.name for col in metadata.tables[tablename].c)
     with Session(engine) as ses:
@@ -319,7 +316,8 @@ def _create_backup_table(
         ses.commit()
 
         if not _tables_have_same_data(
-            metadata.tables[tablename], metadata.tables["ephemeral_backup_table"]
+            metadata.tables[tablename], metadata.tables["ephemeral_backup_table"],
+            engine=engine
         ):
             raise RuntimeError(
                 "Could not load data to a backup table before migration."
