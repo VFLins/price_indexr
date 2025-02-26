@@ -287,7 +287,7 @@ def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE) -> b
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
-) -> Type[TableMapping]:
+) -> Table:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns the `TableMapping` object from the backup table generated.
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
@@ -302,10 +302,17 @@ def _create_backup_table(
 
     class ephemeral_backup_table(table_model_obj, TableMapping):
         __tablename__ = "ephemeral_backup_table"
+        __table_args__ = {"extend_existing": True}
 
     if "ephemeral_backup_table" in metadata.tables.keys():
-        metadata.drop_all(bind=engine, tables=[ephemeral_backup_table.__table__])
+        existing_backup_table = metadata.tables["ephemeral_backup_table"]
+        metadata.drop_all(bind=engine, tables=[existing_backup_table])
+        metadata.remove(existing_backup_table)
     metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
+    metadata._add_table(
+        name="ephemeral_backup_table", schema=None,
+        table=ephemeral_backup_table.__table__
+    )
 
     colnames_in_db = tuple(col.name for col in metadata.tables[tablename].c)
     with Session(engine) as ses:
@@ -315,14 +322,15 @@ def _create_backup_table(
         ses.execute(stmt)
         ses.commit()
 
-        if not _tables_have_same_data(
-            metadata.tables[tablename], metadata.tables["ephemeral_backup_table"],
-            engine=engine
-        ):
-            raise RuntimeError(
-                "Could not load data to a backup table before migration."
-            )
-        return ephemeral_backup_table
+    if not _tables_have_same_data(
+        metadata.tables[tablename],
+        metadata.tables["ephemeral_backup_table"],
+        engine=engine
+    ):
+        raise RuntimeError(
+            "Could not load data to a backup table before migration."
+        )
+    return metadata.tables["ephemeral_backup_table"]
 
 
 def _reset_table_schema_in_db(table_mapping: Type[TableMapping]):
