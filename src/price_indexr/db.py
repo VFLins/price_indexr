@@ -82,8 +82,8 @@ class product_names_model:
         return relationship(back_populates="Category")
 
     @declared_attr
-    def Name(cls) -> Mapped["products"]:
-        return relationship(back_populates="Name")
+    def RelName(cls) -> Mapped["products"]:
+        return relationship(back_populates="RelName")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     CategoryId: Mapped[int] = mapped_column(
@@ -98,8 +98,8 @@ class products_model:
         return relationship(back_populates="Product")
 
     @declared_attr
-    def Name(cls) -> Mapped[List["product_names"]]:
-        return relationship(back_populates="Name")
+    def RelName(cls) -> Mapped[List["product_names"]]:
+        return relationship(back_populates="RelName")
 
     Id: Mapped[int] = mapped_column(primary_key=True)
     NameId: Mapped[int] = mapped_column(ForeignKey("product_names.Id"))
@@ -258,10 +258,16 @@ def _tables_have_same_data(
     table_obj1: Table, table_obj2: Table, engine: Engine = DB_ENGINE
 ) -> bool:
     """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
+    meta = MetaData()
+    meta.reflect(engine)
+    # use table from metadata instead
+    tablename1, tablename2 = table_obj1.name, table_obj2.name
+    table_obj1, table_obj2 = meta.tables[tablename1], meta.tables[tablename2]
+    # compare cols presence before comparing contents
     expected_colnames = [col.name for col in table_obj1.columns]
     table2_colnames = [col.name for col in table_obj2.columns]
     if not all(colname in table2_colnames for colname in expected_colnames):
-        print("Not all columns are present.")
+        print(f"Not all columns of '{table_obj1.name}' are present in '{table_obj2.name}'.")
         return False
     for col2 in table_obj2.columns:
         if col2.name in expected_colnames:
@@ -287,35 +293,36 @@ def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE) -> b
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
+    mapper: DeclarativeBase = TableMapping
 ) -> Table:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
-    Returns the `TableMapping` object from the backup table generated.
+    Returns a `Table` object from the backup table generated.
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
     or if `table_mapping`'s table isn't present in the database.
     """
     metadata, tablename = MetaData(), table_mapping.__tablename__
-    metadata.reflect(engine)
+    metadata.reflect(engine, extend_existing=True)
 
     if tablename not in metadata.tables.keys():
         raise RuntimeError("Could not find table to be backed-up in the database.")
     table_model_obj = table_mapping.__mro__[1]
 
-    class ephemeral_backup_table(table_model_obj, TableMapping):
-        __tablename__ = "ephemeral_backup_table"
-        __table_args__ = {"extend_existing": True}
-
-    if "ephemeral_backup_table" in metadata.tables.keys():
-        existing_backup_table = metadata.tables["ephemeral_backup_table"]
+    existing_backup_table = metadata.tables.get("ephemeral_backup_table")
+    if existing_backup_table is not None:
         metadata.drop_all(bind=engine, tables=[existing_backup_table])
-        metadata.remove(existing_backup_table)
-    metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
-    metadata._add_table(
-        name="ephemeral_backup_table", schema=None,
-        table=ephemeral_backup_table.__table__
-    )
+        metadata._remove_table(name="ephemeral_backup_table", schema=None)
+
+    class ephemeral_backup_table(table_model_obj, mapper):
+        __tablename__ = "ephemeral_backup_table"
+        # __table_args__ = {"extend_existing": True}
 
     colnames_in_db = tuple(col.name for col in metadata.tables[tablename].c)
     with Session(engine) as ses:
+        metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
+        metadata._add_table(
+            name="ephemeral_backup_table", schema=None,
+            table=ephemeral_backup_table.__table__
+        )
         stmt = insert(ephemeral_backup_table).from_select(
             colnames_in_db, select(*metadata.tables[tablename].c)
         )

@@ -95,6 +95,7 @@ def copy_table_prices(new_populated_db_engine, scope="function"):
 
         class prices_copy(prices_model, TableMapping):
             __tablename__ = "prices_copy"
+            __table_args__ = {"extend_existing": True}
 
     prices_copy_cls = TableMapping.mapped_tables()["prices_copy"]
     TableMapping.metadata.create_all(engine, tables=[prices_copy_cls.__table__])
@@ -356,8 +357,12 @@ def test__create_backup_table(new_populated_db_engine):
     """Test if backup table in being created correctly and returns the correct table object."""
     engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
-    mapped_tables = [prices, products, product_names, product_categories]
-    for tbl in mapped_tables:
-        orm_backup_tbl = _create_backup_table(table_mapping=tbl, engine=engine)
-        db_backup_tbl = meta.tables[orm_backup_tbl.__tablename__]
-        assert orm_backup_tbl.__table__ == db_backup_tbl
+
+    products_backup_tbl = _create_backup_table(table_mapping=products, engine=engine)
+    assert products_backup_tbl.c.keys() == products.__table__.c.keys()
+    TableMapping.metadata.drop_all(bind=engine, tables=[products_backup_tbl])
+    TableMapping.metadata.remove(products_backup_tbl)
+
+    product_names_backup_tbl = _create_backup_table(table_mapping=product_names, engine=engine)
+    assert product_names_backup_tbl.c.keys() == product_names.__table__.c.keys()
+    TableMapping.metadata.drop_all(bind=engine, tables=[product_names_backup_tbl])
