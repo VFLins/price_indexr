@@ -357,12 +357,7 @@ def test__create_backup_table(new_populated_db_engine):
     """Test if backup table in being created correctly and returns the correct table object."""
     engine, meta = new_populated_db_engine, MetaData()
     meta.reflect(engine)
-
-    products_backup_tbl = _create_backup_table(table_mapping=products, engine=engine)
-    assert products_backup_tbl.c.keys() == products.__table__.c.keys()
-    TableMapping.metadata.drop_all(bind=engine, tables=[products_backup_tbl])
-    TableMapping.metadata.remove(products_backup_tbl)
-
-    product_names_backup_tbl = _create_backup_table(table_mapping=product_names, engine=engine)
-    assert product_names_backup_tbl.c.keys() == product_names.__table__.c.keys()
-    TableMapping.metadata.drop_all(bind=engine, tables=[product_names_backup_tbl])
+    mapped_tables = [product_categories, product_names, products, prices]
+    for tbl in mapped_tables:
+        backup_tbl = _create_backup_table(table_mapping=tbl, engine=engine)
+        assert _tables_are_identical(backup_tbl, tbl.__table__, engine=engine)

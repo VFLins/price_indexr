@@ -293,15 +293,14 @@ def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE) -> b
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
-    mapper: DeclarativeBase = TableMapping
+    mapper: Type[DeclarativeBase] = TableMapping
 ) -> Table:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns a `Table` object from the backup table generated.
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
     or if `table_mapping`'s table isn't present in the database.
     """
-    metadata, tablename = MetaData(), table_mapping.__tablename__
-    metadata.reflect(engine, extend_existing=True)
+    metadata, tablename = mapper.metadata, table_mapping.__tablename__
 
     if tablename not in metadata.tables.keys():
         raise RuntimeError("Could not find table to be backed-up in the database.")
