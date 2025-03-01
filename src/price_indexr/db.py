@@ -236,7 +236,7 @@ def _tables_are_identical(
     table_obj1: Table,
     table_obj2: Table,
     warn_: bool = False,
-    engine: Engine = DB_ENGINE
+    engine: Engine = DB_ENGINE,
 ) -> bool:
     """Check if two tables have the *exact* same columns and same data across those columns."""
     tablename1, tablename2 = table_obj1.name, table_obj2.name
@@ -256,7 +256,10 @@ def _tables_are_identical(
 
 
 def _tables_have_same_data(
-    table_obj1: Table, table_obj2: Table, engine: Engine = DB_ENGINE, mapper: Type[DeclarativeBase] = TableMapping
+    table_obj1: Table,
+    table_obj2: Table,
+    engine: Engine = DB_ENGINE,
+    mapper: Type[DeclarativeBase] = TableMapping,
 ) -> bool:
     """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
     metadata = mapper.metadata
@@ -267,7 +270,9 @@ def _tables_have_same_data(
     expected_colnames = [col.name for col in table_obj1.columns]
     table2_colnames = [col.name for col in table_obj2.columns]
     if not all(colname in table2_colnames for colname in expected_colnames):
-        print(f"Not all columns of '{table_obj1.name}' are present in '{table_obj2.name}'.")
+        print(
+            f"Not all columns of '{table_obj1.name}' are present in '{table_obj2.name}'."
+        )
         return False
     for col2 in table_obj2.columns:
         if col2.name in expected_colnames:
@@ -280,7 +285,11 @@ def _tables_have_same_data(
     return True
 
 
-def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE, mapper: Type[DeclarativeBase] = TableMapping) -> bool:
+def _tables_with_same_columns(
+    *tablenames: str,
+    engine: Engine = DB_ENGINE,
+    mapper: Type[DeclarativeBase] = TableMapping,
+) -> bool:
     """Boolean value indicating if tables with `tablenames` in the database have the same column set.
     Raises `KeyError` if one of the `tablenames` are not present in the database."""
     metadata = mapper.metadata
@@ -292,7 +301,7 @@ def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE, mapp
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
-    mapper: Type[DeclarativeBase] = TableMapping
+    mapper: Type[DeclarativeBase] = TableMapping,
 ) -> Table:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns a `Table` object from the backup table generated.
@@ -310,6 +319,7 @@ def _create_backup_table(
         metadata._remove_table(name="ephemeral_backup_table", schema=None)
 
     table_model_obj = table_mapping.__mro__[1]
+
     class ephemeral_backup_table(table_model_obj, mapper):
         __tablename__ = "ephemeral_backup_table"
         # __table_args__ = {"extend_existing": True}
@@ -318,8 +328,9 @@ def _create_backup_table(
     with Session(engine) as ses:
         metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
         metadata._add_table(
-            name="ephemeral_backup_table", schema=None,
-            table=ephemeral_backup_table.__table__
+            name="ephemeral_backup_table",
+            schema=None,
+            table=ephemeral_backup_table.__table__,
         )
         stmt = insert(ephemeral_backup_table).from_select(
             colnames_in_db, select(*metadata.tables[tablename].c)
@@ -330,11 +341,9 @@ def _create_backup_table(
     if not _tables_have_same_data(
         metadata.tables[tablename],
         metadata.tables["ephemeral_backup_table"],
-        engine=engine
+        engine=engine,
     ):
-        raise RuntimeError(
-            "Could not load data to a backup table before migration."
-        )
+        raise RuntimeError("Could not load data to a backup table before migration.")
     return metadata.tables["ephemeral_backup_table"]
 
 
