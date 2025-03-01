@@ -46,6 +46,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 # ===================== #
 
 DB_ENGINE = create_engine(f"sqlite:///{DATABASE_FILE}", echo=False)
+"""`sqlalchemy.Engine` object pointing to `price_indexr`'s default database."""
 DB_METADATA = MetaData()
 """Metadata from the database's state upon startup."""
 DB_METADATA.reflect(DB_ENGINE)
@@ -235,7 +236,7 @@ def _tables_are_identical(
     table_obj1: Table,
     table_obj2: Table,
     warn_: bool = False,
-    engine: Engine = DB_ENGINE,
+    engine: Engine = DB_ENGINE
 ) -> bool:
     """Check if two tables have the *exact* same columns and same data across those columns."""
     tablename1, tablename2 = table_obj1.name, table_obj2.name
@@ -255,14 +256,13 @@ def _tables_are_identical(
 
 
 def _tables_have_same_data(
-    table_obj1: Table, table_obj2: Table, engine: Engine = DB_ENGINE
+    table_obj1: Table, table_obj2: Table, engine: Engine = DB_ENGINE, mapper: Type[DeclarativeBase] = TableMapping
 ) -> bool:
     """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
-    meta = MetaData()
-    meta.reflect(engine)
+    metadata = mapper.metadata
     # use table from metadata instead
     tablename1, tablename2 = table_obj1.name, table_obj2.name
-    table_obj1, table_obj2 = meta.tables[tablename1], meta.tables[tablename2]
+    table_obj1, table_obj2 = metadata.tables[tablename1], metadata.tables[tablename2]
     # compare cols presence before comparing contents
     expected_colnames = [col.name for col in table_obj1.columns]
     table2_colnames = [col.name for col in table_obj2.columns]
@@ -280,12 +280,11 @@ def _tables_have_same_data(
     return True
 
 
-def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE) -> bool:
+def _tables_with_same_columns(*tablenames: str, engine: Engine = DB_ENGINE, mapper: Type[DeclarativeBase] = TableMapping) -> bool:
     """Boolean value indicating if tables with `tablenames` in the database have the same column set.
     Raises `KeyError` if one of the `tablenames` are not present in the database."""
-    meta = MetaData()
-    meta.reflect(engine)
-    tables_in_db = [meta.tables[tbl_name] for tbl_name in tablenames]
+    metadata = mapper.metadata
+    tables_in_db = [metadata.tables[tbl_name] for tbl_name in tablenames]
     tables_colnames = [set(col.name for col in tbl.columns) for tbl in tables_in_db]
     return all(col_name == tables_colnames[0] for col_name in tables_colnames)
 
@@ -304,13 +303,13 @@ def _create_backup_table(
 
     if tablename not in metadata.tables.keys():
         raise RuntimeError("Could not find table to be backed-up in the database.")
-    table_model_obj = table_mapping.__mro__[1]
 
     existing_backup_table = metadata.tables.get("ephemeral_backup_table")
     if existing_backup_table is not None:
         metadata.drop_all(bind=engine, tables=[existing_backup_table])
         metadata._remove_table(name="ephemeral_backup_table", schema=None)
 
+    table_model_obj = table_mapping.__mro__[1]
     class ephemeral_backup_table(table_model_obj, mapper):
         __tablename__ = "ephemeral_backup_table"
         # __table_args__ = {"extend_existing": True}

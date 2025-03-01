@@ -141,12 +141,10 @@ def copy_table_products2(new_populated_db_engine, scope="function"):
 
 @pytest.fixture
 def products_table_extra_col(new_populated_db_engine, scope="function"):
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
-
+    engine = new_populated_db_engine
     tbl_products_extra_col = Table(
         "products_extra_col",
-        meta,
+        TableMapping.metadata,
         Column("Id", Integer, primary_key=True),
         Column("NameId", Integer, ForeignKey("product_names.Id"), nullable=False),
         Column("ProductName", String),
@@ -157,12 +155,7 @@ def products_table_extra_col(new_populated_db_engine, scope="function"):
         Column("LastUpdate", DateTime),
         Column("NewEmptyColumn", String, nullable=True),
     )
-
     if "products_extra_col" not in TableMapping.mapped_tables().keys():
-
-        # class products_extra_col(products_model, TableMapping):
-        #    __tablename__ = "products_extra_col",
-        #    extra_col: Mapped[str] = mapped_column(nullable=True)
         TableMapping.metadata.create_all(engine, tables=[tbl_products_extra_col])
     with Session(engine) as ses:
         ses.execute(insert(tbl_products_extra_col).values(products_data))
