@@ -214,8 +214,7 @@ def test_success__columns_are_identical_populated(
     new_populated_db_engine, copy_table_prices, copy_table_products
 ):
     """Test success cases of `_columns_are_identical()` in populated tables."""
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine = new_populated_db_engine
     prices_copy: Table = copy_table_prices
     for colname in prices_copy.mapped_colnames():
         col1 = prices.__table__.c[colname]
@@ -234,8 +233,7 @@ def test_edge_case__columns_are_identical(
     """Test if _columns_are_identical will evaluate correctly when columns with
     NULL values are identical when NULL values are omitted and not otherwise.
     """
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine = new_populated_db_engine
     products_copy: Table = copy_table_products2
     for colname in products_copy.mapped_colnames():
         col1 = products.__table__.c[colname]
@@ -260,8 +258,7 @@ def test__table_missing_columns(
     expected_missing_colnames: list[str], new_blank_db_engine
 ):
     """Test whether _table_missing_columns returns the correct list of columns."""
-    engine, meta = new_blank_db_engine, MetaData()
-    meta.reflect(engine)
+    engine, meta = new_blank_db_engine, TableMapping.metadata
     sel_colnames = [
         name
         for name in GENERIC_PRICES_COLS.keys()
@@ -271,7 +268,8 @@ def test__table_missing_columns(
     new_table = Table("test_missing_cols", meta, *sel_prices_cols)
     meta.create_all(engine, tables=[new_table])
     missing_cols = _table_missing_columns(
-        table_name="test_missing_cols", table_declared=prices, meta_data=meta
+        table_name="test_missing_cols",
+        table_class=prices,
     )
     missing_colnames = [col.name for col in missing_cols]
     # Check all expected are present
@@ -280,18 +278,18 @@ def test__table_missing_columns(
     # Check ONLY expected are present
     assert len(missing_colnames) == len(expected_missing_colnames)
     meta.drop_all(engine, tables=[new_table])
+    meta.remove(new_table)
 
 
 def test__table_with_same_columns(new_populated_db_engine, copy_table_prices):
     engine = new_populated_db_engine
     _ = copy_table_prices
-    assert _tables_with_same_columns("prices", "prices_copy", engine=engine)
-    assert not _tables_with_same_columns("prices", "products", engine=engine)
+    assert _tables_with_same_columns("prices", "prices_copy")
+    assert not _tables_with_same_columns("prices", "products")
 
 
 def test__tables_are_identical(new_populated_db_engine, copy_table_prices):
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine, meta = new_populated_db_engine, TableMapping.metadata
     # return True comparing a table with itself
     for tablename in meta.tables.keys():
         table_obj = meta.tables[tablename]
@@ -312,8 +310,7 @@ def test__tables_are_identical(new_populated_db_engine, copy_table_prices):
 
 
 def test__tables_have_same_data(new_populated_db_engine, copy_table_prices):
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine, meta = new_populated_db_engine, TableMapping.metadata
     # return True comparing a table with itself
     for tablename in meta.tables.keys():
         table_obj = meta.tables[tablename]
@@ -332,8 +329,7 @@ def test__tables_have_same_data(new_populated_db_engine, copy_table_prices):
 
 
 def test_tables_coparison_edge_case(new_populated_db_engine, products_table_extra_col):
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine, meta = new_populated_db_engine, TableMapping.metadata
     # create a copy of 'products' with an extra column
     _ = products_table_extra_col
     products_tbl = meta.tables["products"]
@@ -348,8 +344,7 @@ def test_tables_coparison_edge_case(new_populated_db_engine, products_table_extr
 
 def test__create_backup_table(new_populated_db_engine):
     """Test if backup table in being created correctly and returns the correct table object."""
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine = new_populated_db_engine
     mapped_tables = [product_categories, product_names, products, prices]
     for tbl in mapped_tables:
         backup_tbl = _create_backup_table(table_mapping=tbl, engine=engine)

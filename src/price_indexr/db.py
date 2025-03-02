@@ -29,7 +29,7 @@ from sqlalchemy.orm import (
 )
 from warnings import warn
 from sqlalchemy.exc import AmbiguousForeignKeysError, InvalidRequestError
-from typing import List, Literal, Type, final
+from typing import List, Literal, Type, NewType, final
 from datetime import datetime
 import os
 import re
@@ -50,6 +50,11 @@ DB_ENGINE = create_engine(f"sqlite:///{DATABASE_FILE}", echo=False)
 DB_METADATA = MetaData()
 """Metadata from the database's state upon startup."""
 DB_METADATA.reflect(DB_ENGINE)
+
+
+# type hint objects
+Mapping = NewType("Mapping", DeclarativeBase)
+TableClass = NewType("TableClass", Mapping)
 
 
 class TableMapping(DeclarativeBase):
@@ -170,8 +175,8 @@ def _different_null_vals_positions(
 
 def _table_missing_columns(
     table_name: str,
-    table_declared: Type[TableMapping],
-    meta_data: MetaData = DB_METADATA,
+    table_class: TableClass,
+    mapper: Mapping = TableMapping,
 ) -> list[Column]:
     """Return a list of SQLAlchemy `Column` that are missing in the database.
 
@@ -180,12 +185,13 @@ def _table_missing_columns(
         `table_declared`: must be a table declared in sqlalchemy ORM
         `meta_data`: metadata reflecting the desired database
     """
+    metadata = mapper.metadata
     try:
-        _ = table_declared.__tablename__
-        table_in_code = table_declared.__table__
+        _ = table_class.__tablename__
+        table_in_code = table_class.__table__
     except AttributeError:
-        raise ValueError(f"{table_declared=} does not inherit from `TableMapping`.")
-    colnames_in_db = [col.name for col in meta_data.tables[table_name].c]
+        raise ValueError(f"{table_class=} does not inherit from `TableMapping`.")
+    colnames_in_db = [col.name for col in metadata.tables[table_name].c]
     return [col for col in table_in_code.c if col.name not in colnames_in_db]
 
 
@@ -237,10 +243,11 @@ def _tables_are_identical(
     table_obj2: Table,
     warn_: bool = False,
     engine: Engine = DB_ENGINE,
+    mapper: Mapping = TableMapping,
 ) -> bool:
     """Check if two tables have the *exact* same columns and same data across those columns."""
     tablename1, tablename2 = table_obj1.name, table_obj2.name
-    if not _tables_with_same_columns(tablename1, tablename2, engine=engine):
+    if not _tables_with_same_columns(tablename1, tablename2, mapper=mapper):
         return False
     column_set = [col.name for col in table_obj1.columns]
     for colname in column_set:
@@ -259,7 +266,7 @@ def _tables_have_same_data(
     table_obj1: Table,
     table_obj2: Table,
     engine: Engine = DB_ENGINE,
-    mapper: Type[DeclarativeBase] = TableMapping,
+    mapper: Mapping = TableMapping,
 ) -> bool:
     """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
     metadata = mapper.metadata
@@ -287,8 +294,7 @@ def _tables_have_same_data(
 
 def _tables_with_same_columns(
     *tablenames: str,
-    engine: Engine = DB_ENGINE,
-    mapper: Type[DeclarativeBase] = TableMapping,
+    mapper: Mapping = TableMapping,
 ) -> bool:
     """Boolean value indicating if tables with `tablenames` in the database have the same column set.
     Raises `KeyError` if one of the `tablenames` are not present in the database."""
@@ -301,7 +307,7 @@ def _tables_with_same_columns(
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
-    mapper: Type[DeclarativeBase] = TableMapping,
+    mapper: Mapping = TableMapping,
 ) -> Table:
     """Create a backup table from `table_mapping`'s table if it's present in the database.
     Returns a `Table` object from the backup table generated.
@@ -347,28 +353,26 @@ def _create_backup_table(
     return metadata.tables["ephemeral_backup_table"]
 
 
-def _reset_table_schema_in_db(table_mapping: Type[TableMapping]):
-    """Backs up data from `table_mapping`, then recreates it's table restoring
+def _reset_table_schema_in_db(table_class: TableClass, mapper: Mapping = TableMapping):
+    """Backs up data from `table_class`, then recreates it's table restoring
     data from the backup. Expects new columns to be nullable."""
-    backup_table = _create_backup_table(table_mapping)
+    backup_table = _create_backup_table(table_class)
     backup_tablename = backup_table.__tablename__
-    TableMapping.metadata.drop_all(DB_ENGINE, tables=[table_mapping.__table__])
-    TableMapping.metadata.create_all(DB_ENGINE, tables=[table_mapping.__table__])
+    mapper.metadata.drop_all(DB_ENGINE, tables=[table_class.__table__])
+    mapper.metadata.create_all(DB_ENGINE, tables=[table_class.__table__])
 
     colnames_in_db = tuple(col.name for col in DB_METADATA.tables[backup_tablename].c)
     with Session(DB_ENGINE) as ses:
-        stmt = insert(table_mapping).from_select(
+        stmt = insert(table_class).from_select(
             colnames_in_db, select(*backup_table.__table__.c)
         )
         ses.execute(stmt)
         ses.commit()
 
 
-def _table_update_migration(table_mapping: Type[TableMapping]):
-    tablename = table_mapping.__tablename__
-    missing_cols = _table_missing_columns(
-        table_name=tablename, table_declared=table_mapping
-    )
+def _table_update_migration(table_class: TableClass):
+    tablename = table_class.__tablename__
+    missing_cols = _table_missing_columns(table_name=tablename, table_class=table_class)
     if len(missing_cols) == 0:
         return
     for col in missing_cols:
@@ -380,20 +384,24 @@ def _table_update_migration(table_mapping: Type[TableMapping]):
     with Session(DB_ENGINE) as ses:
         # turn foreign key restraint off before recreating tables
         ses.execute(text("PRAGMA foreign_keys = 0;"))
-        _reset_table_schema_in_db(table_mapping)
+        _reset_table_schema_in_db(table_class)
         ses.execute(text("PRAGMA foreign_keys = 1;"))
         ses.commit()
     return
 
 
-def _recreate_updated_tables(table_mapping: TableMapping):
-    tablename: str = table_mapping.__tablename__
+def _recreate_updated_tables(table_class: TableClass, mapper: Mapping = TableMapping):
+    tablename: str = table_class.__tablename__
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
-    table_metadata = DB_METADATA.tables[tablename]
-    columns_expected: tuple = table_mapping.mapped_colnames()
+    table_metadata = mapper.metadata.tables[tablename]
+    columns_expected: tuple[str] = table_class.mapped_colnames()
     for col in columns_expected:
         if col not in [col.name for col in table_metadata.c]:
-            _table_update_migration(table_mapping)
+            warn(
+                f"Found new column '{col}' in table '{tablename}', "
+                f"trying to update table's schema without losing data..."
+            )
+            _table_update_migration(table_class)
 
 
 TableMapping.metadata.create_all(DB_ENGINE)
