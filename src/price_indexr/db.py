@@ -302,6 +302,23 @@ def _tables_with_same_columns(
     return all(col_name == tables_colnames[0] for col_name in tables_colnames)
 
 
+def _table_full_removal(tablename: str, engine: Engine = DB_ENGINE, mapper: Mapping = TableMapping):
+    """Removes table from `engine`'s database and from `mapper`'s metadata."""
+    # metadata read from orm mapper
+    metadata = mapper.metadata
+    # metadata read from database
+    db_metadata = MetaData()
+    db_metadata.reflect(engine)
+    # removal
+    if tablename in db_metadata.tables.keys():
+        existing_db_table = db_metadata.tables[tablename]
+        db_metadata.drop_all(bind=engine, tables=[existing_db_table])
+        db_metadata.remove(existing_db_table)
+    if tablename in metadata.tables.keys():
+        existing_mapped_table = metadata.tables[tablename]
+        metadata.remove(existing_mapped_table)
+
+
 def _create_backup_table(
     table_mapping: Type[TableMapping],
     engine: Engine = DB_ENGINE,
