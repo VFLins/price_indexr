@@ -329,15 +329,13 @@ def _create_backup_table(
     Raises a `RuntimeError` if the data cannot be loaded to the backup table,
     or if `table_mapping`'s table isn't present in the database.
     """
+    # declared metadata
     metadata, tablename = mapper.metadata, table_mapping.__tablename__
+    # in-db metadata
+    db_metadata = MetaData()
+    db_metadata.reflect(engine)
 
-    if tablename not in metadata.tables.keys():
-        raise RuntimeError("Could not find table to be backed-up in the database.")
-
-    existing_backup_table = metadata.tables.get("ephemeral_backup_table")
-    if existing_backup_table is not None:
-        metadata.drop_all(bind=engine, tables=[existing_backup_table])
-        metadata._remove_table(name="ephemeral_backup_table", schema=None)
+    _table_full_removal("ephemeral_backup_table")
 
     table_model_obj = table_mapping.__mro__[1]
 
@@ -345,25 +343,19 @@ def _create_backup_table(
         __tablename__ = "ephemeral_backup_table"
         # __table_args__ = {"extend_existing": True}
 
-    colnames_in_db = tuple(col.name for col in metadata.tables[tablename].c)
+    # use schema present in database
+    
+    colnames_in_db = tuple(col.name for col in db_metadata.tables[tablename].c)
     with Session(engine) as ses:
         metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
-        metadata._add_table(
-            name="ephemeral_backup_table",
-            schema=None,
-            table=ephemeral_backup_table.__table__,
-        )
         stmt = insert(ephemeral_backup_table).from_select(
-            colnames_in_db, select(*metadata.tables[tablename].c)
+            colnames_in_db, select(*db_metadata.tables[tablename].c)
         )
         ses.execute(stmt)
         ses.commit()
-
-    if not _tables_have_same_data(
-        metadata.tables[tablename],
-        metadata.tables["ephemeral_backup_table"],
-        engine=engine,
-    ):
+    # update db_metadata before checking
+    db_metadata.reflect(engine)
+    if not _tables_have_same_data(tablename, "ephemeral_backup_table", engine=engine):
         raise RuntimeError("Could not load data to a backup table before migration.")
     return metadata.tables["ephemeral_backup_table"]
 
