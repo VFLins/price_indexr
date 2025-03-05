@@ -261,15 +261,15 @@ def _tables_are_identical(
 
 
 def _tables_have_same_data(
-    table_obj1: Table,
-    table_obj2: Table,
-    engine: Engine = DB_ENGINE,
-    mapper: Mapping = TableMapping,
+    tablename1: str,
+    tablename2: str,
+    engine: Engine = DB_ENGINE
 ) -> bool:
-    """Checks if all data found in `table_obj1` can be found in `table_obj2`."""
-    metadata = mapper.metadata
-    # use table from metadata instead
-    tablename1, tablename2 = table_obj1.name, table_obj2.name
+    """Checks in the database if all data found in 'tablename1' can be found in 'tablename2'.
+    Note that this is not the same as doing the inverse operation.
+    """
+    metadata = MetaData()
+    metadata.reflect(engine)
     table_obj1, table_obj2 = metadata.tables[tablename1], metadata.tables[tablename2]
     # compare cols presence before comparing contents
     expected_colnames = [col.name for col in table_obj1.columns]
