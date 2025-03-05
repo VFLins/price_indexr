@@ -96,6 +96,7 @@ class product_names_model:
         ForeignKey("product_categories.Id"), nullable=True
     )
     ProductName: Mapped[str] = mapped_column()
+    NameFilters: Mapped[str] = mapped_column(nullable=True)
 
 
 class products_model:
@@ -175,24 +176,21 @@ def _different_null_vals_positions(
 
 def _table_missing_columns(
     table_name: str,
-    table_class: TableClass,
-    mapper: Mapping = TableMapping,
+    engine: Engine = DB_ENGINE,
+    metadata: MetaData = TableMapping.metadata,
 ) -> list[Column]:
     """Return a list of SQLAlchemy `Column` that are missing in the database.
 
     **Args**
         `table_name`: the table to look for in the database
-        `table_declared`: must be a table declared in sqlalchemy ORM
-        `meta_data`: metadata reflecting the desired database
+        `engine`: engine pointing to the database where `table_name` will be looked for
+        `metadata`: sqlalchemy.MetaData object where the updated table should be
     """
-    metadata = mapper.metadata
-    try:
-        _ = table_class.__tablename__
-        table_in_code = table_class.__table__
-    except AttributeError:
-        raise ValueError(f"{table_class=} does not inherit from `TableMapping`.")
-    colnames_in_db = [col.name for col in metadata.tables[table_name].c]
-    return [col for col in table_in_code.c if col.name not in colnames_in_db]
+    db_metadata = MetaData()
+    db_metadata.reflect(engine)
+    colnames_in_db: list[str] = [col.name for col in db_metadata.tables[table_name].c]
+    columns_mapped: list[Column] = metadata.tables[table_name].c
+    return [col for col in columns_mapped if col.name not in colnames_in_db]
 
 
 def _column_length(column_obj: Column, engine: Engine = DB_ENGINE) -> int:
