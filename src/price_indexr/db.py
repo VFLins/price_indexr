@@ -364,14 +364,12 @@ def _reset_table_schema_in_db(table_class: TableClass, mapper: Mapping = TableMa
     """Backs up data from `table_class`, then recreates it's table restoring
     data from the backup. Expects new columns to be nullable."""
     backup_table = _create_backup_table(table_class)
-    backup_tablename = backup_table.__tablename__
     mapper.metadata.drop_all(DB_ENGINE, tables=[table_class.__table__])
     mapper.metadata.create_all(DB_ENGINE, tables=[table_class.__table__])
-
-    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[backup_tablename].c)
+    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[backup_table.name].c)
     with Session(DB_ENGINE) as ses:
         stmt = insert(table_class).from_select(
-            colnames_in_db, select(*backup_table.__table__.c)
+            colnames_in_db, select(*backup_table.c)
         )
         ses.execute(stmt)
         ses.commit()
@@ -379,7 +377,7 @@ def _reset_table_schema_in_db(table_class: TableClass, mapper: Mapping = TableMa
 
 def _table_update_migration(table_class: TableClass):
     tablename = table_class.__tablename__
-    missing_cols = _table_missing_columns(table_name=tablename, table_class=table_class)
+    missing_cols = _table_missing_columns(table_name=tablename)
     if len(missing_cols) == 0:
         return
     for col in missing_cols:
