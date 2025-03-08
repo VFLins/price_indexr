@@ -360,13 +360,19 @@ def _create_backup_table(
     return metadata.tables["ephemeral_backup_table"]
 
 
-def _reset_table_schema_in_db(table_class: TableClass, mapper: Mapping = TableMapping):
+def _reset_table_schema_in_db(
+        table_class: TableClass,
+        engine: Engine = DB_ENGINE,
+        mapper: Mapping = TableMapping):
     """Backs up data from `table_class`, then recreates it's table restoring
     data from the backup. Expects new columns to be nullable."""
-    backup_table = _create_backup_table(table_class)
-    mapper.metadata.drop_all(DB_ENGINE, tables=[table_class.__table__])
-    mapper.metadata.create_all(DB_ENGINE, tables=[table_class.__table__])
-    colnames_in_db = tuple(col.name for col in DB_METADATA.tables[backup_table.name].c)
+    backup_table = _create_backup_table(table_class, engine=engine, mapper=mapper)
+    # reflect metadata only after updating the backup table
+    metadata = MetaData()
+    metadata.reflect(engine)
+    metadata.drop_all(engine, tables=[table_class.__table__])
+    metadata.create_all(engine, tables=[table_class.__table__])
+    colnames_in_db = tuple(col.name for col in metadata.tables[backup_table.name].c)
     with Session(DB_ENGINE) as ses:
         stmt = insert(table_class).from_select(
             colnames_in_db, select(*backup_table.c)
