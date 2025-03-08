@@ -401,10 +401,11 @@ def _table_update_migration(table_class: TableClass):
     return
 
 
-def _recreate_updated_tables(table_class: TableClass, mapper: Mapping = TableMapping):
-    tablename: str = table_class.__tablename__
+def _recreate_updated_tables(table_class: TableClass, engine: Engine = DB_ENGINE):
+    tablename, metadata = table_class.__tablename__, MetaData()
+    metadata.reflect(engine)
     # https://stackoverflow.com/questions/21310549/list-database-tables-with-sqlalchemy
-    table_metadata = mapper.metadata.tables[tablename]
+    table_metadata = metadata.tables[tablename]
     columns_expected: tuple[str] = table_class.mapped_colnames()
     for col in columns_expected:
         if col not in [col.name for col in table_metadata.c]:
