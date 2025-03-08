@@ -367,17 +367,21 @@ def _reset_table_schema_in_db(
     """Backs up data from `table_class`, then recreates it's table restoring
     data from the backup. Expects new columns to be nullable."""
     backup_table = _create_backup_table(table_class, engine=engine, mapper=mapper)
-    # reflect metadata only after updating the backup table
+    # metadata reflect engine only after updating the backup table
     metadata = MetaData()
     metadata.reflect(engine)
-    metadata.drop_all(engine, tables=[table_class.__table__])
-    metadata.create_all(engine, tables=[table_class.__table__])
-    colnames_in_db = tuple(col.name for col in metadata.tables[backup_table.name].c)
     with Session(DB_ENGINE) as ses:
+        ses.execute(text("PRAGMA foreign_keys = 0;"))
+        ses.commit()
+        # delete table only after foreign keys constraint have been lifted
+        metadata.drop_all(engine, tables=[table_class.__table__])
+        metadata.create_all(engine, tables=[table_class.__table__])
+        colnames_in_db = tuple(col.name for col in metadata.tables[backup_table.name].c)
         stmt = insert(table_class).from_select(
             colnames_in_db, select(*backup_table.c)
         )
         ses.execute(stmt)
+        ses.execute(text("PRAGMA foreign_keys = 1;"))
         ses.commit()
 
 
@@ -391,14 +395,8 @@ def _table_update_migration(table_class: TableClass):
             raise NotImplementedError(
                 f"Column {col} is not nullable, can only create new nullable columns."
             )
+    _reset_table_schema_in_db(table_class)
 
-    with Session(DB_ENGINE) as ses:
-        # turn foreign key restraint off before recreating tables
-        ses.execute(text("PRAGMA foreign_keys = 0;"))
-        _reset_table_schema_in_db(table_class)
-        ses.execute(text("PRAGMA foreign_keys = 1;"))
-        ses.commit()
-    return
 
 
 def _recreate_updated_tables(table_class: TableClass, engine: Engine = DB_ENGINE):
