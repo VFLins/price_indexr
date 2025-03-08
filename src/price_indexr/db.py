@@ -261,12 +261,10 @@ def _tables_are_identical(
 
 
 def _tables_have_same_data(
-    tablename1: str,
-    tablename2: str,
-    engine: Engine = DB_ENGINE
+    tablename1: str, tablename2: str, engine: Engine = DB_ENGINE
 ) -> bool:
     """Checks in the database if all data found in 'tablename1' can be found in 'tablename2'.
-    Note that this is not the same as doing the inverse operation.
+    Note that this is not the same if you swap the position of these arguments.
     """
     metadata = MetaData()
     metadata.reflect(engine)
@@ -283,7 +281,7 @@ def _tables_have_same_data(
         if col2.name in expected_colnames:
             col1 = table_obj1.columns[col2.name]
             if not _columns_are_identical(col1, col2, engine=engine):
-                print(
+                warn(
                     f"Data in '{col1.name}' not the same across tables '{table_obj1.name}' and '{table_obj2.name}'"
                 )
                 return False
@@ -302,7 +300,9 @@ def _tables_with_same_columns(
     return all(col_name == tables_colnames[0] for col_name in tables_colnames)
 
 
-def _table_full_removal(tablename: str, engine: Engine = DB_ENGINE, mapper: Mapping = TableMapping):
+def _table_full_removal(
+    tablename: str, engine: Engine = DB_ENGINE, mapper: Mapping = TableMapping
+):
     """Removes table from `engine`'s database and from `mapper`'s metadata."""
     # metadata read from orm mapper
     metadata = mapper.metadata
@@ -344,7 +344,7 @@ def _create_backup_table(
         # __table_args__ = {"extend_existing": True}
 
     # use schema present in database
-    
+
     colnames_in_db = tuple(col.name for col in db_metadata.tables[tablename].c)
     with Session(engine) as ses:
         metadata.create_all(bind=engine, tables=[ephemeral_backup_table.__table__])
@@ -361,9 +361,8 @@ def _create_backup_table(
 
 
 def _reset_table_schema_in_db(
-        table_class: TableClass,
-        engine: Engine = DB_ENGINE,
-        mapper: Mapping = TableMapping):
+    table_class: TableClass, engine: Engine = DB_ENGINE, mapper: Mapping = TableMapping
+):
     """Backs up data from `table_class`, then recreates it's table restoring
     data from the backup. Expects new columns to be nullable."""
     backup_table = _create_backup_table(table_class, engine=engine, mapper=mapper)
@@ -377,9 +376,7 @@ def _reset_table_schema_in_db(
         metadata.drop_all(engine, tables=[table_class.__table__])
         metadata.create_all(engine, tables=[table_class.__table__])
         colnames_in_db = tuple(col.name for col in metadata.tables[backup_table.name].c)
-        stmt = insert(table_class).from_select(
-            colnames_in_db, select(*backup_table.c)
-        )
+        stmt = insert(table_class).from_select(colnames_in_db, select(*backup_table.c))
         ses.execute(stmt)
         ses.execute(text("PRAGMA foreign_keys = 1;"))
         ses.commit()
@@ -396,7 +393,6 @@ def _table_update_migration(table_class: TableClass):
                 f"Column {col} is not nullable, can only create new nullable columns."
             )
     _reset_table_schema_in_db(table_class)
-
 
 
 def _recreate_updated_tables(table_class: TableClass, engine: Engine = DB_ENGINE):
