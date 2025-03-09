@@ -97,6 +97,9 @@ class product_names_model:
     )
     ProductName: Mapped[str] = mapped_column()
     NameFilters: Mapped[str] = mapped_column(nullable=True)
+    SupersededBy: Mapped[int] = mapped_column(
+        ForeignKey("product_names.Id"), nullable=True
+    )
 
 
 class products_model:

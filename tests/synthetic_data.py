@@ -34,14 +34,62 @@ product_categories_data = [
 
 
 product_names_data = [
-    {"Id": 1, "CategoryId": 1, "ProductName": "Geforce Rtx 3050"},
-    {"Id": 2, "CategoryId": 1, "ProductName": "Geforce Rtx 4060"},
-    {"Id": 3, "CategoryId": 1, "ProductName": "Geforce Rtx 4060 Ti"},
-    {"Id": 4, "CategoryId": 2, "ProductName": "Core i5 13400F"},
-    {"Id": 5, "CategoryId": 2, "ProductName": "Core i3 12100"},
-    {"Id": 6, "CategoryId": 3, "ProductName": "SSD Sata 1Tb"},
-    {"Id": 7, "CategoryId": 3, "ProductName": "SSD Sata 500Gb"},
-    {"Id": 8, "CategoryId": 3, "ProductName": "SSD Sata 480Gb"},
+    {
+        "Id": 1,
+        "CategoryId": 1,
+        "ProductName": "Geforce Rtx 3050",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
+    {
+        "Id": 2,
+        "CategoryId": 1,
+        "ProductName": "Geforce Rtx 4060",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
+    {
+        "Id": 3,
+        "CategoryId": 1,
+        "ProductName": "Geforce Rtx 4060 Ti",
+        "NameFilters": "16Gb 16_Gb",
+        "SupersededBy": None,
+    },
+    {
+        "Id": 4,
+        "CategoryId": 2,
+        "ProductName": "Core i5 13400F",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
+    {
+        "Id": 5,
+        "CategoryId": 2,
+        "ProductName": "Core i3 12100",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
+    {
+        "Id": 6,
+        "CategoryId": 3,
+        "ProductName": "SSD Sata 1Tb",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
+    {
+        "Id": 7,
+        "CategoryId": 3,
+        "ProductName": "SSD Sata 500Gb",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
+    {
+        "Id": 8,
+        "CategoryId": 3,
+        "ProductName": "SSD Sata 480Gb",
+        "NameFilters": None,
+        "SupersededBy": None,
+    },
 ]
 
 
