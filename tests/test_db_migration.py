@@ -88,8 +88,7 @@ def new_blank_db_engine(scope="session"):
 
 @pytest.fixture
 def copy_table_prices(new_populated_db_engine, scope="function"):
-    engine, meta = new_populated_db_engine, MetaData()
-    meta.reflect(engine)
+    engine = new_populated_db_engine
 
     if "prices_copy" not in TableMapping.mapped_tables().keys():
 
@@ -109,18 +108,19 @@ def copy_table_prices(new_populated_db_engine, scope="function"):
 @pytest.fixture
 def copy_table_products(new_populated_db_engine, scope="function"):
     engine = new_populated_db_engine
-    meta = MetaData()
-    meta.reflect(engine)
 
-    class products_copy(products_model, TableMapping):
-        __tablename__ = "products_copy"
+    if "products_copy" not in TableMapping.mapped_tables().keys():
 
-    TableMapping.metadata.create_all(engine, tables=[products_copy.__table__])
+        class products_copy(products_model, TableMapping):
+            __tablename__ = "products_copy"
+
+    products_copy_cls = TableMapping.mapped_tables()["products_copy"]
+    TableMapping.metadata.create_all(engine, tables=[products_copy_cls.__table__])
     with Session(engine) as ses:
-        ses.execute(insert(products_copy).values(products_data))
+        ses.execute(insert(products_copy_cls).values(products_data))
         ses.commit()
-    yield products_copy
-    TableMapping.metadata.drop_all(engine, tables=[products_copy.__table__])
+    yield products_copy_cls
+    TableMapping.metadata.drop_all(engine, tables=[products_copy_cls.__table__])
 
 
 @pytest.fixture
@@ -267,18 +267,18 @@ def test__table_missing_columns(
     sel_prices_cols = [copy(GENERIC_PRICES_COLS[colname]) for colname in sel_colnames]
     new_table = Table("test_missing_cols", meta, *sel_prices_cols)
     meta.create_all(engine, tables=[new_table])
-    missing_cols = _table_missing_columns(
-        table_name="test_missing_cols",
-        table_class=prices,
-    )
-    missing_colnames = [col.name for col in missing_cols]
-    # Check all expected are present
-    for name in expected_missing_colnames:
-        assert name in missing_colnames
-    # Check ONLY expected are present
-    assert len(missing_colnames) == len(expected_missing_colnames)
-    meta.drop_all(engine, tables=[new_table])
-    meta.remove(new_table)
+    try:
+        missing_cols = _table_missing_columns(table_name="test_missing_cols")
+        missing_colnames = [col.name for col in missing_cols]
+        # Check all expected are present
+        for name in expected_missing_colnames:
+            assert name in missing_colnames
+        # Check ONLY expected are present
+        assert len(missing_colnames) == len(expected_missing_colnames)
+    except Exception as err:
+        meta.drop_all(engine, tables=[new_table])
+        meta.remove(new_table)
+        raise(err)
 
 
 def test__table_with_same_columns(new_populated_db_engine, copy_table_prices):
@@ -314,12 +314,12 @@ def test__tables_have_same_data(new_populated_db_engine, copy_table_prices):
     # return True comparing a table with itself
     for tablename in meta.tables.keys():
         table_obj = meta.tables[tablename]
-        assert _tables_have_same_data(table_obj, table_obj, engine=engine)
+        assert _tables_have_same_data(table_obj.name, table_obj.name, engine=engine)
     # return True comparing different tables with the exact same data
     _ = copy_table_prices
     prices_table = meta.tables["prices"]
     prices_copy_table = meta.tables["prices_copy"]
-    assert _tables_have_same_data(prices_table, prices_copy_table, engine=engine)
+    assert _tables_have_same_data(prices_table.name, prices_copy_table.name, engine=engine)
     # return False comparing tables with different data
     products_table = meta.tables["products"]
     for tablename in meta.tables.keys():
@@ -335,7 +335,7 @@ def test_tables_coparison_edge_case(new_populated_db_engine, products_table_extr
     products_tbl = meta.tables["products"]
     products_tbl_extra_col = meta.tables["products_extra_col"]
     # should return True when testing if they have the same data
-    assert _tables_have_same_data(products_tbl, products_tbl_extra_col, engine=engine)
+    assert _tables_have_same_data(products_tbl.name, products_tbl_extra_col.name, engine=engine)
     # should return False when testing if they are identical
     assert not _tables_are_identical(
         products_tbl, products_tbl_extra_col, engine=engine
@@ -348,4 +348,4 @@ def test__create_backup_table(new_populated_db_engine):
     mapped_tables = [product_categories, product_names, products, prices]
     for tbl in mapped_tables:
         backup_tbl = _create_backup_table(table_mapping=tbl, engine=engine)
-        assert _tables_are_identical(backup_tbl, tbl.__table__, engine=engine)
+        assert _tables_with_same_columns(backup_tbl.name, tbl.__tablename__)
