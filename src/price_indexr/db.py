@@ -338,8 +338,7 @@ def _create_backup_table(
     db_metadata = MetaData()
     db_metadata.reflect(engine)
 
-    _table_full_removal("ephemeral_backup_table")
-
+    _table_full_removal("ephemeral_backup_table", engine=engine, mapper=mapper)
     table_model_obj = table_mapping.__mro__[1]
 
     class ephemeral_backup_table(table_model_obj, mapper):

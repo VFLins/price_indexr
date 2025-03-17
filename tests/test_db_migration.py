@@ -259,7 +259,11 @@ def test__table_missing_columns(
     expected_missing_colnames: list[str], new_blank_db_engine
 ):
     """Test whether _table_missing_columns returns the correct list of columns."""
-    engine, mapped_meta, db_meta = new_blank_db_engine, TableMapping.metadata, MetaData()
+    engine, mapped_meta, db_meta = (
+        new_blank_db_engine,
+        TableMapping.metadata,
+        MetaData(),
+    )
     db_meta.reflect(engine)
     sel_prices_cols = [
         copy(col)
@@ -267,13 +271,15 @@ def test__table_missing_columns(
         if name not in expected_missing_colnames
     ]
     db_table = Table("test_missing_cols", db_meta, *sel_prices_cols)
-    metadata_table = Table("test_missing_cols", mapped_meta, *[copy(c) for c in GENERIC_PRICES_COLS.values()])
+    metadata_table = Table(
+        "test_missing_cols",
+        mapped_meta,
+        *[copy(c) for c in GENERIC_PRICES_COLS.values()],
+    )
     db_meta.create_all(engine, tables=[db_table])
     try:
         missing_cols = _table_missing_columns(
-            table_name="test_missing_cols",
-            engine=engine,
-            metadata=mapped_meta
+            table_name="test_missing_cols", engine=engine, metadata=mapped_meta
         )
         missing_colnames = [col.name for col in missing_cols]
         # Check all expected are present
@@ -325,7 +331,9 @@ def test__tables_have_same_data(new_populated_db_engine, copy_table_prices):
     _ = copy_table_prices
     prices_table = meta.tables["prices"]
     prices_copy_table = meta.tables["prices_copy"]
-    assert _tables_have_same_data(prices_table.name, prices_copy_table.name, engine=engine)
+    assert _tables_have_same_data(
+        prices_table.name, prices_copy_table.name, engine=engine
+    )
     # return False comparing tables with different data
     products_table = meta.tables["products"]
     for tablename in meta.tables.keys():
@@ -341,7 +349,9 @@ def test_tables_coparison_edge_case(new_populated_db_engine, products_table_extr
     products_tbl = meta.tables["products"]
     products_tbl_extra_col = meta.tables["products_extra_col"]
     # should return True when testing if they have the same data
-    assert _tables_have_same_data(products_tbl.name, products_tbl_extra_col.name, engine=engine)
+    assert _tables_have_same_data(
+        products_tbl.name, products_tbl_extra_col.name, engine=engine
+    )
     # should return False when testing if they are identical
     assert not _tables_are_identical(
         products_tbl, products_tbl_extra_col, engine=engine
