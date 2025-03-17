@@ -15,6 +15,7 @@ from sqlalchemy import (
     select,
     insert,
 )
+from warnings import warn
 from sqlalchemy.orm import Mapped, mapped_column
 from .synthetic_data import (
     GENERIC_PRICES_COLS,
@@ -258,27 +259,32 @@ def test__table_missing_columns(
     expected_missing_colnames: list[str], new_blank_db_engine
 ):
     """Test whether _table_missing_columns returns the correct list of columns."""
-    engine, meta = new_blank_db_engine, TableMapping.metadata
-    sel_colnames = [
-        name
-        for name in GENERIC_PRICES_COLS.keys()
+    engine, mapped_meta, db_meta = new_blank_db_engine, TableMapping.metadata, MetaData()
+    db_meta.reflect(engine)
+    sel_prices_cols = [
+        copy(col)
+        for name, col in GENERIC_PRICES_COLS.items()
         if name not in expected_missing_colnames
     ]
-    sel_prices_cols = [copy(GENERIC_PRICES_COLS[colname]) for colname in sel_colnames]
-    new_table = Table("test_missing_cols", meta, *sel_prices_cols)
-    meta.create_all(engine, tables=[new_table])
+    db_table = Table("test_missing_cols", db_meta, *sel_prices_cols)
+    metadata_table = Table("test_missing_cols", mapped_meta, *[copy(c) for c in GENERIC_PRICES_COLS.values()])
+    db_meta.create_all(engine, tables=[db_table])
     try:
-        missing_cols = _table_missing_columns(table_name="test_missing_cols")
+        missing_cols = _table_missing_columns(
+            table_name="test_missing_cols",
+            engine=engine,
+            metadata=mapped_meta
+        )
         missing_colnames = [col.name for col in missing_cols]
         # Check all expected are present
         for name in expected_missing_colnames:
             assert name in missing_colnames
         # Check ONLY expected are present
         assert len(missing_colnames) == len(expected_missing_colnames)
-    except Exception as err:
-        meta.drop_all(engine, tables=[new_table])
-        meta.remove(new_table)
-        raise(err)
+    finally:
+        db_meta.drop_all(engine, tables=[db_table])
+        db_meta.remove(db_table)
+        mapped_meta.remove(metadata_table)
 
 
 def test__table_with_same_columns(new_populated_db_engine, copy_table_prices):
