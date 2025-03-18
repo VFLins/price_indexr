@@ -446,17 +446,10 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
         product_names: `'something,foo'`
         products: `'foo_bar,baz'`
 
-    2. split on commas:
-        `['pc','personal_computer']`
-        `['something','foo']`
-        `['foo_bar','baz']`
+    2. split on commas and append:
+        `['pc','personal_computer','something','foo','foo_bar','baz']`
 
     3. underscores become spaces:
-        `['pc','personal computer']`
-        `['something','foo']`
-        `['foo bar','baz']`
-
-    4. append:
         `['pc','personal computer','something','foo','foo bar','baz']`
 
     ### Args:
@@ -491,11 +484,18 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
             "Original",
             "Escudo Placa Traseira",
         ]
-        negf = set(re.split(",", product.ProductFilters.replace(" ", "")) + hard_negf)
+        negf = set(re.split(",", product.ProductFilters.replace(" ", "")))
+        product_name = db.product_name_by_id(product.NameId)
+        if product_name.NameFilters not in [None, ""]:
+            negf.update(re.split(",", product_name.NameFilters.replace(" ", "")))
+        product_category = db.product_category_by_id(product_name.CategoryId)
+        if product_category.CategoryFilters not in [None, ""]:
+            negf.update(re.split(",", product_category.CategoryFilters.replace(" ", "")))
 
-        keywords = {}
-        keywords["negative"] = [x.replace("_", " ") for x in negf]
-        keywords["positive"] = [x.replace("_", " ") for x in posf]
+        keywords = dict(
+            negative=[x.replace("_", " ") for x in negf],
+            positive=[x.replace("_", " ") for x in posf]
+        )
     except Exception as generate_filters_error:
         log.error(_context, f"{generate_filters_error}")
         raise Exception
