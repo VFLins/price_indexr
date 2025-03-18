@@ -19,20 +19,24 @@ for dirpath in [DATA_PATH, LOG_PATH]:
     os.makedirs(dirpath, exist_ok=True)
 
 SEARCH_HEADERS = {
-            "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"}
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"
+}
 
 # =============== #
 # LOGGING HANDLER #
 # =============== #
 
-class LocalLogger():
+
+class LocalLogger:
     """Generate an ephemeral logger inside the function scope."""
+
     def __init__(self, name):
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
 
-        self.handler = logging.FileHandler(filename=os.path.join(LOG_PATH, f"{name}.log"))
+        self.handler = logging.FileHandler(
+            filename=os.path.join(LOG_PATH, f"{name}.log")
+        )
         self.formatter = logging.Formatter(
             fmt="%(levelname)s [%(asctime)s] - %(name)s :: %(message)s"
         )
@@ -65,36 +69,46 @@ class LocalLogger():
 
 log = LocalLogger("price_indexr")
 
+
 # ========== #
 # EXCEPTIONS #
 # ========== #
+
 
 class HtmlParseError(Exception):
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
 
+
 # ================ #
 # MANAGE RESPONSES #
 # ================ #
-        
+
+
 class SearchResponses:
     def __init__(
-            self, 
-            soup_bing: BeautifulSoup | None,
-            soup_google: BeautifulSoup | None,
-            product: db.products,
-            filter_kws: dict
-        ):
+        self,
+        soup_bing: BeautifulSoup | None,
+        soup_google: BeautifulSoup | None,
+        product: db.products,
+        filter_kws: dict,
+    ):
 
         if soup_google:
             self.google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
             self.google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
             self.google_highlight = soup_google.find("div", {"class": "_-oX"})
         else:
-            self.google_inline, self.google_grid, self.google_highlight = (None, None, None)
+            self.google_inline, self.google_grid, self.google_highlight = (
+                None,
+                None,
+                None,
+            )
 
         if soup_bing:
-            self.bing_inline = soup_bing.find_all("div", {"class": "slide", "data-appns": "commerce", "tabindex": True})
+            self.bing_inline = soup_bing.find_all(
+                "div", {"class": "slide", "data-appns": "commerce", "tabindex": True}
+            )
             self.bing_grid = soup_bing.find_all("li", {"class": "br-item"})
         else:
             self.bing_inline, self.bing_grid = (None, None)
@@ -102,24 +116,27 @@ class SearchResponses:
         self.product = product
         self.filter_kws = filter_kws
 
-        self.product_name = f"{product.ProductBrand} {product.ProductModel} {product.ProductName}"
+        self.product_name = (
+            f"{product.ProductBrand} {product.ProductModel} {product.ProductName}"
+        )
         self.Date = datetime.now()
         self.results = []
 
-    
     def parse_and_save(self):
         self._parse_all()
         self._save_data()
 
-
     def _parse_all(self):
         _context = "SearchResponses.parse_all"
-        parsers = (p for p in [
-            self._parse_google_inline,
-            self._parse_google_grid,
-            self._parse_google_highlight,
-            self._parse_bing_inline,
-            self._parse_bing_grid]
+        parsers = (
+            p
+            for p in [
+                self._parse_google_inline,
+                self._parse_google_grid,
+                self._parse_google_highlight,
+                self._parse_bing_inline,
+                self._parse_bing_grid,
+            ]
         )
 
         _max_errors: int = 5
@@ -132,14 +149,18 @@ class SearchResponses:
 
                 if _errors == _max_errors:
                     results_amount = len(self.results)
-                    log.error(_context, f"Skipping data parsing for '{self.product_name}', too many errors")
-                    
-                    if results_amount == 0:
-                        log.error(_context, f"No data collected for '{self.product_name}'")
+                    log.error(
+                        _context,
+                        f"Skipping data parsing for '{self.product_name}', too many errors",
+                    )
 
-                else: 
+                    if results_amount == 0:
+                        log.error(
+                            _context, f"No data collected for '{self.product_name}'"
+                        )
+
+                else:
                     continue
-                        
 
     def _save_data(self):
         _context = "SearchResponses._save_data"
@@ -147,17 +168,20 @@ class SearchResponses:
         n_results = len(self.results)
         if n_results == 0:
             log.info(_context, f"No valid results for '{self.product_name}'")
-        
+
         else:
             try:
                 write_results(
-                    results=self.results,
-                    CURR_PROD_ID=self.product.Id,
-                    date=self.Date
+                    results=self.results, CURR_PROD_ID=self.product.Id, date=self.Date
                 )
-                log.info(_context, f"Saved {n_results} results for '{self.product_name}'")
+                log.info(
+                    _context, f"Saved {n_results} results for '{self.product_name}'"
+                )
             except Exception as unexpected_save_exception:
-                log.critical(_context, f"Unexpected error for '{self.product_name}': {unexpected_save_exception}")
+                log.critical(
+                    _context,
+                    f"Unexpected error for '{self.product_name}': {unexpected_save_exception}",
+                )
 
     def _parse_google_inline(self):
         """Dedicated parser for google inline (promoted) elements"""
@@ -169,31 +193,38 @@ class SearchResponses:
         for result in self.google_inline:
             try:
                 line = {}
-                Name = result.find("h3", {"class": "sh-np__product-title translate-content"}).get_text()
+                Name = result.find(
+                    "h3", {"class": "sh-np__product-title translate-content"}
+                ).get_text()
 
-                if not filtered_by_name(Name, self.filter_kws): 
+                if not filtered_by_name(Name, self.filter_kws):
                     continue
 
-                Price = strip_price_str( result.find("b", {"class" : "translate-content"}).get_text() )
-                
-                url_complement = result.find('a', {"class": "shntl sh-np__click-target"}).attrs["href"]
+                Price = strip_price_str(
+                    result.find("b", {"class": "translate-content"}).get_text()
+                )
+
+                url_complement = result.find(
+                    "a", {"class": "shntl sh-np__click-target"}
+                ).attrs["href"]
                 line["Url"] = f"https://google.com{url_complement}"
                 line["Name"] = Name
                 line["Date"] = self.Date
-                line["Store"] = result.find("span", {"class" : "E5ocAb"}).get_text()
+                line["Store"] = result.find("span", {"class": "E5ocAb"}).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = self.product.Id
-        
+
                 self.results.append(db.prices(**line))
 
             except Exception as google_inline_faliure:
                 log.critical(
-                    _context, f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"+
-                    f"\nReason: {google_inline_faliure}")
+                    _context,
+                    f"Prod. ID: {self.product.Id}. Could not parse:\n{result}"
+                    + f"\nReason: {google_inline_faliure}",
+                )
 
                 raise HtmlParseError(f"Error in _parse_google_inline")
-                
 
     def _parse_google_grid(self):
         """Dedicated parser for the first page of the google shopping grid of results"""
@@ -208,15 +239,21 @@ class SearchResponses:
                 line = {}
                 Name = result.find("h3", {"class": "tAxDx"}).get_text()
 
-                if not filtered_by_name(Name, self.filter_kws): 
+                if not filtered_by_name(Name, self.filter_kws):
                     continue
 
-                Price = strip_price_str( result.find("span", {"class" : "a8Pemb"}).get_text() )
+                Price = strip_price_str(
+                    result.find("span", {"class": "a8Pemb"}).get_text()
+                )
 
-                line["Url"] = f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+                line["Url"] = (
+                    f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
+                )
                 line["Name"] = Name
                 line["Date"] = self.Date
-                line["Store"] = result.find("div", {"class" : "aULzUe IuHnof"}).get_text()
+                line["Store"] = result.find(
+                    "div", {"class": "aULzUe IuHnof"}
+                ).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = self.product.Id
@@ -225,42 +262,57 @@ class SearchResponses:
 
             except Exception as google_grid_faliure:
                 log.critical(
-                    _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
-                    f"\nReason: {google_grid_faliure}")
+                    _context,
+                    f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"
+                    + f"\nReason: {google_grid_faliure}",
+                )
 
                 raise HtmlParseError("Error in _parse_google_grid")
-            
-    
+
     def _parse_google_highlight(self):
         """Dedicated parser for google's 'best match' section"""
         _context = "SearchResponses._parse_google_highlight"
 
-        if  self.google_highlight:
+        if self.google_highlight:
             try:
-                Name = self.google_highlight.find("a", {"class": " _-lC sh-t__title sh-t__title-popout shntl translate-content"}).get_text()
+                Name = self.google_highlight.find(
+                    "a",
+                    {
+                        "class": " _-lC sh-t__title sh-t__title-popout shntl translate-content"
+                    },
+                ).get_text()
 
                 if not filtered_by_name(Name, self.filter_kws):
-                    for result in self.google_highlight.find_all("div", {"class": "_-oB"}):
+                    for result in self.google_highlight.find_all(
+                        "div", {"class": "_-oB"}
+                    ):
                         line = {}
 
                         line["Name"] = Name
-                        Price = strip_price_str(result.find("span", {"class": "_-p5 _-p1"}).get_text())
-                        line["Url"] = f"https://google.com/{result.find('a', {'href': True})['href']}"
+                        Price = strip_price_str(
+                            result.find("span", {"class": "_-p5 _-p1"}).get_text()
+                        )
+                        line["Url"] = (
+                            f"https://google.com/{result.find('a', {'href': True})['href']}"
+                        )
                         line["Date"] = self.Date
-                        line["Store"] = result.find("div", {"class": "_-oH _-oF"}).get_text()
+                        line["Store"] = result.find(
+                            "div", {"class": "_-oH _-oF"}
+                        ).get_text()
                         line["Price"] = Price[1]
                         line["Currency"] = Price[0]
                         line["ProductId"] = self.product.Id
 
                         self.results.append(db.prices(**line))
-            
+
             except Exception as google_highlight_faliure:
                 log.critical(
-                _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
-                f"\nReason: {google_highlight_faliure}")
+                    _context,
+                    f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"
+                    + f"\nReason: {google_highlight_faliure}",
+                )
 
                 raise HtmlParseError("Error in _parse_google_higlight")
-
 
     def _parse_bing_inline(self):
         """Dedicated parser for bing's promoted results"""
@@ -273,18 +325,22 @@ class SearchResponses:
         for result in self.bing_inline:
             try:
                 line = {}
-                name_block = result.find("span", {"title" : True})
+                name_block = result.find("span", {"title": True})
                 Name = name_block["title"]
 
-                if not filtered_by_name(Name, self.filter_kws): 
+                if not filtered_by_name(Name, self.filter_kws):
                     continue
 
-                Price = strip_price_str( result.find("div", {"class": "br-price"}).get_text() )
+                Price = strip_price_str(
+                    result.find("div", {"class": "br-price"}).get_text()
+                )
 
                 line["Url"] = result.find("a", {"class": "br-offLink"})["href"]
                 line["Name"] = Name
                 line["Date"] = self.Date
-                line["Store"] = result.find("span", {"class": "br-offSlrTxt"}).get_text()
+                line["Store"] = result.find(
+                    "span", {"class": "br-offSlrTxt"}
+                ).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = self.product.Id
@@ -293,11 +349,12 @@ class SearchResponses:
 
             except Exception as bing_inline_faliure:
                 log.critical(
-                    _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
-                    f"\nReason: {bing_inline_faliure}")
-                
-                raise HtmlParseError("Error in _parse_bing_inline")
+                    _context,
+                    f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"
+                    + f"\nReason: {bing_inline_faliure}",
+                )
 
+                raise HtmlParseError("Error in _parse_bing_inline")
 
     def _parse_bing_grid(self):
         """Dedicated parser for the first page of the bing grid of results"""
@@ -313,32 +370,39 @@ class SearchResponses:
                 name_block = result.find("div", {"class": "br-pdItemName"})
                 Name = name_block.get_text()
 
-                if not filtered_by_name(Name, self.filter_kws): 
+                if not filtered_by_name(Name, self.filter_kws):
                     continue
 
-                Price = strip_price_str( result.find("div", {"class" : "pd-price"}).get_text() )
-                
+                Price = strip_price_str(
+                    result.find("div", {"class": "pd-price"}).get_text()
+                )
+
                 line["Url"] = f"https://bing.com{result['data-url']}"
                 line["Name"] = Name
                 line["Date"] = self.Date
-                line["Store"] = result.find("span", {"class" : "br-sellersCite"}).get_text()
+                line["Store"] = result.find(
+                    "span", {"class": "br-sellersCite"}
+                ).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = self.product.Id
-                
+
                 self.results.append(db.prices(**line))
 
             except Exception as bing_grid_faliure:
                 log.critical(
-                    _context, f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"+
-                    f"\nReason: {bing_grid_faliure}")
-                
+                    _context,
+                    f"Prod. ID - {self.product.Id}. Could not parse:\n{result}"
+                    + f"\nReason: {bing_grid_faliure}",
+                )
+
                 raise HtmlParseError("Error in _parse_bing_grid")
 
 
 # ===== #
 # UTILS #
 # ===== #
+
 
 def validate_integer_input(inp: int) -> db.products:
     """
@@ -361,7 +425,7 @@ def validate_integer_input(inp: int) -> db.products:
     except ValueError:
         log.error("{_context}: Input must be of type `int` or coercible to `int`")
         raise ValueError
-    
+
     try:
         with Session(db.DB_ENGINE) as ses:
             stmt = select(db.products).where(db.products.Id == inp)
@@ -377,14 +441,23 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
     """
     ### Filters handling:
 
-    1. retrieve from `product`:
-        `'pc,personal_computer,something,foo,foo_bar'`
+    1. retrieve from tables:
+        product_categories: `'pc,personal_computer'`
+        product_names: `'something,foo'`
+        products: `'foo_bar,baz'`
 
     2. split on commas:
-        `['pc','personal_computer','something','foo','foo_bar']`
+        `['pc','personal_computer']`
+        `['something','foo']`
+        `['foo_bar','baz']`
 
     3. underscores become spaces:
-        `['pc','personal computer','something','foo','foo bar']`
+        `['pc','personal computer']`
+        `['something','foo']`
+        `['foo bar','baz']`
+
+    4. append:
+        `['pc','personal computer','something','foo','foo bar','baz']`
 
     ### Args:
         product (`products`): A row retrieved from database of class `products`
@@ -397,11 +470,27 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
     _context = f"generate_filters {product}"
 
     try:
-        product_fullname = f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
+        product_fullname = (
+            f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
+        )
         posf = re.split(" ", product_fullname)
-        hard_negf = ["Usado", "Used", "Pc", "Computador", "Ventoinhas", "Ventilador",
-                    "Fan", "Cooler", "Notebook", "Bloco De Água", "Water Block", "Fã da placa",
-                    "Dissipador", "Original", "Escudo Placa Traseira"]
+        hard_negf = [
+            "Usado",
+            "Used",
+            "Pc",
+            "Computador",
+            "Ventoinhas",
+            "Ventilador",
+            "Fan",
+            "Cooler",
+            "Notebook",
+            "Bloco De Água",
+            "Water Block",
+            "Fã da placa",
+            "Dissipador",
+            "Original",
+            "Escudo Placa Traseira",
+        ]
         negf = set(re.split(",", product.ProductFilters.replace(" ", "")) + hard_negf)
 
         keywords = {}
@@ -410,7 +499,7 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
     except Exception as generate_filters_error:
         log.error(_context, f"{generate_filters_error}")
         raise Exception
-    
+
     return product_fullname, keywords
 
 
@@ -418,10 +507,12 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
 # GATHER DATA #
 # =========== #
 
+
 def collect_search(q: str, product: db.products, keywords: dict) -> SearchResponses:
     _context = f"collect_search: {q}"
 
-    bing_params = {"q" : q}; google_params = {"q" : q, "tbm" : "shop"}
+    bing_params = {"q": q}
+    google_params = {"q": q, "tbm": "shop"}
 
     urls = ["https://www.bing.com/shop", "https://www.google.com/search"]
     params = [bing_params, google_params]
@@ -455,10 +546,10 @@ def collect_search(q: str, product: db.products, keywords: dict) -> SearchRespon
         soup_bing=soup_bing,
         soup_google=soup_google,
         product=product,
-        filter_kws=keywords
+        filter_kws=keywords,
     )
 
-    
+
 def collect_prices(CURR_PROD_ID):
     _context = "collect_prices"
 
@@ -466,15 +557,16 @@ def collect_prices(CURR_PROD_ID):
         curr_product = validate_integer_input(CURR_PROD_ID)
         search_field, search_kewords = generate_filters(curr_product)
         responses = collect_search(
-            q=search_field,
-            keywords=search_kewords,
-            product=curr_product
+            q=search_field, keywords=search_kewords, product=curr_product
         )
         responses.parse_and_save()
 
     except Exception as uncaught_exception:
-        log.critical(_context, f"Uncaught exception with '{search_field}': {uncaught_exception}")
+        log.critical(
+            _context, f"Uncaught exception with '{search_field}': {uncaught_exception}"
+        )
         return
+
 
 # ERROR MANAGEMENT AND RESULTS FILTERING
 def filtered_by_name(name_to_filter: str, filters: dict) -> bool:
@@ -484,35 +576,36 @@ def filtered_by_name(name_to_filter: str, filters: dict) -> bool:
     with every test passed, return 'True'.
     """
 
-    pos_filters = filters['positive']
-    neg_filters = filters['negative']
-    
+    pos_filters = filters["positive"]
+    neg_filters = filters["negative"]
+
     checks_up = False
     for word in pos_filters:
         # skip when word is an empty string
-        if word == "": 
+        if word == "":
             continue
         # checks_up when the positive filter is found
         pos_filter_check = re.search(rf"\b{word.lower()}\b", name_to_filter.lower())
-        if bool(pos_filter_check): 
+        if bool(pos_filter_check):
             checks_up = True
-        else: 
+        else:
             checks_up = False
-        if not checks_up: 
+        if not checks_up:
             break
-    
+
     if len(neg_filters) > 0 and checks_up:
         for word in neg_filters:
-            if word == "": 
+            if word == "":
                 continue
             neg_filter_fail = re.search(rf"\b{word.lower()}\b", name_to_filter.lower())
-            if not bool(neg_filter_fail): 
+            if not bool(neg_filter_fail):
                 checks_up = True
-            else: 
+            else:
                 checks_up = False
-            if not checks_up: 
+            if not checks_up:
                 break
     return checks_up
+
 
 def strip_price_str(price_str):
     price_str = price_str.replace("\xa0", " ")
@@ -524,12 +617,19 @@ def strip_price_str(price_str):
     curr = re.search(curr_expr, price_str).group(0)
     dec = re.search(dec_expr, price_str).group(0)
 
-    if dec==",": price = float( price.replace(".", "").replace(",", ".") )
-    elif dec==".": price = float( price.replace(",", "") )
+    if dec == ",":
+        price = float(price.replace(".", "").replace(",", "."))
+    elif dec == ".":
+        price = float(price.replace(",", ""))
     return [curr, price]
 
+
 def write_results(results: list, CURR_PROD_ID: int, date: datetime):
-    time_stmt = update(db.products).where(db.products.Id == CURR_PROD_ID).values(LastUpdate = datetime.now())
+    time_stmt = (
+        update(db.products)
+        .where(db.products.Id == CURR_PROD_ID)
+        .values(LastUpdate=datetime.now())
+    )
     with Session(db.DB_ENGINE) as ses:
         ses.add_all(results)
         ses.commit()
