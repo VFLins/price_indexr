@@ -463,27 +463,6 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
     _context = f"generate_filters {product}"
 
     try:
-        product_fullname = (
-            f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
-        )
-        posf = re.split(" ", product_fullname)
-        hard_negf = [
-            "Usado",
-            "Used",
-            "Pc",
-            "Computador",
-            "Ventoinhas",
-            "Ventilador",
-            "Fan",
-            "Cooler",
-            "Notebook",
-            "Bloco De Água",
-            "Water Block",
-            "Fã da placa",
-            "Dissipador",
-            "Original",
-            "Escudo Placa Traseira",
-        ]
         negf = set(re.split(",", product.ProductFilters.replace(" ", "")))
         product_name = db.product_name_by_id(product.NameId)
         if product_name.NameFilters not in [None, ""]:
@@ -492,8 +471,13 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
         if product_category.CategoryFilters not in [None, ""]:
             negf.update(re.split(",", product_category.CategoryFilters.replace(" ", "")))
 
+        product_fullname = (
+            f"{product.ProductBrand} {product_name.ProductName} {product.ProductModel}"
+        )
+        posf = re.split(" ", product_fullname)
+
         keywords = dict(
-            negative=[x.replace("_", " ") for x in negf],
+            negative=[x.replace("_", " ") for x in negf if x not in ["", "_"]],
             positive=[x.replace("_", " ") for x in posf]
         )
     except Exception as generate_filters_error:
