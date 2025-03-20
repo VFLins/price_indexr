@@ -423,7 +423,7 @@ def print_product_names(rows: list[db.product_names] | None = None):
         row_id = handle_empty_field(row, "Id")
         print(
             f"Id: {row_id}",
-            f"[{category_name}] {row.ProductName}",
+            f"({category_name}) {row.ProductName}",
             f"Filters: {name_filters}",
             sep=" | ",
         )
@@ -434,10 +434,14 @@ def print_products(rows: list[db.products] | None = None):
     if not rows:
         rows = db.scan_products()
     for row in rows:
+        product_name_obj = db.product_name_by_id(row.NameId)
+        product_name = handle_empty_field(product_name_obj, "ProductName")
+        row_id = handle_empty_field(row, "Id")
+        product_filters = handle_empty_field(row, "ProductFilters")
         print(
-            f"Id: {row.Id}",
-            f"Search: {row.ProductBrand} {row.ProductName} {row.ProductModel}",
-            f"Filters: {row.ProductFilters}",
+            f"Id: {row_id}",
+            f"Search: {row.ProductBrand} {product_name} {row.ProductModel}",
+            f"Filters: {product_filters}",
             f"Last update: {row.LastUpdate}",
             sep=" | ",
         )
