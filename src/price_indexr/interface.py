@@ -5,13 +5,36 @@ from sqlalchemy.orm import Session
 
 
 BOLD, ITALIC, ENDSTYLE = "\033[1m", "\033[3m", "\033[0m"
+_empty_ = f"{ITALIC}empty{ENDSTYLE}"
+_undefined_ = f"{ITALIC}undefined{ENDSTYLE}"
 _price_ = f"{ITALIC}:price:{ENDSTYLE}"
 _product_ = f"{ITALIC}:product:{ENDSTYLE}"
 _product_name_ = f"{ITALIC}:product_name:{ENDSTYLE}"
 _product_category_ = f"{ITALIC}:product_category:{ENDSTYLE}"
 
 
-def select_category_id() -> int|None:
+def is_empty_str_field(field: str | None) -> bool:
+    if field in [None, ""]:
+        return True
+    else:
+        return False
+
+
+def handle_empty_field(table_obj: db.TableClass | None, field_name: str) -> bool:
+    if not table_obj:
+        return f"{_undefined_}"
+
+    try:
+        field_value = table_obj.__dict__[field_name]
+    except KeyError:
+        return f"{_undefined_}"
+
+    if is_empty_str_field(field_value):
+        return f"{_empty_}"
+    return field_value
+
+
+def select_category_id() -> int | None:
     """
     Displays available categories and then prompts the user to select a category id.
 
@@ -29,7 +52,7 @@ def select_category_id() -> int|None:
         return None
 
 
-def select_name_id() -> int|None:
+def select_name_id() -> int | None:
     """
     Displays available names and then prompts the user to select a name id.
 
@@ -47,7 +70,7 @@ def select_name_id() -> int|None:
         return None
 
 
-def select_product_id() -> int|None:
+def select_product_id() -> int | None:
     """
     Prompts the user to select a *product id* after selecting a *name id*.
 
@@ -57,7 +80,7 @@ def select_product_id() -> int|None:
     name_id = select_name_id()
     if not name_id:
         return None
-    
+
     products_list = db.scan_products(name_id)
     for row in products_list:
         print(f"Id: {row.Id} | Model: {row.ProductBrand} {row.ProductModel}")
@@ -78,10 +101,10 @@ def select_product_id() -> int|None:
 def input_integer(msg: str) -> int:
     """
     Prompts the user to insert an integer number.
-    
+
     **Args**
         `msg`: message to be prompted to the user
-    
+
     **Returns**
         Number inserted as `int`, or `None` if not valid.
     """
@@ -98,7 +121,7 @@ def input_floating_point(msg: str) -> float:
 
     **Args**
         `msg`: message to be prompted to the user
-    
+
     **Returns**
         Number inserted as `float`, or `None` if not valid.
     """
@@ -109,7 +132,7 @@ def input_floating_point(msg: str) -> float:
         return None
 
 
-def input_date(msg: str, end_of_day: bool = False) -> datetime|None:
+def input_date(msg: str, end_of_day: bool = False) -> datetime | None:
     """
     Prompts the user to insert a date.
 
@@ -156,7 +179,7 @@ def input_option(menu_name: str) -> str:
 
     **Args**
         `menu_name`: Indicates to the user, what menu they are interacting with
-    
+
     **Returns**
         Uppercased value inserted by the user.
     """
@@ -185,133 +208,159 @@ def _options_menu(name: str, options: dict):
 
 def main_menu():
     _options_menu(
-        name = "Main",
+        name="Main",
         options={
             "C": (lambda: create_menu()),
             "L": (lambda: navigate_menu()),
             "U": (lambda: update_menu()),
             "D": (lambda: delete_menu()),
             "K": (lambda: collect_menu()),
-            "H": (lambda: print_help([
-                "C: Create a new product to price index",
-                "L: Navigate the database",
-                "U: Update a recorded product",
-                "D: Delete elements from the database",
-                f"K: Collect {_price_}",
-                "H: Show this help message",
-                "Q: Quit"
-                ])
-            )
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        "C: Create a new product to price index",
+                        "L: Navigate the database",
+                        "U: Update a recorded product",
+                        "D: Delete elements from the database",
+                        f"K: Collect {_price_}",
+                        "H: Show this help message",
+                        "Q: Quit",
+                    ]
+                )
+            ),
+        },
     )
 
 
 def collect_menu():
     _options_menu(
-        name = "Main > Collect",
-        options = {
+        name="Main > Collect",
+        options={
             "A": (lambda: collect_prices_from_products(rows=db.scan_products())),
             "S": (lambda: update_prices()),
-            "H": (lambda: print_help([
-                f"A: Collect {_price_} from all products",
-                f"S: Collect {_price_} for a specific collection of products",
-                "H: Show this help message",
-                "Q: Return to main menu",
-                ])
-            )
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: Collect {_price_} from all products",
+                        f"S: Collect {_price_} for a specific collection of products",
+                        "H: Show this help message",
+                        "Q: Return to main menu",
+                    ]
+                )
+            ),
+        },
     )
 
 
 def navigate_menu():
     _options_menu(
-        name = "Main > Navigate",
-        options = {
+        name="Main > Navigate",
+        options={
             "A": (lambda: print_products()),
             "S": (lambda: list_products_by_name()),
             "P": (lambda: navigate_prices_menu()),
-            "H": (lambda: print_help([
-                f"A: List all {_product_}",
-                f"S: List {_product_} by {_product_name_}",
-                "P: Prices menu",
-                "H: Show this help message",
-                "Q: Return to main menu",
-                ])
-            )
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: List all {_product_}",
+                        f"S: List {_product_} by {_product_name_}",
+                        "P: Prices menu",
+                        "H: Show this help message",
+                        "Q: Return to main menu",
+                    ]
+                )
+            ),
+        },
     )
 
 
 def navigate_prices_menu():
     _options_menu(
-        name = "Main > Navigate > Prices",
-        options = {
+        name="Main > Navigate > Prices",
+        options={
             "A": (lambda: list_prices_by_name()),
             "S": (lambda: list_prices_by_product()),
             "D": (lambda: list_low_price_outliers()),
-            "H": (lambda: print_help([
-                f"A: From {_product_name_} (broader)",
-                f"S: From {_product_}",
-                f"D: Lowest prices from {_product_name_}",
-                "H: Show this help message",
-                "Q: Return to navigate menu"
-            ]))
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: From {_product_name_} (broader)",
+                        f"S: From {_product_}",
+                        f"D: Lowest prices from {_product_name_}",
+                        "H: Show this help message",
+                        "Q: Return to navigate menu",
+                    ]
+                )
+            ),
+        },
     )
 
 
 def delete_menu():
     _options_menu(
-        name = "Main > Delete",
-        options = {
+        name="Main > Delete",
+        options={
             "A": (lambda: delete_product()),
             "S": (lambda: delete_price()),
             "D": (lambda: delete_by_low_price()),
-            "H": (lambda: print_help([
-                f"A: Delete a {_product_}",
-                f"S: Delete a {_price_} registry",
-                f"D: [Caution] Remove all {_price_} from a product below a cutoff",
-                "H: Show this help message",
-                "Q: Return to main menu"
-            ])),
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: Delete a {_product_}",
+                        f"S: Delete a {_price_} registry",
+                        f"D: [Caution] Remove all {_price_} from a product below a cutoff",
+                        "H: Show this help message",
+                        "Q: Return to main menu",
+                    ]
+                )
+            ),
+        },
     )
 
 
 def update_menu():
     _options_menu(
-        name = "Main > Update",
-        options = {
+        name="Main > Update",
+        options={
             "A": (lambda: assign_category()),
             "F": (lambda: update_product()),
-            "H": (lambda: print_help([
-                f"A: Assign {_product_category_} to {_product_name_}",
-                "F: Update product filters",
-                "H: Show this help message",
-                "Q: Return to main menu",
-            ]))
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: Assign {_product_category_} to {_product_name_}",
+                        "F: Update product filters",
+                        "H: Show this help message",
+                        "Q: Return to main menu",
+                    ]
+                )
+            ),
+        },
     )
 
 
 def create_menu():
     _options_menu(
-        name = "Main > Collect",
-        options = {
+        name="Main > Create",
+        options={
             "A": (lambda: create_product()),
             "S": (lambda: create_product_name()),
             "D": (lambda: create_product_category()),
-            "H": (lambda: print_help([
-                f"A: Create a {_product_} assigned to an existing {_product_name_}",
-                f"S: Create a {_product_name_} assigned to an existing {_product_category_}",
-                f"D: Create a {_product_category_}",
-                "H: Show this help message",
-                "Q: Return to main menu",
-            ]))
-        }
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: Create a {_product_} assigned to an existing {_product_name_}",
+                        f"S: Create a {_product_name_} assigned to an existing {_product_category_}",
+                        f"D: Create a {_product_category_}",
+                        "H: Show this help message",
+                        "Q: Return to main menu",
+                    ]
+                )
+            ),
+        },
     )
 
-def pick_product_by_id(message: str = "Pick a product") -> db.products|None:
+
+def pick_product_by_id(message: str = "Pick a product") -> db.products | None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
     id_num = input(message + " (leave blank to cancel): ")
     try:
@@ -325,7 +374,7 @@ def pick_product_by_id(message: str = "Pick a product") -> db.products|None:
     return db.product_by_id(id_num)
 
 
-def pick_name_by_id(message: str = "Pick a product ID") -> db.product_names|None:
+def pick_name_by_id(message: str = "Pick a product ID") -> db.product_names | None:
     """Gets an input fom the user and returns a product if valid, `None` otherwise."""
     id_num = input_integer(message + " (leave blank to cancel)")
     if not id_num:
@@ -337,7 +386,7 @@ def pick_name_by_id(message: str = "Pick a product ID") -> db.product_names|None
     return db.product_name_by_id(id_num)
 
 
-def pick_price_by_id(message: str = "Pick a price ID") -> db.prices|None:
+def pick_price_by_id(message: str = "Pick a price ID") -> db.prices | None:
     id_num = input_integer(message + " (leave blank to cancel)")
     if not id_num:
         print("Not a valid ID number.")
@@ -348,7 +397,7 @@ def pick_price_by_id(message: str = "Pick a price ID") -> db.prices|None:
     return db.price_by_id(id_num)
 
 
-def print_category_names(rows: list[db.product_categories]|None = None):
+def print_category_names(rows: list[db.product_categories] | None = None):
     """Displays all rows from *product_categories* table to the user."""
     if not rows:
         rows = db.scan_categories()
@@ -356,15 +405,21 @@ def print_category_names(rows: list[db.product_categories]|None = None):
         print(f"Id: {row.Id}", f"{row.CategoryName}", sep=" | ")
 
 
-def print_product_names(rows: list[db.product_names]|None = None):
+def print_product_names(rows: list[db.product_names] | None = None):
     """Displays all rows from *product_names* table to the user."""
     if not rows:
         rows = db.scan_names()
     for row in rows:
-        category_name = db.product_category_by_id(row.CategoryId)
-        if category_name:
-            category_name = category_name.CategoryName
-        print(f"Id: {row.Id}", f"{row.ProductName}", f"Category: {category_name}", sep=" | ")
+        product_category = db.product_category_by_id(row.CategoryId)
+        category_name = handle_empty_field(product_category, "CategoryName")
+        name_filters = handle_empty_field(row, "NameFilters")
+        row_id = handle_empty_field(row, "Id")
+        print(
+            f"Id: {row_id}",
+            f"[{category_name}] {row.ProductName}",
+            f"Filters: {name_filters}",
+            sep=" | ",
+        )
 
 
 def print_products(rows: list[db.products] | None = None):
@@ -376,7 +431,8 @@ def print_products(rows: list[db.products] | None = None):
             f"Id: {row.Id}",
             f"Search: {row.ProductBrand} {row.ProductName} {row.ProductModel}",
             f"Filters: {row.ProductFilters}",
-            f"Last update: {row.LastUpdate}", sep=" | "
+            f"Last update: {row.LastUpdate}",
+            sep=" | ",
         )
 
 
@@ -388,7 +444,8 @@ def print_prices(rows: list[db.prices]):
             f"{row.Date.strftime('%Y-%m-%d')}",
             f"{row.Currency} {row.Price:.2f}",
             f"{row.Name}",
-            f"Store: {row.Store}", sep=" | "
+            f"Store: {row.Store}",
+            sep=" | ",
         )
 
 
@@ -405,7 +462,7 @@ def list_products_by_name():
         rows = db.scan_products(name_id)
         print_products(rows)
         return
-    print("Aborting operation...\n")   
+    print("Aborting operation...\n")
 
 
 def delete_product():
@@ -426,7 +483,7 @@ def delete_product():
             ses.execute(stmt)
             ses.commit()
     except Exception as err:
-        print("Not able to delete", str(err), sep="\n")    
+        print("Not able to delete", str(err), sep="\n")
 
 
 def delete_price():
@@ -447,7 +504,9 @@ def delete_price():
 def delete_by_low_price():
     """Prompts the user to remove all prices below a cutoff from a product."""
     prices = list_low_price_outliers(returns=True)
-    confirm = input_confirm(f"Confirm deletion of ALL these {_price_}s? (CANNOT BE UNDONE)")
+    confirm = input_confirm(
+        f"Confirm deletion of ALL these {_price_}s? (CANNOT BE UNDONE)"
+    )
     if confirm:
         db.delete_price_rows(prices)
         print(f"{len(prices)} {_price_} removed.")
@@ -458,9 +517,7 @@ def delete_by_low_price():
 def create_product_category():
     """Prompts the user to create an entry to *product_categories* table."""
     category_name = db.format_name(input("Insert the new category name: "))
-    product_category_obj = db.product_categories(
-        CategoryName=category_name
-    )
+    product_category_obj = db.product_categories(CategoryName=category_name)
     print_category_names([product_category_obj])
     confirm = input_confirm("Add this entry to the database?")
     if not confirm:
@@ -470,22 +527,28 @@ def create_product_category():
     if new_id:
         print(f"Id for the new category is {new_id}.")
     else:
-        print(f"Identical {ITALIC}category name{ENDSTYLE} in database, Aborting operation...")
-    
+        print(
+            f"Identical {ITALIC}category name{ENDSTYLE} in database, Aborting operation..."
+        )
+
 
 def create_product_name():
     """Prompts the user to create an entry to *product_names* table."""
     if not db.table_has_data("product_categories"):
-        print(f"Create a {ITALIC}category name{ENDSTYLE} before you add a {_product_name_} to the database.")
+        print(
+            f"Create a {ITALIC}category name{ENDSTYLE} before you add a {_product_name_} to the database."
+        )
         return
     category_id = select_category_id()
     if not category_id:
         print("Aborting operation...")
         return
     product_name = db.format_name(input(f"Insert the new {_product_name_}: "))
+    name_filters = db.format_name(input(f"Insert the new {_product_name_}'s filters: "))
     product_name_obj = db.product_names(
         ProductName=product_name,
         CategoryId=category_id,
+        NameFilters=name_filters,
     )
     print_product_names([product_name_obj])
     confirm = input_confirm("Add this entry to the database?")
@@ -501,7 +564,9 @@ def create_product_name():
 
 def create_product():
     if not db.table_has_data("product_names"):
-        print(f"Create a {_product_name_} before you add a {_product_name_} to the database.")
+        print(
+            f"Create a {_product_name_} before you add a {_product_name_} to the database."
+        )
         return
     name_id = select_name_id()
     if not name_id:
@@ -517,7 +582,7 @@ def create_product():
         ProductModel=model_name,
         ProductBrand=brand_name,
         ProductFilters=filters,
-        Created=datetime.now()
+        Created=datetime.now(),
     )
     print_products([product_obj])
     confirm = input_confirm("Add this entry to the database?")
@@ -530,7 +595,7 @@ def create_product():
         return
     print(f"Id for the new {_product_} is {new_id}.")
     product_obj.Id = new_id
-    collect_prices_from_products([product_obj])        
+    collect_prices_from_products([product_obj])
 
 
 def collect_prices_from_products(rows: list[db.products]):
@@ -554,9 +619,7 @@ def list_prices_by_name():
     date_min = input_date("Insert a start date")
     date_max = input_date("Insert an end date", end_of_day=True)
     prices = db.scan_prices(
-        product_ids=products_ids,
-        date_max=date_max,
-        date_min=date_min
+        product_ids=products_ids, date_max=date_max, date_min=date_min
     )
     print_prices(prices)
 
@@ -569,15 +632,13 @@ def list_prices_by_product():
     date_min = input_date("Insert a start date")
     date_max = input_date("Insert an end date", end_of_day=True)
     prices = db.scan_prices(
-        product_ids=[product_id],
-        date_max=date_max,
-        date_min=date_min
+        product_ids=[product_id], date_max=date_max, date_min=date_min
     )
     print_prices(prices)
 
 
 def list_low_price_outliers(returns: bool = False):
-    name_id = select_name_id() 
+    name_id = select_name_id()
     if not name_id:
         print("Invalid Id provided.\n")
         return
@@ -586,10 +647,7 @@ def list_low_price_outliers(returns: bool = False):
         print("Invalid price value.\n")
         return
     products_ids = [i.Id for i in db.scan_products(name_id=name_id)]
-    prices = db.scan_prices(
-        product_ids=products_ids,
-        price_max=max_price_val
-    )
+    prices = db.scan_prices(product_ids=products_ids, price_max=max_price_val)
     print_prices(prices)
     if returns:
         return prices
@@ -627,9 +685,13 @@ def update_product():
     if not confirm:
         print("Aborting operation...")
         return
-    new_filters = input("Insert the new filters (retype existing ones that you want to keep): ")
+    new_filters = input(
+        "Insert the new filters (retype existing ones that you want to keep): "
+    )
     with Session(db.DB_ENGINE) as ses:
-        selected_row = ses.execute(select(db.products).where(db.products.Id == row.Id)).scalar_one()
+        selected_row = ses.execute(
+            select(db.products).where(db.products.Id == row.Id)
+        ).scalar_one()
         selected_row.ProductFilters = new_filters
         ses.commit()
 
@@ -648,7 +710,9 @@ def assign_category():
         return
     category = db.product_category_by_id(category_id)
     name = db.product_name_by_id(name_id)
-    confirm = input_confirm(f"Set category {category.CategoryName} to {name.ProductName}?")
+    confirm = input_confirm(
+        f"Set category {category.CategoryName} to {name.ProductName}?"
+    )
     if not confirm:
         print("Aborting operation...")
         return
