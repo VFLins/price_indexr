@@ -402,7 +402,9 @@ def print_category_names(rows: list[db.product_categories] | None = None):
     if not rows:
         rows = db.scan_categories()
     for row in rows:
-        print(f"Id: {row.Id}", f"{row.CategoryName}", sep=" | ")
+        category_filters = handle_empty_field(row, "CategoryFilters")
+        row_id = handle_empty_field(row, "Id")
+        print(f"Id: {row_id}", f"{row.CategoryName}", f"Filters: {category_filters}", sep=" | ")
 
 
 def print_product_names(rows: list[db.product_names] | None = None):
@@ -516,8 +518,9 @@ def delete_by_low_price():
 
 def create_product_category():
     """Prompts the user to create an entry to *product_categories* table."""
-    category_name = db.format_name(input("Insert the new category name: "))
-    product_category_obj = db.product_categories(CategoryName=category_name)
+    category_name = db.format_name(input(f"Insert the new {_product_category_} name: "))
+    category_filters = db.format_name(input(f"Insert the new {_product_category_} filters: "))
+    product_category_obj = db.product_categories(CategoryName=category_name, CategoryFilters=category_filters)
     print_category_names([product_category_obj])
     confirm = input_confirm("Add this entry to the database?")
     if not confirm:
@@ -543,8 +546,8 @@ def create_product_name():
     if not category_id:
         print("Aborting operation...")
         return
-    product_name = db.format_name(input(f"Insert the new {_product_name_}: "))
-    name_filters = db.format_name(input(f"Insert the new {_product_name_}'s filters: "))
+    product_name = db.format_name(input(f"Insert the new {_product_name_} name: "))
+    name_filters = db.format_name(input(f"Insert the new {_product_name_} filters: "))
     product_name_obj = db.product_names(
         ProductName=product_name,
         CategoryId=category_id,
