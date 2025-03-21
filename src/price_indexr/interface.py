@@ -326,14 +326,34 @@ def update_menu():
         name="Main > Update",
         options={
             "A": (lambda: assign_category()),
-            "F": (lambda: update_product()),
+            "S": (lambda: update_filters_menu()),
             "H": (
                 lambda: print_help(
                     [
                         f"A: Assign {_product_category_} to {_product_name_}",
-                        "F: Update product filters",
+                        "S: Update filters menu",
                         "H: Show this help message",
                         "Q: Return to main menu",
+                    ]
+                )
+            ),
+        },
+    )
+
+
+def update_filters_menu():
+    _options_menu(
+        name="Main > Update > Filters",
+        options={
+            "A": (lambda: update_product()),
+            "D": (lambda: update_filters_of_product_category()),
+            "H": (
+                lambda: print_help(
+                    [
+                        f"A: Update filters of a {_product_}",
+                        f"D: Update filters of a {_product_category_}",
+                        "H: Show this help message",
+                        "Q: Return to update menu",
                     ]
                 )
             ),
@@ -361,6 +381,21 @@ def create_menu():
             ),
         },
     )
+
+
+def pick_category_by_id(
+    message: str = "Prick a category",
+) -> db.product_categories | None:
+    id_num = input(message + "(leave blank to cancel): ")
+    try:
+        id_num = int(id_num)
+    except ValueError:
+        print("Not a valid ID number.")
+        return None
+    if not db.id_category_exists(id_num):
+        print("This ID is not present on data.")
+        return None
+    return db.category_by_id(id_num)
 
 
 def pick_product_by_id(message: str = "Pick a product") -> db.products | None:
@@ -737,6 +772,30 @@ def assign_category():
         return
     db.set_category_to_name(name_id, category_id)
     print("Completed")
+
+
+def update_filters_of_product_category():
+    if not db.table_has_data("product_categories"):
+        print("You need to create a category before assigning, go to [Main > Create].")
+        return
+    product_category = pick_category_by_id()
+    if not product_category:
+        print("Aborting operation...")
+        return
+    current_filters = handle_empty_field(product_category, "CategoryFilters")
+    print(
+        "You will need to retype the full filters of this product category.",
+        f"Current value is: {current_filters}",
+        sep="\n",
+    )
+    new_filters = input(
+        "Insert the new filters (retype existing ones that you want to keep): "
+    )
+    confirm = input_confirm("Confirm new filters?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+    db.assign_category_filters(product_category.Id, new_filters)
 
 
 if __name__ == "__main__":

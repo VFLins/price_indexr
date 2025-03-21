@@ -521,6 +521,13 @@ def product_name_by_id(id: int) -> product_names | None:
         return ses.execute(stmt).scalar_one_or_none()
 
 
+def category_by_id(id: int) -> product_categories | None:
+    """Return an entry from product_categories table with the specified `id`. `None` if it doesn't exist."""
+    with Session(DB_ENGINE) as ses:
+        stmt = select(product_categories).where(product_categories.Id == id)
+        return ses.execute(stmt).scalar_one_or_none()
+
+
 def product_by_id(id: int) -> products | None:
     """Return an entry from products table with the specified `id`. `None` if it doesn't exist."""
     with Session(DB_ENGINE) as ses:
@@ -688,6 +695,18 @@ def set_category_to_name(name_id: int, category_id: int):
         update(product_names)
         .where(product_names.Id == name_id)
         .values(CategoryId=category_id)
+    )
+    with Session(DB_ENGINE) as ses:
+        ses.execute(stmt)
+        ses.commit()
+
+
+def assign_category_filters(category_id: int, new_filters: str):
+    """Set `new_filters` to *CategoryFilters* column in *product_categories*."""
+    stmt = (
+        update(product_categories)
+        .where(product_categories.Id == category_id)
+        .values(CategoryFilters=new_filters)
     )
     with Session(DB_ENGINE) as ses:
         ses.execute(stmt)
