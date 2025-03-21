@@ -13,12 +13,22 @@ _product_name_ = f"{ITALIC}:product_name:{ENDSTYLE}"
 _product_category_ = f"{ITALIC}:product_category:{ENDSTYLE}"
 
 
-def handle_empty_field(table_obj: db.TableClass | None, field_name: str) -> str:
-    if not table_obj:
+def handle_empty_field(table_cls: db.TableClass | None, field_name: str) -> str:
+    f"""
+    Handles field values in `TableClass` objects that might be empty or undefined:
+
+    **Args**
+        `table_cls`: Table class from where the value should be extracted
+        `field_name`: Name of the field where the desired value is expected to be
+
+    **Returns**
+        `str` {_empty_} if defined but empty, {_undefined_}, or the actual field value
+    """
+    if not table_cls:
         return _undefined_
 
     try:
-        field_value = table_obj.__dict__[field_name]
+        field_value = table_cls.__dict__[field_name]
     except KeyError:
         return _undefined_
 
