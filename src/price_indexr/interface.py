@@ -13,24 +13,17 @@ _product_name_ = f"{ITALIC}:product_name:{ENDSTYLE}"
 _product_category_ = f"{ITALIC}:product_category:{ENDSTYLE}"
 
 
-def is_empty_str_field(field: str | None) -> bool:
-    if field in [None, ""]:
-        return True
-    else:
-        return False
-
-
-def handle_empty_field(table_obj: db.TableClass | None, field_name: str) -> bool:
+def handle_empty_field(table_obj: db.TableClass | None, field_name: str) -> str:
     if not table_obj:
-        return f"{_undefined_}"
+        return _undefined_
 
     try:
         field_value = table_obj.__dict__[field_name]
     except KeyError:
-        return f"{_undefined_}"
+        return _undefined_
 
-    if is_empty_str_field(field_value):
-        return f"{_empty_}"
+    if field_value in [None, ""]:
+        return _empty_
     return field_value
 
 
