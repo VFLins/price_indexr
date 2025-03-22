@@ -345,12 +345,14 @@ def update_filters_menu():
     _options_menu(
         name="Main > Update > Filters",
         options={
-            "A": (lambda: update_product()),
+            "A": (lambda: update_filters_of_product()),
+            "S": (lambda: update_filters_of_product_name()),
             "D": (lambda: update_filters_of_product_category()),
             "H": (
                 lambda: print_help(
                     [
                         f"A: Update filters of a {_product_}",
+                        f"S: Update filters of a {_product_name_}",
                         f"D: Update filters of a {_product_category_}",
                         "H: Show this help message",
                         "Q: Return to update menu",
@@ -728,28 +730,6 @@ def update_prices():
     collect_prices_from_products(rows=[selected_prod])
 
 
-def update_product():
-    print("You can only update the filters's field in this version...")
-    row = pick_product_by_id("Select the product with the filter to update")
-    if not row:
-        print("This row Id doesn't exist!")
-        return
-    print_products(rows=[row])
-    confirm = input_confirm("Retype the filters for this record?")
-    if not confirm:
-        print("Aborting operation...")
-        return
-    new_filters = input(
-        "Insert the new filters (retype existing ones that you want to keep): "
-    )
-    with Session(db.DB_ENGINE) as ses:
-        selected_row = ses.execute(
-            select(db.products).where(db.products.Id == row.Id)
-        ).scalar_one()
-        selected_row.ProductFilters = new_filters
-        ses.commit()
-
-
 def assign_category():
     if not db.table_has_data("product_categories"):
         print("You need to create a category before assigning, go to [Main > Create].")
@@ -776,7 +756,7 @@ def assign_category():
 
 def update_filters_of_product_category():
     if not db.table_has_data("product_categories"):
-        print("You need to create a category before assigning, go to [Main > Create].")
+        print(f"You need to create a {_product_category_} before assigning, go to [Main > Create].")
         return
     product_category = pick_category_by_id()
     if not product_category:
@@ -784,7 +764,7 @@ def update_filters_of_product_category():
         return
     current_filters = handle_empty_field(product_category, "CategoryFilters")
     print(
-        "You will need to retype the full filters of this product category.",
+        f"You will need to retype the full filters of this {_product_category_}.",
         f"Current value is: {current_filters}",
         sep="\n",
     )
@@ -796,6 +776,54 @@ def update_filters_of_product_category():
         print("Aborting operation...")
         return
     db.assign_category_filters(product_category.Id, new_filters)
+
+
+def update_filters_of_product_name():
+    if not db.table_has_data("product_names"):
+        print(f"You need to create a {_product_name_} before assigning, go to [Main > Create].")
+        return
+    product_name = pick_name_by_id()
+    if not product_name:
+        print("Aborting operation...")
+        return
+    current_filters = handle_empty_field(product_name, "NameFilters")
+    print(
+        f"You will need to retype the full filters of this {_product_name_}.",
+        f"Current value is: {current_filters}",
+        sep="\n",
+    )
+    new_filters = input(
+        "Insert the new filters (retype existing ones that you want to keep): "
+    )
+    confirm = input_confirm("Confirm new filters?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+    db.assign_name_filters(product_name.Id, new_filters)
+
+
+def update_filters_of_product():
+    if not db.table_has_data("products"):
+        print(f"You need to create a {_product_} before assigning, go to [Main > Create].")
+        return
+    product = pick_product_by_id(f"Select the {_product_} with the filter to update")
+    if not product:
+        print("Aborting operation...")
+        return
+    current_filters = handle_empty_field(product, "ProductFilters")
+    print(
+        f"You will need to retype the full filters of this {_product_}.",
+        f"Current value is: {current_filters}",
+        sep="\n",
+    )
+    new_filters = input(
+        "Insert the new filters (retype existing ones that you want to keep): "
+    )
+    confirm = input_confirm("Confirm new filters?")
+    if not confirm:
+        print("Aborting operation...")
+        return
+    db.assign_product_filters(product.Id, new_filters)
 
 
 if __name__ == "__main__":

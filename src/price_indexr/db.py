@@ -711,3 +711,26 @@ def assign_category_filters(category_id: int, new_filters: str):
     with Session(DB_ENGINE) as ses:
         ses.execute(stmt)
         ses.commit()
+
+
+def assign_name_filters(name_id: int, new_filters: str):
+    """Set `new_filters` to *NameFilters* column in *product_names*."""
+    stmt = (
+        update(product_names)
+        .where(product_names.Id == name_id)
+        .values(NameFilters=new_filters)
+    )
+    with Session(DB_ENGINE) as ses:
+        ses.execute(stmt)
+        ses.commit()
+
+def assign_product_filters(product_id: int, new_filters: str):
+    """Set `new_filters` to *ProductFilters* column in *products*."""
+    stmt = (
+        update(products)
+        .where(products.Id == product_id)
+        .values(ProductFilters=new_filters)
+    )
+    with Session(DB_ENGINE) as ses:
+        ses.execute(stmt)
+        ses.commit()
