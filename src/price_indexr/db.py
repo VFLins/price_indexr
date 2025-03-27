@@ -425,7 +425,7 @@ def format_name(name: str) -> str:
 
 
 def table_has_data(
-    tablename: Literal["prices", "products", "product_names", "product_categories"]
+    tablename: Literal["prices", "products", "product_names", "product_categories"],
 ):
     stmt = select(func.count()).select_from(
         select(literal_column("1")).select_from(table(tablename)).limit(1).subquery()

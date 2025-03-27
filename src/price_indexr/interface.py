@@ -350,9 +350,9 @@ def update_filters_menu():
     _options_menu(
         name="Main > Update > Filters",
         options={
-            "A": (lambda: update_filters_of_product()),
-            "S": (lambda: update_filters_of_product_name()),
-            "D": (lambda: update_filters_of_product_category()),
+            "A": (lambda: update_filter_field("products")),
+            "S": (lambda: update_filter_field("product_names")),
+            "D": (lambda: update_filter_field("product_categories")),
             "H": (
                 lambda: print_help(
                     [
@@ -763,22 +763,35 @@ def assign_category():
 
 class ProductInteractor:
     def __init__(self, tablename: LiteralProductTablenames):
-        if tablename == "products":
-            self.product = pick_product_by_id()
-            self.product_name = db.product_name_by_id(self.product.NameId)
-            self.product_category = db.product_category_by_id(
-                self.product_name.CategoryId
+        (
+            self.product,
+            self.product_name,
+            self.product_category,
+        ) = (
+            None,
+            None,
+            None,
+        )
+        if not db.table_has_data(tablename):
+            print(
+                f"No {ITALIC}:{tablename}:{ENDSTYLE} registered, "
+                f"go to {BOLD}Main > Create{ENDSTYLE} menu"
             )
-        if tablename == "product_names":
-            self.product = None
-            self.product_name = pick_name_by_id()
-            self.product_category = db.product_category_by_id(
-                self.product_name.CategoryId
-            )
-        if tablename == "product_categories":
-            self.product, self.product_name = None, None
-            self.product_category = pick_category_by_id()
-
+            return
+        match tablename:
+            case "products":
+                self.product = pick_product_by_id()
+                self.product_name = db.product_name_by_id(self.product.NameId)
+                self.product_category = db.product_category_by_id(
+                    self.product_name.CategoryId
+                )
+            case "product_names":
+                self.product_name = pick_name_by_id()
+                self.product_category = db.product_category_by_id(
+                    self.product_name.CategoryId
+                )
+            case "product_categories":
+                self.product_category = pick_category_by_id()
         self._table_map = {
             "products": self.product,
             "product_names": self.product_name,
@@ -790,34 +803,58 @@ class ProductInteractor:
             "product_categories": "CategoryFilters",
         }
 
+    def table_is_present(self, tablename: LiteralProductTablenames) -> bool:
+        match tablename:
+            case "products":
+                return type(self.product) == db.products
+            case "product_names":
+                return type(self.product_name) == db.product_names
+            case "product_categories":
+                return type(self.product_category) == db.product_categories
+            case _:
+                raise ValueError(f"Expected literal value {LiteralProductTablenames}")
+
     def get_name(self, tablename: LiteralProductTablenames) -> str:
         match tablename:
             case "products":
+                if self.product is None:
+                    return _undefined_
                 return (
                     f"{self.product.ProductBrand} "
                     f"{self.product_name.ProductName} "
                     f"{self.product.ProductModel}"
                 )
             case "product_names":
+                if self.product_name is None:
+                    return _undefined_
                 return self.product_name.ProductName
             case "product_categories":
+                if self.product_category is None:
+                    return _undefined_
                 return self.product_category.CategoryName
             case _:
-                return handle_empty_field(None, "nofield")
+                return _undefined_
 
     def get_filter(self, tablename: LiteralProductTablenames) -> str:
         field_name = self._filterfield_map.get(tablename)
         table_cls = self._table_map.get(tablename)
         return handle_empty_field(table_cls, field_name)
 
-    def set_filter_field(self, tablename: LiteralProductTablenames, new_filters: str):
-        row = self._tablename_map[tablename]
+    def set_filter(self, tablename: LiteralProductTablenames, new_filters: str):
         call_map = {
             "products": db.assign_product_filters,
             "product_names": db.assign_name_filters,
             "product_categories": db.assign_category_filters,
         }
-        call_map.get(tablename)(row.Id, new_filters)
+        if not self.table_is_present(tablename):
+            print("")
+            return
+        row = self._table_map.get(tablename)
+        try:
+            call_map.get(tablename)(row.Id, new_filters)
+        except TypeError:
+            # catch TypeError: NoneType is not callable
+            print(f"Can not set filter in {tablename=}")
 
 
 class GenericProductInteractor:
@@ -876,27 +913,13 @@ class GenericProductInteractor:
 
 
 def update_filter_field(tablename: LiteralProductTablenames) -> str | None:
-    if not db.table_has_data(tablename=tablename):
-        print(
-            f"You didn't create any entry in {tablename} table, go to [Main > Create]."
-        )
+    tbl_handler = ProductInteractor(tablename)
+    if not tbl_handler.table_is_present(tablename):
+        print("Aborting operation...")
         return
-    call_map = {
-        "products": pick_product_by_id,
-        "product_names": pick_name_by_id,
-        "product_categories": pick_category_by_id,
-    }
-    row = call_map.get(tablename)()
-    if not row:
-        return
-    fieldname_map = {
-        "products": "ProductFilters",
-        "product_names": "NameFilters",
-        "product_categories": "CategoryFilters",
-    }
-    current_filters = handle_empty_field(row, fieldname_map.get(tablename))
+    current_filters = tbl_handler.get_filter(tablename)
     print(
-        f"You will need to retype the {fieldname_map.get(tablename)} completely.",
+        f"You will need to retype the {tbl_handler._filterfield_map[tablename]} completely.",
         f"Current value is: {current_filters}",
         sep="\n",
     )
@@ -906,90 +929,7 @@ def update_filter_field(tablename: LiteralProductTablenames) -> str | None:
     if not input_confirm("Confirm new filters?"):
         print("Aborting operation...")
         return
-    call_map = {
-        "products": db.assign_product_filters,
-        "product_names": db.assign_name_filters,
-        "product_categories": db.assign_category_filters,
-    }
-    call_map.get(tablename)(row.Id, new_filters)
-
-
-def update_filters_of_product_category():
-    if not db.table_has_data("product_categories"):
-        print(
-            f"You need to create a {_product_category_} before assigning, go to [Main > Create]."
-        )
-        return
-    product_category = pick_category_by_id()
-    if not product_category:
-        print("Aborting operation...")
-        return
-    current_filters = handle_empty_field(product_category, "CategoryFilters")
-    print(
-        f"You will need to retype the full filters of this {_product_category_}.",
-        f"Current value is: {current_filters}",
-        sep="\n",
-    )
-    new_filters = input(
-        "Insert the new filters (retype existing ones that you want to keep): "
-    )
-    confirm = input_confirm("Confirm new filters?")
-    if not confirm:
-        print("Aborting operation...")
-        return
-    db.assign_category_filters(product_category.Id, new_filters)
-
-
-def update_filters_of_product_name():
-    if not db.table_has_data("product_names"):
-        print(
-            f"You need to create a {_product_name_} before assigning, go to [Main > Create]."
-        )
-        return
-    product_name = pick_name_by_id()
-    if not product_name:
-        print("Aborting operation...")
-        return
-    current_filters = handle_empty_field(product_name, "NameFilters")
-    print(
-        f"You will need to retype the full filters of this {_product_name_}.",
-        f"Current value is: {current_filters}",
-        sep="\n",
-    )
-    new_filters = input(
-        "Insert the new filters (retype existing ones that you want to keep): "
-    )
-    confirm = input_confirm("Confirm new filters?")
-    if not confirm:
-        print("Aborting operation...")
-        return
-    db.assign_name_filters(product_name.Id, new_filters)
-
-
-def update_filters_of_product():
-    if not db.table_has_data("products"):
-        print(
-            f"You need to create a {_product_} before assigning, go to [Main > Create]."
-        )
-        return
-    product = pick_product_by_id(f"Select the {_product_} with the filter to update")
-    if not product:
-        print("Aborting operation...")
-        return
-    current_filters = handle_empty_field(product, "ProductFilters")
-    print(
-        f"You will need to retype the full filters of this {_product_}.",
-        f"Current value is: {current_filters}",
-        sep="\n",
-    )
-    new_filters = input(
-        "Insert the new filters (retype existing ones that you want to keep): "
-    )
-    confirm = input_confirm("Confirm new filters?")
-    if not confirm:
-        print("Aborting operation...")
-        return
-    db.assign_product_filters(product.Id, new_filters)
+    tbl_handler.set_filter(tablename, new_filters)
 
 
 if __name__ == "__main__":
