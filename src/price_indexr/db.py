@@ -424,7 +424,9 @@ def format_name(name: str) -> str:
     return re.sub(" +", " ", name.title())
 
 
-def table_has_data(tablename: Literal["prices", "product_names", "product_categories"]):
+def table_has_data(
+    tablename: Literal["prices", "products", "product_names", "product_categories"]
+):
     stmt = select(func.count()).select_from(
         select(literal_column("1")).select_from(table(tablename)).limit(1).subquery()
     )
@@ -723,6 +725,7 @@ def assign_name_filters(name_id: int, new_filters: str):
     with Session(DB_ENGINE) as ses:
         ses.execute(stmt)
         ses.commit()
+
 
 def assign_product_filters(product_id: int, new_filters: str):
     """Set `new_filters` to *ProductFilters* column in *products*."""
