@@ -469,7 +469,9 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
             negf.update(re.split(",", product_name.NameFilters.replace(" ", "")))
         product_category = db.product_category_by_id(product_name.CategoryId)
         if product_category.CategoryFilters not in [None, ""]:
-            negf.update(re.split(",", product_category.CategoryFilters.replace(" ", "")))
+            negf.update(
+                re.split(",", product_category.CategoryFilters.replace(" ", ""))
+            )
 
         product_fullname = (
             f"{product.ProductBrand} {product_name.ProductName} {product.ProductModel}"
@@ -478,7 +480,7 @@ def generate_filters(product: db.products) -> Tuple[str, Dict[str, list]]:
 
         keywords = dict(
             negative=[x.replace("_", " ") for x in negf if x not in ["", "_"]],
-            positive=[x.replace("_", " ") for x in posf]
+            positive=[x.replace("_", " ") for x in posf],
         )
     except Exception as generate_filters_error:
         log.error(_context, f"{generate_filters_error}")
