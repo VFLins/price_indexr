@@ -444,6 +444,17 @@ def pick_price_by_id(message: str = "Pick a price ID") -> db.prices | None:
     return db.price_by_id(id_num)
 
 
+def pick_table_by_id(tablename: LiteralTablenames, message: str) -> db.Table | None:
+    row_id = input_integer(message + " (leave blank to cancel): ")
+    if not row_id:
+        print("Not a valid ID number.")
+        return None
+    if not db.table_row_exists(tablename, row_id):
+        print("This ID is not present on data.")
+        return None
+    return db.table_row_by_id(tablename, row_id)
+
+
 def print_category_names(rows: list[db.product_categories] | None = None):
     """Displays all rows from *product_categories* table to the user."""
     if not rows:
@@ -775,7 +786,7 @@ class ProductInteractor:
         if not db.table_has_data(tablename):
             print(
                 f"No {ITALIC}:{tablename}:{ENDSTYLE} registered, "
-                f"go to {BOLD}Main > Create{ENDSTYLE} menu"
+                f"go to {BOLD}[Main > Create]{ENDSTYLE} menu"
             )
             return
         match tablename:
@@ -792,27 +803,45 @@ class ProductInteractor:
                 )
             case "product_categories":
                 self.product_category = pick_category_by_id()
-        self._table_map = {
-            "products": self.product,
-            "product_names": self.product_name,
-            "product_categories": self.product_category,
-        }
+
         self._filterfield_map = {
             "products": "ProductFilters",
             "product_names": "NameFilters",
             "product_categories": "CategoryFilters",
         }
 
-    def table_is_present(self, tablename: LiteralProductTablenames) -> bool:
+    def fetch_data(self, tablename: LiteralProductTablenames, row_id: int):
         match tablename:
             case "products":
-                return type(self.product) == db.products
+                self.product = db.product_by_id(row_id)
+                self.product_name = db.product_name_by_id(self.product.NameId)
+                self.product_category = db.product_category_by_id(
+                    self.product_name.CategoryId
+                )
             case "product_names":
-                return type(self.product_name) == db.product_names
+                self.product_name = db.product_name_by_id(row_id)
+                self.product_category = db.product_category_by_id(
+                    self.product_name.CategoryId
+                )
             case "product_categories":
-                return type(self.product_category) == db.product_categories
+                self.product_category = db.product_category_by_id(row_id)
+
+    def get_table(self, tablename: LiteralProductTablenames) -> db.TableClass:
+        match tablename:
+            case "products":
+                return self.product
+            case "product_names":
+                return self.product_name
+            case "product_categories":
+                return self.product_category
             case _:
-                raise ValueError(f"Expected literal value {LiteralProductTablenames}")
+                raise ValueError(
+                    f"Undefined {tablename=}, "
+                    f"expected one of {LiteralProductTablenames}"
+                )
+
+    def table_is_present(self, tablename: LiteralProductTablenames) -> bool:
+        return self.get_table(tablename) is not None
 
     def get_name(self, tablename: LiteralProductTablenames) -> str:
         match tablename:
@@ -837,7 +866,7 @@ class ProductInteractor:
 
     def get_filter(self, tablename: LiteralProductTablenames) -> str:
         field_name = self._filterfield_map.get(tablename)
-        table_cls = self._table_map.get(tablename)
+        table_cls = self.get_table(tablename)
         return handle_empty_field(table_cls, field_name)
 
     def set_filter(self, tablename: LiteralProductTablenames, new_filters: str):
@@ -849,67 +878,12 @@ class ProductInteractor:
         if not self.table_is_present(tablename):
             print("")
             return
-        row = self._table_map.get(tablename)
+        row = self.get_table(tablename)
         try:
             call_map.get(tablename)(row.Id, new_filters)
         except TypeError:
             # catch TypeError: NoneType is not callable
             print(f"Can not set filter in {tablename=}")
-
-
-class GenericProductInteractor:
-    def __init__(self, **kwargs):
-        product_id = kwargs.get(product_id)
-        name_id = kwargs.get(name_id)
-        category_id = kwargs.get(category_id)
-        self.product, self.product_name, self.product_category, self.level = (
-            None,
-            None,
-            None,
-            None,
-        )
-        self._tablename_map = {
-            "products": self.product,
-            "product_name": self.product_name,
-            "product_category": self.product_category,
-        }
-        self._filterfield_map = {
-            "products": "ProductFilters",
-            "product_names": "NameFilters",
-            "product_categories": "CategoryFilters",
-        }
-
-        if product_id is not None:
-            self.level = "product"
-            self.product = db.product_by_id(product_id)
-            self.product_name = db.product_name_by_id(self.product.NameId)
-            self.product_category = db.product_category_by_id(
-                self.product_name.CategoryId
-            )
-            return
-        if name_id is not None:
-            self.level = "product_name"
-            self.product_name = db.product_name_by_id(name_id)
-            self.product_category = db.product_category_by_id(
-                self.product_name.CategoryId
-            )
-            return
-        if name_id is not None:
-            self.level = "product_category"
-            self.product_name = db.product_name_by_id(name_id)
-
-    def get_name_field(self, tablename: LiteralProductTablenames) -> str:
-        match tablename:
-            case "products":
-                return (
-                    f"{self.product.ProductBrand} "
-                    f"{self.product_name.ProductName} "
-                    f"{self.product.ProductModel}"
-                )
-            case "product_names":
-                return self.product_name.ProductName
-            case "product_categories":
-                return self.product_category.CategoryName
 
 
 def update_filter_field(tablename: LiteralProductTablenames) -> str | None:

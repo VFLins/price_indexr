@@ -28,6 +28,7 @@ from sqlalchemy.orm import (
     declared_attr,
 )
 from warnings import warn
+from copy import copy
 from sqlalchemy.exc import AmbiguousForeignKeysError, InvalidRequestError
 from typing import List, Literal, Type, NewType, final
 from datetime import datetime
@@ -737,3 +738,33 @@ def assign_product_filters(product_id: int, new_filters: str):
     with Session(DB_ENGINE) as ses:
         ses.execute(stmt)
         ses.commit()
+
+
+def assign_value(tablename, row_id, engine: Engine = DB_ENGINE, **kwargs):
+    meta = MetaData()
+    meta.reflect(engine)
+    table_cls = type(meta.tables[tablename])
+    stmt = update(table_cls).where(table_cls.Id == row_id).values(**kwargs)
+    with Session(engine) as ses:
+        ses.execute(stmt)
+        ses.commit()
+
+
+def table_row_exists(tablename, row_id, engine: Engine = DB_ENGINE):
+    meta = MetaData()
+    meta.reflect(engine)
+    table_cls = type(meta.tables[tablename])
+    with Session(engine) as ses:
+        stmt = select(table_cls).where(table_cls.Id == row_id)
+        result = tuple(ses.execute(stmt).scalars())
+    return bool(len(result))
+
+
+def table_row_by_id(tablename, row_id, engine: Engine = DB_ENGINE):
+    meta = MetaData()
+    meta.reflect(engine)
+    table_cls = type(meta.tables[tablename])
+    with Session(engine) as ses:
+        stmt = select(table_cls).where(table_cls.Id == row_id)
+        result = ses.execute(stmt).scalar_one_or_none()
+    return result
