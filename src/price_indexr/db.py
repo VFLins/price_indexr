@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Table,
     Column,
+    Row,
     MetaData,
     Engine,
     ForeignKey,
@@ -743,28 +744,31 @@ def assign_product_filters(product_id: int, new_filters: str):
 def assign_value(tablename, row_id, engine: Engine = DB_ENGINE, **kwargs):
     meta = MetaData()
     meta.reflect(engine)
-    table_cls = type(meta.tables[tablename])
-    stmt = update(table_cls).where(table_cls.Id == row_id).values(**kwargs)
+    table = meta.tables[tablename]
+    id_col = table.c["Id"]
+    stmt = update(table).where(id_col == row_id).values(**kwargs)
     with Session(engine) as ses:
         ses.execute(stmt)
         ses.commit()
 
 
-def table_row_exists(tablename, row_id, engine: Engine = DB_ENGINE):
+def row_exists(tablename, row_id, engine: Engine = DB_ENGINE) -> bool:
     meta = MetaData()
     meta.reflect(engine)
-    table_cls = type(meta.tables[tablename])
+    table = meta.tables[tablename]
+    id_col = table.c["Id"]
     with Session(engine) as ses:
-        stmt = select(table_cls).where(table_cls.Id == row_id)
+        stmt = select(table).where(id_col == row_id)
         result = tuple(ses.execute(stmt).scalars())
     return bool(len(result))
 
 
-def table_row_by_id(tablename, row_id, engine: Engine = DB_ENGINE):
+def row_by_id(tablename, row_id, engine: Engine = DB_ENGINE) -> Row | None:
+    """Return a Row object from a table with the specified `row_id`. `None` if it doesn't exist."""
     meta = MetaData()
     meta.reflect(engine)
-    table_cls = type(meta.tables[tablename])
+    table = meta.tables[tablename]
+    id_col = table.c["Id"]
     with Session(engine) as ses:
-        stmt = select(table_cls).where(table_cls.Id == row_id)
-        result = ses.execute(stmt).scalar_one_or_none()
-    return result
+        stmt = select(table).where(id_col == row_id)
+        return ses.execute(stmt).first()
