@@ -109,7 +109,12 @@ class SearchResponses:
             self.bing_inline = soup_bing.find_all(
                 "div", {"class": "slide", "data-appns": "commerce", "tabindex": True}
             )
-            self.bing_grid = soup_bing.find_all("li", {"class": "br-item"})
+            self.bing_inline = [
+                res for res in self.bing_inline if res.find("div", class_="br-gOffCard")
+            ]
+            self.bing_grid = soup_bing.find_all(
+                "div", {"class": "br-wholeCardClickable"}
+            )
         else:
             self.bing_inline, self.bing_grid = (None, None)
 
@@ -129,14 +134,11 @@ class SearchResponses:
     def _parse_all(self):
         _context = "SearchResponses.parse_all"
         parsers = (
-            p
-            for p in [
-                self._parse_google_inline,
-                self._parse_google_grid,
-                self._parse_google_highlight,
-                self._parse_bing_inline,
-                self._parse_bing_grid,
-            ]
+            self._parse_google_inline,
+            self._parse_google_grid,
+            self._parse_google_highlight,
+            self._parse_bing_inline,
+            self._parse_bing_grid,
         )
 
         _max_errors: int = 5
@@ -367,8 +369,8 @@ class SearchResponses:
         for result in self.bing_grid:
             try:
                 line = {}
-                name_block = result.find("div", {"class": "br-pdItemName"})
-                Name = name_block.get_text()
+                name_block = result.find("span", {"title": True})
+                Name = name_block["title"]
 
                 if not filtered_by_name(Name, self.filter_kws):
                     continue
@@ -377,7 +379,7 @@ class SearchResponses:
                     result.find("div", {"class": "pd-price"}).get_text()
                 )
 
-                line["Url"] = f"https://bing.com{result['data-url']}"
+                line["Url"] = result.find("a", {"class": "br-compareSellers"})["href"]
                 line["Name"] = Name
                 line["Date"] = self.Date
                 line["Store"] = result.find(
