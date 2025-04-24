@@ -245,12 +245,10 @@ class SearchResponses:
                     result.find("span", {"class": "lmQWe"}).get_text()
                 )
 
-                line["Url"] = f"https://www.google.com/search?q={Name}&tbm=shop"
+                line["Url"] = f"https://www.google.com/search?q={Name.replace(" ", "%20")}&tbm=shop"
                 line["Name"] = Name
                 line["Date"] = self.Date
-                line["Store"] = result.find(
-                    "div", {"class": "aULzUe IuHnof"}
-                ).get_text()
+                line["Store"] = result.find("span", {"class": "WJMUdc"}).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = self.product.Id
