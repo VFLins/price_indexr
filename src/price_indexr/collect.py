@@ -97,8 +97,8 @@ class SearchResponses:
         self.soup_google = soup_google
 
         if soup_google:
-            self.google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
-            self.google_grid = soup_google.find_all("g-inner-card")
+            self.google_inline = soup_google.find_all("div", {"data-dtld": True})
+            self.google_grid = soup_google.find_all("g-inner-card", {"jscontroller": True})
             self.google_highlight = soup_google.find("div", {"class": "_-oX"})
         else:
             self.google_inline, self.google_grid, self.google_highlight = (
@@ -197,24 +197,19 @@ class SearchResponses:
         for result in self.google_inline:
             try:
                 line = {}
-                Name = result.find(
-                    "h3", {"class": "sh-np__product-title translate-content"}
-                ).get_text()
+                Name = result.find("span", {"class": "pymv4e"}).get_text()
 
                 if not filtered_by_name(Name, self.filter_kws):
                     continue
 
                 Price = strip_price_str(
-                    result.find("b", {"class": "translate-content"}).get_text()
+                    result.find("span", {"class": "e10twf"}).get_text()
                 )
 
-                url_complement = result.find(
-                    "a", {"class": "shntl sh-np__click-target"}
-                ).attrs["href"]
-                line["Url"] = f"https://google.com{url_complement}"
+                line["Url"] = result.find("a", {"data-impdclcc": True})["href"]
                 line["Name"] = Name
                 line["Date"] = self.Date
-                line["Store"] = result.find("span", {"class": "E5ocAb"}).get_text()
+                line["Store"] = result.find("span", {"aria-label": True}).get_text()
                 line["Price"] = Price[1]
                 line["Currency"] = Price[0]
                 line["ProductId"] = self.product.Id
@@ -511,7 +506,12 @@ def collect_search(q: str, product: db.products, keywords: dict) -> SearchRespon
     async def get_webpage(url, params):
         try:
             async with AsyncClient() as client:
-                return await client.get(url=url, params=params, headers=SEARCH_HEADERS, follow_redirects=True)
+                return await client.get(
+                    url=url,
+                    params=params,
+                    headers=SEARCH_HEADERS,
+                    follow_redirects=True,
+                )
         except Exception as err:
             log.error(_context, f"Could not get {url} contents: {err}")
             return None
