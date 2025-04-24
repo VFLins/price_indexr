@@ -19,7 +19,7 @@ for dirpath in [DATA_PATH, LOG_PATH]:
     os.makedirs(dirpath, exist_ok=True)
 
 SEARCH_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76"
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36",
 }
 
 # =============== #
@@ -93,10 +93,12 @@ class SearchResponses:
         product: db.products,
         filter_kws: dict,
     ):
+        self.soup_bing = soup_bing
+        self.soup_google = soup_google
 
         if soup_google:
             self.google_inline = soup_google.find_all("div", {"class": "KZmu8e"})
-            self.google_grid = soup_google.find_all("div", {"class": "sh-dgr__content"})
+            self.google_grid = soup_google.find_all("g-inner-card")
             self.google_highlight = soup_google.find("div", {"class": "_-oX"})
         else:
             self.google_inline, self.google_grid, self.google_highlight = (
@@ -509,7 +511,7 @@ def collect_search(q: str, product: db.products, keywords: dict) -> SearchRespon
     async def get_webpage(url, params):
         try:
             async with AsyncClient() as client:
-                return await client.get(url=url, params=params, headers=SEARCH_HEADERS)
+                return await client.get(url=url, params=params, headers=SEARCH_HEADERS, follow_redirects=True)
         except Exception as err:
             log.error(_context, f"Could not get {url} contents: {err}")
             return None
