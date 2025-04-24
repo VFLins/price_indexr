@@ -236,18 +236,16 @@ class SearchResponses:
         for result in self.google_grid:
             try:
                 line = {}
-                Name = result.find("h3", {"class": "tAxDx"}).get_text()
+                Name = result.find("div", {"aria-labelledby": True, "title": True})["title"]
 
                 if not filtered_by_name(Name, self.filter_kws):
                     continue
 
                 Price = strip_price_str(
-                    result.find("span", {"class": "a8Pemb"}).get_text()
+                    result.find("span", {"class": "lmQWe"}).get_text()
                 )
 
-                line["Url"] = (
-                    f"https://www.google.com{result.find('a', {'class' : 'xCpuod'})['href']}"
-                )
+                line["Url"] = f"https://www.google.com/search?q={Name}&tbm=shop"
                 line["Name"] = Name
                 line["Date"] = self.Date
                 line["Store"] = result.find(
