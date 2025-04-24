@@ -749,6 +749,28 @@ def update_prices():
 
 
 def assign_category():
+    tbl_handler = ProductInteractor("product_names")
+    if not tbl_handler.table_is_present("product_names"):
+        print("Aborting operation...")
+        return
+    category_id = select_category_id()
+    if not category_id:
+        print("Aborting operation...")
+        return
+    confirm = input_confirm(
+        f"Set category {tbl_handler.product_category.CategoryName} "
+        f"to {tbl_handler.product_name.ProductName}?"
+    )
+    if not confirm:
+        print("Aborting operation...")
+        return
+    db.assign_value(
+        "product_names",
+        tbl_handler.product_name.Id,
+        CategoryId=category_id
+    )
+
+def assign_category():
     if not db.table_has_data("product_categories"):
         print("You need to create a category before assigning, go to [Main > Create].")
         return
@@ -852,7 +874,7 @@ class ProductInteractor:
     def set_filter(self, tablename: LiteralProductTablenames, new_filter):
         row = self.get_table(tablename)  # will raise if tablename not expected
         new_values = {self._filterfield_map[tablename]: new_filter}
-        db.assign_value(tablename, row.Id**new_values)
+        db.assign_value(tablename, row.Id, **new_values)
 
 
 def update_filter_field(tablename: LiteralProductTablenames) -> str | None:
