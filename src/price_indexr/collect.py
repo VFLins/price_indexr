@@ -321,7 +321,10 @@ class SearchResponses:
             try:
                 line = {}
                 name_block = result.find("span", {"title": True})
-                Name = name_block["title"]
+                if name_block:
+                    Name = name_block["title"]
+                else:
+                    Name = result.find("div", {"class": ["br-offTtl", "b_primtxt"]}).get_text() 
 
                 if not filtered_by_name(Name, self.filter_kws):
                     continue
