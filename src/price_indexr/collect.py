@@ -246,7 +246,7 @@ class SearchResponses:
                 )
                 Store = result.find("span", {"class": "WJMUdc"}).get_text()
 
-                line["Url"] = f"https://www.google.com/search?q={Name.replace(" ", "%20")}%20{Store.replace(" ", "%20")}"
+                line["Url"] = f"https://www.google.com/search?q={Store.replace(" ", "%20")}%20{Name.replace(" ", "%20")}"
                 line["Name"] = Name
                 line["Date"] = self.Date
                 line["Store"] = Store
