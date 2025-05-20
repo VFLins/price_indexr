@@ -17,13 +17,13 @@ def time_and_execute():
         except Exception as err:
             prodname = f"{product.ProductBrand} {product.ProductName} {product.ProductModel}"
             log.error(_context,f"Unexpected error collecting prices from '{prodname}'. Reason: {str(err)}")
-            sleep(300)
+            sleep(900)
 
     while True:
         prod_list = scan_products()
         update_time = datetime.now() - timedelta(hours=12)
         hiatus_time = datetime.now() - timedelta(days=30)
-        
+
         for prod in prod_list:
             prodname = f"{prod.ProductBrand} {prod.ProductName} {prod.ProductModel}"
             try:
