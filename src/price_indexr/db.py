@@ -772,3 +772,19 @@ def row_by_id(tablename, row_id, engine: Engine = DB_ENGINE) -> Row | None:
     with Session(engine) as ses:
         stmt = select(table).where(id_col == row_id)
         return ses.execute(stmt).first()
+
+
+def assign_successor_product_name(
+    superseded_id: int, successor_id: int, engine: Engine = DB_ENGINE
+):
+    """Assigns a `product_name` as superseded by another one."""
+    if not id_name_exists(superseded_id) or not id_name_exists(successor_id):
+        return
+    with Session(engine) as ses:
+        stmt = (
+            update(product_names)
+            .where(product_names.Id == superseded_id)
+            .values(SupersededBy=successor_id)
+        )
+        ses.execute(stmt)
+        ses.commit()

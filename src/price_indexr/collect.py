@@ -98,7 +98,9 @@ class SearchResponses:
 
         if soup_google:
             self.google_inline = soup_google.find_all("div", {"data-dtld": True})
-            self.google_grid = soup_google.find_all("g-inner-card", {"jscontroller": True})
+            self.google_grid = soup_google.find_all(
+                "g-inner-card", {"jscontroller": True}
+            )
             self.google_highlight = soup_google.find("div", {"class": "_-oX"})
         else:
             self.google_inline, self.google_grid, self.google_highlight = (
@@ -236,7 +238,9 @@ class SearchResponses:
         for result in self.google_grid:
             try:
                 line = {}
-                Name = result.find("div", {"aria-labelledby": True, "title": True})["title"]
+                Name = result.find("div", {"aria-labelledby": True, "title": True})[
+                    "title"
+                ]
 
                 if not filtered_by_name(Name, self.filter_kws):
                     continue
@@ -246,7 +250,9 @@ class SearchResponses:
                 )
                 Store = result.find("span", {"class": "WJMUdc"}).get_text()
 
-                line["Url"] = f"https://www.google.com/search?q={Store.replace(" ", "%20")}%20{Name.replace(" ", "%20")}"
+                line["Url"] = (
+                    f"https://www.google.com/search?q={Store.replace(" ", "%20")}%20{Name.replace(" ", "%20")}"
+                )
                 line["Name"] = Name
                 line["Date"] = self.Date
                 line["Store"] = Store
@@ -325,7 +331,9 @@ class SearchResponses:
                 if name_block:
                     Name = name_block["title"]
                 else:
-                    Name = result.find("div", {"class": ["br-offTtl", "b_primtxt"]}).get_text() 
+                    Name = result.find(
+                        "div", {"class": ["br-offTtl", "b_primtxt"]}
+                    ).get_text()
 
                 if not filtered_by_name(Name, self.filter_kws):
                     continue

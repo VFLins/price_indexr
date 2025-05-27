@@ -332,11 +332,13 @@ def update_menu():
         options={
             "A": (lambda: assign_category()),
             "S": (lambda: update_filters_menu()),
+            "D": (lambda: update_supersededby_field()),
             "H": (
                 lambda: print_help(
                     [
                         f"A: Assign {_product_category_} to {_product_name_}",
                         "S: Update filters menu",
+                        f"D: Mark a {_product_name_} as superseded by another one.",
                         "H: Show this help message",
                         "Q: Return to main menu",
                     ]
@@ -765,10 +767,9 @@ def assign_category():
         print("Aborting operation...")
         return
     db.assign_value(
-        "product_names",
-        tbl_handler.product_name.Id,
-        CategoryId=category_id
+        "product_names", tbl_handler.product_name.Id, CategoryId=category_id
     )
+
 
 def assign_category():
     if not db.table_has_data("product_categories"):
@@ -812,6 +813,9 @@ class ProductInteractor:
             )
             return
         row_id = input_integer(f"Pick a {ITALIC}:{tablename}:{ENDSTYLE} id")
+        if not row_id:
+            print("Not a valid Id number")
+            return
         self.fetch_data(tablename, row_id)
 
         self._filterfield_map = {
@@ -823,18 +827,24 @@ class ProductInteractor:
     def fetch_data(self, tablename: LiteralProductTablenames, row_id: int):
         match tablename:
             case "products":
-                self.product = db.row_by_id("products", row_id)
-                self.product_name = db.row_by_id("product_names", self.product.NameId)
-                self.product_category = db.row_by_id(
+                self.product: db.products = db.row_by_id("products", row_id)
+                self.product_name: db.product_names = db.row_by_id(
+                    "product_names", self.product.NameId
+                )
+                self.product_category: db.product_categories = db.row_by_id(
                     "product_categories", self.product_name.CategoryId
                 )
             case "product_names":
-                self.product_name = db.row_by_id("product_names", row_id)
-                self.product_category = db.row_by_id(
+                self.product_name: db.product_names = db.row_by_id(
+                    "product_names", row_id
+                )
+                self.product_category: db.product_categories = db.row_by_id(
                     "product_categories", self.product_name.CategoryId
                 )
             case "product_categories":
-                self.product_category = db.product_category_by_id(row_id)
+                self.product_category: db.product_categories = (
+                    db.product_category_by_id(row_id)
+                )
 
     def get_table(self, tablename: LiteralProductTablenames) -> db.TableClass:
         match tablename:
@@ -876,8 +886,21 @@ class ProductInteractor:
         new_values = {self._filterfield_map[tablename]: new_filter}
         db.assign_value(tablename, row.Id, **new_values)
 
+    def get_successor_product_name(self):
+        if not self.table_is_present("product_names"):
+            UserWarning("No `product_name` prepared to be accessed.")
+        return getattr(self.product_name, "SupersededBy")
 
-def update_filter_field(tablename: LiteralProductTablenames) -> str | None:
+    def set_successor_product_name(self, successor_id: int):
+        """Assigns current `product_name` as superseded by another one."""
+        if not self.table_is_present("product_names"):
+            UserWarning("No `product_name` prepared to be marked as superseded.")
+        db.assign_successor_product_name(
+            superseded_id=self.product_name.Id, successor_id=successor_id
+        )
+
+
+def update_filter_field(tablename: LiteralProductTablenames):
     tbl_handler = ProductInteractor(tablename)
     if not tbl_handler.table_is_present(tablename):
         print("Aborting operation...")
@@ -895,6 +918,38 @@ def update_filter_field(tablename: LiteralProductTablenames) -> str | None:
         print("Aborting operation...")
         return
     tbl_handler.set_filter(tablename, new_filters)
+
+
+def update_supersededby_field():
+    superseded_product = ProductInteractor("product_names")
+    if not superseded_product.table_is_present("product_names"):
+        print("Aborting operation...")
+        return
+    id_currently_superseded_by = superseded_product.get_successor_product_name()
+    if not id_currently_superseded_by:
+        print("Product currently not marked as superseded by any other product.")
+    else:
+        print(
+            f"Currently marked as superseded by {_product_name_} "
+            f"Id: {superseded_product.product_name.SupersededBy}"
+        )
+    print("Select a successor product:")
+    successor_product = ProductInteractor("product_names")
+    if not successor_product.table_is_present("product_names"):
+        print("Aborting operation...")
+        return
+    confirm = input_confirm(
+        f"Assign {successor_product.product_name.ProductName} as successor "
+        f"replacement for {superseded_product.product_name.ProductName}?\n"
+        f"This will make the scheduler ignore the superseded {_product_name_} "
+        "and not collect it's prices."
+    )
+    if not confirm:
+        print("Aborting operation...")
+        return
+    superseded_product.set_successor_product_name(
+        successor_id=successor_product.product_name.Id
+    )
 
 
 if __name__ == "__main__":
