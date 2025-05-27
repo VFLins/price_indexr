@@ -452,17 +452,37 @@ def scan_names() -> list[product_names]:
         return [row for row in result]
 
 
-def scan_products(name_id: int | None = None) -> list[products]:
+def scan_products(
+    name_id: int | None = None, engine: Engine = DB_ENGINE
+) -> list[products]:
     """
     Read *products* table to get a list of rows.
 
     **Args**
         `name_id`: ID number of the desired name. `None`, if should get all products.
+        `engine`: Database engine where the products will be looked for.
     """
     stmt = select(products)
     if name_id:
         stmt = stmt.where(products.NameId == name_id)
-    with Session(DB_ENGINE) as ses:
+    with Session(engine) as ses:
+        result = ses.execute(stmt).scalars()
+        return [row for row in result]
+
+
+def scan_active_products(engine: Engine = DB_ENGINE):
+    """
+    Similar to :ref:`scan_products`, but returns only *products* with no assigned successor replacement.
+
+    **Args**
+        `engine`: Database engine where the products will be looked for.
+    """
+    stmt = (
+        select(products)
+        .join(product_names, products.NameId == product_names.Id)
+        .where(product_names.SupersededBy.is_(None))
+    )
+    with Session(engine) as ses:
         result = ses.execute(stmt).scalars()
         return [row for row in result]
 

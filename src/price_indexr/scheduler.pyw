@@ -1,5 +1,5 @@
 import price_indexr.collect as pi
-from price_indexr.db import scan_products, products
+from price_indexr.db import scan_active_products, products
 from datetime import date, datetime, timedelta
 from time import sleep
 
@@ -20,7 +20,7 @@ def time_and_execute():
             sleep(900)
 
     while True:
-        prod_list = scan_products()
+        prod_list = scan_active_products()
         update_time = datetime.now() - timedelta(hours=12)
         hiatus_time = datetime.now() - timedelta(days=30)
 
